@@ -31,6 +31,7 @@ export function HomeScreen({
   const [nameInput, setNameInput] = useState('')
   const [starterHero, setStarterHero] = useState<HeroId>('kitty')
   const [showProfiles, setShowProfiles] = useState(false)
+  const [showTools, setShowTools] = useState(false)
 
   const heroDef = HEROES[profile.character] ?? HEROES.kitty
   const buddyDef = profile.buddy ? HEROES[profile.buddy] : null
@@ -90,13 +91,8 @@ export function HomeScreen({
                   const pHero = HEROES[p.character] ?? HEROES.kitty
                   const selected = p.id === profile.activeProfileId
                   return (
-                    <button
+                    <div
                       key={p.id}
-                      type="button"
-                      onClick={() => {
-                        profile.switchProfile(p.id)
-                        setShowProfiles(false)
-                      }}
                       className={[
                         'flex items-center gap-3 rounded-2xl border-2 p-3 text-left active:scale-95',
                         selected
@@ -104,14 +100,33 @@ export function HomeScreen({
                           : 'border-[var(--c-border)] bg-black/20 hover:brightness-125',
                       ].join(' ')}
                     >
-                      <PixelSprite map={pHero.frames[0]} palette={pHero.palette} size={42} />
-                      <span>
-                        <span className="block font-black">{p.username}</span>
-                        <span className="block text-xs text-[var(--c-soft)]">
-                          {pHero.name} · {totalCompleted(p)} levels
+                      <button
+                        type="button"
+                        onClick={() => {
+                          profile.switchProfile(p.id)
+                          setShowProfiles(false)
+                        }}
+                        className="flex flex-1 items-center gap-3 text-left"
+                      >
+                        <PixelSprite map={pHero.frames[0]} palette={pHero.palette} size={42} />
+                        <span>
+                          <span className="block font-black">{p.username}</span>
+                          <span className="block text-xs text-[var(--c-soft)]">
+                            {pHero.name} · {totalCompleted(p)} levels
+                          </span>
                         </span>
-                      </span>
-                    </button>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!confirm(`Delete ${p.username}'s profile? This cannot be undone.`)) return
+                          profile.deleteProfile(p.id)
+                        }}
+                        className="rounded-lg border border-rose-300 bg-rose-500/20 px-2 py-1 text-xs font-black text-rose-100 hover:bg-rose-500/35"
+                      >
+                        Delete
+                      </button>
+                    </div>
                   )
                 })}
               </div>
@@ -159,6 +174,51 @@ export function HomeScreen({
               <MenuButton onClick={onRewards}>🏆 Rewards</MenuButton>
               <MenuButton onClick={onFreePlay}>🎮 Free Play</MenuButton>
             </div>
+            <button
+              type="button"
+              onClick={() => setShowTools((v) => !v)}
+              className="rounded-2xl border-2 border-[var(--c-border)] bg-black/20 px-4 py-2 text-xs font-bold text-[var(--c-soft)] transition hover:brightness-125 active:scale-95"
+            >
+              Grown-up tools {showTools ? '▲' : '▼'}
+            </button>
+            {showTools && (
+              <div className="flex flex-col gap-2 rounded-2xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] p-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!confirm(`Start ${profile.username}'s progress over from level 1?`)) return
+                    profile.resetProgress()
+                  }}
+                  className="rounded-xl border-2 border-amber-300 bg-amber-500/15 px-4 py-2 text-sm font-black text-amber-100 hover:bg-amber-500/25"
+                >
+                  Start this player over
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!confirm(`Delete ${profile.username}'s profile? This cannot be undone.`)) return
+                    if (profile.activeProfileId) profile.deleteProfile(profile.activeProfileId)
+                    setShowTools(false)
+                  }}
+                  className="rounded-xl border-2 border-rose-300 bg-rose-500/15 px-4 py-2 text-sm font-black text-rose-100 hover:bg-rose-500/25"
+                >
+                  Delete this player
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!confirm('Clear all PacAbacus players and progress on this device?')) return
+                    profile.clearAllData()
+                    settings.resetSettings()
+                    setShowTools(false)
+                    setShowProfiles(false)
+                  }}
+                  className="rounded-xl border-2 border-rose-400 bg-rose-600/25 px-4 py-2 text-sm font-black text-rose-50 hover:bg-rose-600/40"
+                >
+                  Clear all app data
+                </button>
+              </div>
+            )}
           </div>
         </>
       )}

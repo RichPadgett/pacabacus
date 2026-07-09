@@ -50,6 +50,8 @@ interface ProfileStore {
   buyBuddy: (id: HeroId) => boolean
   completeLevel: (mode: ProgressMode, level: number, stars: number) => CompleteResult
   resetProgress: () => void
+  deleteProfile: (id: string) => void
+  clearAllData: () => void
 }
 
 /** total levels completed across both modes — drives all unlocks */
@@ -61,8 +63,8 @@ export function playableCharacters(): HeroId[] {
   return STARTER_HERO_IDS
 }
 
-export function unlockedBuddies(total: number): HeroId[] {
-  return BUDDY_ORDER.filter((id) => HEROES[id].unlockLevel <= total)
+export function unlockedBuddies(adventureLevel: number): HeroId[] {
+  return BUDDY_ORDER.filter((id) => HEROES[id].unlockLevel <= adventureLevel)
 }
 
 export function buddyCost(id: HeroId): number {
@@ -102,6 +104,20 @@ function activeFields(profile: PlayerProfile) {
     adventureLevel: profile.adventureLevel,
     countingLevel: profile.countingLevel,
     stars: profile.stars,
+  }
+}
+
+function emptyFields() {
+  return {
+    activeProfileId: null,
+    username: null,
+    character: 'kitty' as HeroId,
+    buddy: null,
+    ownedBuddies: [],
+    treasureCoins: 0,
+    adventureLevel: 1,
+    countingLevel: 1,
+    stars: {},
   }
 }
 
@@ -181,6 +197,7 @@ export const useProfile = create<ProfileStore>()(
       completeLevel: (mode, level, starCount) => {
         const s = get()
         const before = totalCompleted(s)
+        const ownedBefore = new Set(s.ownedBuddies)
         const key = `${mode === 'adventure' ? 'a' : 'c'}${level}`
         const levelField = mode === 'adventure' ? 'adventureLevel' : 'countingLevel'
         const nextLevel = Math.max(s[levelField], level + 1)
@@ -188,16 +205,21 @@ export const useProfile = create<ProfileStore>()(
         const coinsEarned = firstClear ? 10 + starCount * 5 : 2
         const treasureCoins = s.treasureCoins + coinsEarned
         const stars = { ...s.stars, [key]: Math.max(s.stars[key] ?? 0, starCount) }
-        const updates = { [levelField]: nextLevel, stars, treasureCoins }
+        const nextAdventureLevel = mode === 'adventure' ? nextLevel : s.adventureLevel
+        const levelBuddies = unlockedBuddies(nextAdventureLevel)
+        const ownedBuddies = Array.from(new Set([...s.ownedBuddies, ...levelBuddies]))
+        const newBuddies = ownedBuddies.filter((id) => !ownedBefore.has(id))
+        const updates = { [levelField]: nextLevel, stars, treasureCoins, ownedBuddies }
         const after = totalCompleted({ ...s, [levelField]: nextLevel })
         set((current) => ({
           [levelField]: nextLevel,
           stars,
           treasureCoins,
+          ownedBuddies,
           profiles: syncActive(current.profiles, current.activeProfileId, updates),
         }))
         return {
-          newBuddies: [],
+          newBuddies,
           newBadges: earnedBadges(after).filter(
             (b) => !earnedBadges(before).some((eb) => eb.id === b.id),
           ),
@@ -223,6 +245,23 @@ export const useProfile = create<ProfileStore>()(
             treasureCoins: 0,
           }),
         })),
+      deleteProfile: (id) =>
+        set((s) => {
+          const profiles = s.profiles.filter((p) => p.id !== id)
+          const active =
+            id === s.activeProfileId
+              ? profiles[0]
+              : profiles.find((p) => p.id === s.activeProfileId)
+          return {
+            profiles,
+            ...(active ? activeFields(active) : emptyFields()),
+          }
+        }),
+      clearAllData: () =>
+        set({
+          profiles: [],
+          ...emptyFields(),
+        }),
     }),
     {
       name: 'pacabacus-profile',
@@ -231,8 +270,9 @@ export const useProfile = create<ProfileStore>()(
         const s = persisted as Partial<ProfileStore>
         if (s.profiles?.length) {
           const profiles = s.profiles.map((p) => {
-            const ownedBuddies =
-              p.ownedBuddies ?? unlockedBuddies(totalCompleted(p))
+            const ownedBuddies = Array.from(
+              new Set([...(p.ownedBuddies ?? []), ...unlockedBuddies(p.adventureLevel ?? 1)]),
+            )
             return {
               ...p,
               buddy: p.buddy ?? null,
@@ -255,10 +295,7 @@ export const useProfile = create<ProfileStore>()(
           character: s.character ?? 'kitty',
           buddy: null,
           ownedBuddies: unlockedBuddies(
-            totalCompleted({
-              adventureLevel: s.adventureLevel ?? 1,
-              countingLevel: s.countingLevel ?? 1,
-            }),
+            s.adventureLevel ?? 1,
           ),
           treasureCoins:
             totalCompleted({

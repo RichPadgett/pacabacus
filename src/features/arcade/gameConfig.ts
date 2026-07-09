@@ -51,7 +51,7 @@ export function adventureCfg(level: number): LevelCfg {
     problem,
     rodCount: 2,
     enemy,
-    treasureCount: Math.min(24, 10 + Math.floor(level / 3)),
+    treasureCount: Math.min(28, 15 + Math.floor(level / 2)),
     gentle: false,
     allowChallenge: true,
     intro:
@@ -89,7 +89,7 @@ export function countingCfg(level: number): LevelCfg {
     // one rod keeps it simple until sums can reach 10
     rodCount: level <= 12 ? 1 : 2,
     enemy,
-    treasureCount: Math.min(12, 4 + Math.ceil(level / 2)),
+    treasureCount: Math.min(16, 8 + Math.ceil(level / 2)),
     gentle: true,
     allowChallenge: false,
     intro:
@@ -121,7 +121,7 @@ export function freePlayCfg(s: ArcadeSettings): LevelCfg {
       chaseChance: 0.75,
       spawnChance: 0,
     },
-    treasureCount: 18,
+    treasureCount: 24,
     gentle: false,
     allowChallenge: true,
   }

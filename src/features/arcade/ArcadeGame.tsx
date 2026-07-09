@@ -29,15 +29,20 @@ const KEY_DIRS: Record<string, Dir> = {
   d: 'right',
 }
 
-function useTileSize(cols: number) {
-  const calc = () => Math.max(26, Math.min(46, Math.floor((window.innerWidth - 40) / cols)))
+function useTileSize(cols: number, rows: number) {
+  const calc = () => {
+    const widthFit = Math.floor((window.innerWidth - 40) / cols)
+    const reservedHeight = window.innerWidth > window.innerHeight ? 220 : 300
+    const heightFit = Math.floor((window.innerHeight - reservedHeight) / rows)
+    return Math.max(22, Math.min(46, widthFit, heightFit))
+  }
   const [tile, setTile] = useState(calc)
   useEffect(() => {
     const onResize = () => setTile(calc())
     window.addEventListener('resize', onResize)
     return () => window.removeEventListener('resize', onResize)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cols])
+  }, [cols, rows])
   return tile
 }
 
@@ -135,7 +140,7 @@ export function ArcadeGame({ mode, onExit }: { mode: PlayMode; onExit: () => voi
     stepMs,
     mode !== 'counting' && settings.rockTimer,
   )
-  const tile = useTileSize(state.maze.cols)
+  const tile = useTileSize(state.maze.cols, state.maze.rows)
   const world = mode === 'adventure' ? worldForAdventureLevel(state.level) : null
   const nextWorld = world && state.level < ADVENTURE_MAX ? worldForAdventureLevel(state.level + 1) : null
   const songIndex = world ? world.musicIndex : state.level - 1
@@ -234,7 +239,7 @@ export function ArcadeGame({ mode, onExit }: { mode: PlayMode; onExit: () => voi
         ? `Count the ${problem.emoji}s and make the beads match!`
         : `Solve it to earn ${payout} moves!`
       : phase === 'move'
-        ? `Steer! ${state.movesLeft} move${state.movesLeft === 1 ? '' : 's'} left — grab the treasure!`
+        ? `Steer! ${state.movesLeft} move${state.movesLeft === 1 ? '' : 's'} left — grab the fruit!`
         : phase === 'ghosts'
           ? state.jailTurns > 0
             ? 'The baddies are stuck in jail! 🔒'
@@ -247,7 +252,7 @@ export function ArcadeGame({ mode, onExit }: { mode: PlayMode; onExit: () => voi
 
   return (
     <div
-      className="relative flex min-h-svh flex-col items-center gap-3 overflow-hidden bg-[radial-gradient(circle_at_50%_20%,var(--c-bg1),var(--c-bg2)_70%)] p-3 pb-40 text-slate-50 sm:pb-3"
+      className="relative flex min-h-svh flex-col items-center gap-3 overflow-x-hidden overflow-y-auto bg-[radial-gradient(circle_at_50%_20%,var(--c-bg1),var(--c-bg2)_70%)] p-3 text-slate-50"
       style={theme.vars as React.CSSProperties}
     >
       {theme.id === 'stars' && <Twinkles />}
@@ -269,7 +274,7 @@ export function ArcadeGame({ mode, onExit }: { mode: PlayMode; onExit: () => voi
           value={`⭐ ${state.stars}${state.streak >= 2 ? ` 🔥${state.streak}` : ''}`}
         />
         <Stat label="Lives" value={'❤️'.repeat(state.lives) || '💔'} />
-        <Stat label="Items" value={String(treasuresLeft)} />
+        <Stat label="Fruit" value={String(treasuresLeft)} />
         <button
           type="button"
           onClick={() => settings.update({ music: !settings.music })}
@@ -306,7 +311,7 @@ export function ArcadeGame({ mode, onExit }: { mode: PlayMode; onExit: () => voi
         onSwipe={(dir) => dispatch({ type: 'MOVE', dir })}
       />
 
-      {/* problem + abacus + dpad */}
+      {/* problem + input panel */}
       <div className="flex flex-wrap items-start justify-center gap-4">
         <div
           className={[
@@ -362,37 +367,33 @@ export function ArcadeGame({ mode, onExit }: { mode: PlayMode; onExit: () => voi
           )}
         </div>
 
-        <div className="flex flex-col items-center rounded-2xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] p-4">
-          <h3 className="mb-2 text-xs font-bold tracking-wide text-[var(--c-soft)]">
-            YOUR ABACUS — TAP OR FLICK THE BEADS
-          </h3>
-          <Abacus
-            rodCount={state.cfg.rodCount}
-            value={state.answerValue}
-            onChange={setAnswer}
-            readOnly={phase !== 'answer'}
-            showLabels={state.cfg.rodCount > 1}
-          />
-          <div className="mt-2 text-lg">
-            Your beads say: <b className="text-2xl text-amber-300">{state.answerValue}</b>
-          </div>
+        <div className="flex min-w-72 flex-col items-center rounded-2xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] p-4">
+          {phase === 'move' ? (
+            <SteeringControls
+              embedded
+              canMove
+              onMove={(dir) => dispatch({ type: 'MOVE', dir })}
+              onStay={() => dispatch({ type: 'END_MOVE' })}
+            />
+          ) : (
+            <>
+              <h3 className="mb-2 text-xs font-bold tracking-wide text-[var(--c-soft)]">
+                YOUR ABACUS — TAP OR FLICK THE BEADS
+              </h3>
+              <Abacus
+                rodCount={state.cfg.rodCount}
+                value={state.answerValue}
+                onChange={setAnswer}
+                readOnly={phase !== 'answer'}
+                showLabels={state.cfg.rodCount > 1}
+              />
+              <div className="mt-2 text-lg">
+                Your beads say: <b className="text-2xl text-amber-300">{state.answerValue}</b>
+              </div>
+            </>
+          )}
         </div>
-
-        <SteeringControls
-          className="hidden sm:flex"
-          canMove={phase === 'move'}
-          onMove={(dir) => dispatch({ type: 'MOVE', dir })}
-          onStay={() => dispatch({ type: 'END_MOVE' })}
-        />
       </div>
-
-      <SteeringControls
-        className="fixed inset-x-0 bottom-0 z-30 flex rounded-t-3xl border-x-0 border-b-0 bg-[color-mix(in_srgb,var(--c-panel)_94%,black)] px-3 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-10px_30px_rgba(0,0,0,0.35)] sm:hidden"
-        compact
-        canMove={phase === 'move'}
-        onMove={(dir) => dispatch({ type: 'MOVE', dir })}
-        onStay={() => dispatch({ type: 'END_MOVE' })}
-      />
 
       {/* toast */}
       {state.message && (
@@ -486,12 +487,14 @@ const DIR_ARROWS: Record<Dir, string> = { up: '⬆️', down: '⬇️', left: '�
 function SteeringControls({
   className,
   compact,
+  embedded,
   canMove,
   onMove,
   onStay,
 }: {
   className?: string
   compact?: boolean
+  embedded?: boolean
   canMove: boolean
   onMove: (dir: Dir) => void
   onStay: () => void
@@ -499,13 +502,14 @@ function SteeringControls({
   return (
     <div
       className={[
-        'flex-col items-center gap-2 border-2 border-[var(--c-border)] bg-[var(--c-panel)] p-3',
-        compact ? '' : 'rounded-2xl p-4',
+        'flex flex-col items-center gap-2',
+        embedded ? 'p-0' : 'border-2 border-[var(--c-border)] bg-[var(--c-panel)] p-3',
+        compact || embedded ? '' : 'rounded-2xl p-4',
         className ?? '',
       ].join(' ')}
     >
       <h3 className="text-xs font-bold tracking-wide text-[var(--c-soft)]">STEER</h3>
-      {!compact && (
+      {!compact && !embedded && (
         <p className="max-w-40 text-center text-xs text-[var(--c-soft)]">
           Swipe the maze on a tablet, or:
         </p>

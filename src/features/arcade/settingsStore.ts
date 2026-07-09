@@ -24,6 +24,7 @@ export interface ArcadeSettings {
 
 interface SettingsStore extends ArcadeSettings {
   update: (patch: Partial<ArcadeSettings>) => void
+  resetSettings: () => void
 }
 
 /** count = how many ghosts; steps = tiles they chase per turn (right/wrong answer) */
@@ -43,20 +44,25 @@ export const SPEED_MS: Record<GameSpeed, number> = {
   speedy: 110,
 }
 
+const DEFAULT_SETTINGS: ArcadeSettings = {
+  mathLevel: 1,
+  ops: 'mixed',
+  maxAnswer: 20,
+  ghosts: 'chill',
+  speed: 'relaxed',
+  music: true,
+  theme: 'stars',
+  hero: 'chomper',
+  mode: 'maze',
+  rockTimer: true,
+}
+
 export const useArcadeSettings = create<SettingsStore>()(
   persist(
     (set) => ({
-      mathLevel: 1,
-      ops: 'mixed',
-      maxAnswer: 20,
-      ghosts: 'chill',
-      speed: 'relaxed',
-      music: true,
-      theme: 'stars',
-      hero: 'chomper',
-      mode: 'maze',
-      rockTimer: true,
+      ...DEFAULT_SETTINGS,
       update: (patch) => set(patch),
+      resetSettings: () => set(DEFAULT_SETTINGS),
     }),
     { name: 'pacabacus-arcade-settings' },
   ),
