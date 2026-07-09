@@ -52,6 +52,7 @@ const ROCK_EMOJI = '🪨'
 const JAIL_TURNS = 3
 const ROCK_DELAY_MIN_MS = 10_000
 const ROCK_DELAY_MAX_MS = 20_000
+const CLOAK_SAFE_DISTANCE = 2
 
 export interface GameState {
   level: number
@@ -64,6 +65,7 @@ export interface GameState {
   buddy: Pos
   facing: Dir
   ghosts: Pos[]
+  ghostPrev: Pos[]
   treasures: Map<string, string>
   jailFruits: Set<string>
   jailTurns: number
@@ -159,22 +161,59 @@ function randomStep(maze: MazeDef, from: Pos): Pos {
   return open.length ? open[Math.floor(Math.random() * open.length)] : from
 }
 
-function leaveFruitStep(maze: MazeDef, from: Pos, treasures: Map<string, string>): Pos | null {
+function dist(a: Pos, b: Pos) {
+  return Math.abs(a.r - b.r) + Math.abs(a.c - b.c)
+}
+
+function leaveFruitStep(
+  maze: MazeDef,
+  from: Pos,
+  treasures: Map<string, string>,
+  pac?: Pos,
+  avoid?: Pos,
+): Pos | null {
   if (!hasCollectibleTreasure(treasures, from)) return null
-  const clear = openSteps(maze, from).filter((p) => !hasCollectibleTreasure(treasures, p))
-  return clear.length ? clear[Math.floor(Math.random() * clear.length)] : null
+  const clear = openSteps(maze, from).filter(
+    (p) =>
+      !hasCollectibleTreasure(treasures, p) &&
+      (!pac || dist(p, pac) >= CLOAK_SAFE_DISTANCE),
+  )
+  const forward = avoid ? clear.filter((p) => !samePos(p, avoid)) : clear
+  const choices = forward.length ? forward : clear
+  return choices.length ? choices[Math.floor(Math.random() * choices.length)] : null
+}
+
+function randomSafeStep(maze: MazeDef, from: Pos, pac: Pos, avoid?: Pos): Pos {
+  const open = openSteps(maze, from)
+  const safest = open.filter(
+    (p) => dist(p, pac) >= CLOAK_SAFE_DISTANCE && (!avoid || !samePos(p, avoid)),
+  )
+  const safe =
+    safest.length
+      ? safest
+      : open.filter((p) => dist(p, pac) >= 1 && (!avoid || !samePos(p, avoid)))
+  const fallback = safe.length ? safe : open.filter((p) => dist(p, pac) >= 1)
+  return fallback.length ? fallback[Math.floor(Math.random() * fallback.length)] : from
 }
 
 function wanderWhileSolving(
   maze: MazeDef,
   from: Pos,
+  previous: Pos | undefined,
   treasures: Map<string, string>,
   pac: Pos,
 ): Pos {
-  const leaveFruit = leaveFruitStep(maze, from, treasures)
-  if (leaveFruit && !samePos(leaveFruit, pac)) return leaveFruit
-  const open = openSteps(maze, from).filter((p) => !samePos(p, pac))
-  return open.length ? open[Math.floor(Math.random() * open.length)] : from
+  let current = from
+  let avoid = previous
+  const steps = 1 + Math.floor(Math.random() * 2)
+  for (let i = 0; i < steps; i++) {
+    const next =
+      leaveFruitStep(maze, current, treasures, pac, avoid) ??
+      randomSafeStep(maze, current, pac, avoid)
+    avoid = current
+    current = next
+  }
+  return current
 }
 
 function farthestSpawn(maze: MazeDef, pac: Pos): Pos {
@@ -271,6 +310,7 @@ function makeReducer(cfgFor: (level: number) => LevelCfg) {
       buddy: maze.pacSpawn,
       facing: 'right',
       ghosts: maze.ghostSpawns.slice(0, cfg.enemy.count),
+      ghostPrev: maze.ghostSpawns.slice(0, cfg.enemy.count),
       treasures,
       jailFruits,
       jailTurns: 0,
@@ -385,6 +425,7 @@ function makeReducer(cfgFor: (level: number) => LevelCfg) {
             jailFruits,
             jailTurns: JAIL_TURNS,
             ghosts: state.ghosts.map(() => jail),
+            ghostPrev: state.ghosts,
             message: say(state, 'Golden strawberry! Baddies go to jail! 🔒', 'good'),
           }
         }
@@ -430,9 +471,10 @@ function makeReducer(cfgFor: (level: number) => LevelCfg) {
         if (state.phase !== 'answer' || state.jailTurns > 0) return state
         return {
           ...state,
-          ghosts: state.ghosts.map((g) =>
-            wanderWhileSolving(state.maze, g, state.treasures, state.pac),
+          ghosts: state.ghosts.map((g, i) =>
+            wanderWhileSolving(state.maze, g, state.ghostPrev[i], state.treasures, state.pac),
           ),
+          ghostPrev: state.ghosts,
         }
       }
 
@@ -445,7 +487,12 @@ function makeReducer(cfgFor: (level: number) => LevelCfg) {
             ? nextStepToward(state.maze, g, state.pac)
             : randomStep(state.maze, g)
         })
-        const stepped = { ...state, ghosts, ghostStepsLeft: state.ghostStepsLeft - 1 }
+        const stepped = {
+          ...state,
+          ghosts,
+          ghostPrev: state.ghosts,
+          ghostStepsLeft: state.ghostStepsLeft - 1,
+        }
         if (ghosts.some((g) => samePos(g, state.pac))) {
           return caughtState(stepped)
         }
@@ -474,6 +521,7 @@ function makeReducer(cfgFor: (level: number) => LevelCfg) {
           buddy: state.maze.pacSpawn,
           facing: 'right',
           ghosts: state.maze.ghostSpawns.slice(0, state.cfg.enemy.count),
+          ghostPrev: state.maze.ghostSpawns.slice(0, state.cfg.enemy.count),
           jailTurns: 0,
           ...freshProblem(state.cfg),
         }
@@ -510,6 +558,7 @@ function makeInitialState(cfgFor: (level: number) => LevelCfg, startLevel: numbe
     buddy: maze.pacSpawn,
     facing: 'right',
     ghosts: maze.ghostSpawns.slice(0, cfg.enemy.count),
+    ghostPrev: maze.ghostSpawns.slice(0, cfg.enemy.count),
     treasures,
     jailFruits,
     jailTurns: 0,
@@ -566,7 +615,7 @@ export function useArcadeGame(
     if (state.phase !== 'answer' || state.ghosts.length === 0 || state.jailTurns > 0) return
     const t = setInterval(
       () => dispatch({ type: 'GHOST_WANDER' }),
-      Math.max(650, stepMs * 4),
+      Math.max(520, stepMs * 3),
     )
     return () => clearInterval(t)
   }, [state.phase, state.ghosts.length, state.jailTurns, stepMs])
