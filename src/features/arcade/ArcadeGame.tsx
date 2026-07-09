@@ -1,12 +1,21 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Abacus } from '@/components/Abacus'
 import { chiptune } from '@/features/audio/chiptune'
-import { movesForProblem, problemText } from '@/features/drills/problemGenerator'
+import {
+  movesForProblem,
+  problemText,
+  type ArcadeProblem,
+} from '@/features/drills/problemGenerator'
+import { useProfile, type CompleteResult } from '@/features/profile/profileStore'
+import { ADVENTURE_MAX, COUNTING_MAX, adventureCfg, countingCfg, freePlayCfg } from './gameConfig'
 import type { Dir } from './maze'
 import { MazeBoard } from './MazeBoard'
-import { useArcadeSettings } from './settingsStore'
+import { HEROES } from './sprites'
+import { SPEED_MS, useArcadeSettings } from './settingsStore'
 import { THEMES } from './themes'
 import { useArcadeGame } from './useArcadeGame'
+
+export type PlayMode = 'adventure' | 'counting' | 'free'
 
 const KEY_DIRS: Record<string, Dir> = {
   ArrowUp: 'up',
@@ -60,15 +69,85 @@ function Confetti() {
   )
 }
 
-export function ArcadeGame({ onExit }: { onExit: () => void }) {
+export function Twinkles() {
+  return (
+    <>
+      <span className="twinkle text-xl" style={{ top: '8%', left: '12%' }}>✦</span>
+      <span className="twinkle text-2xl" style={{ top: '16%', right: '10%', animationDelay: '0.5s' }}>✦</span>
+      <span className="twinkle text-lg" style={{ bottom: '14%', left: '7%', animationDelay: '1s' }}>✦</span>
+    </>
+  )
+}
+
+/** big countable emoji groups for the littlest players */
+function VisualProblem({ problem }: { problem: ArcadeProblem }) {
+  const group = (n: number) => (
+    <span className="inline-flex max-w-44 flex-wrap justify-center gap-1">
+      {Array.from({ length: n }, (_, i) => (
+        <span key={i} className="text-2xl">
+          {problem.emoji}
+        </span>
+      ))}
+    </span>
+  )
+  if (problem.kind === 'count') {
+    return (
+      <div className="my-2 flex flex-wrap items-center justify-center gap-2">
+        {group(problem.a)}
+        <span className="text-3xl font-black text-amber-300">= ?</span>
+      </div>
+    )
+  }
+  return (
+    <div className="my-2 flex flex-wrap items-center justify-center gap-2">
+      {group(problem.a)}
+      <span className="text-3xl font-black text-amber-300">+</span>
+      {group(problem.b)}
+      <span className="text-3xl font-black text-amber-300">= ?</span>
+    </div>
+  )
+}
+
+export function ArcadeGame({ mode, onExit }: { mode: PlayMode; onExit: () => void }) {
   const settings = useArcadeSettings()
-  const { state, dispatch, stepMs } = useArcadeGame(settings)
+  const profile = useProfile()
+
+  const cfgFor = useMemo(() => {
+    if (mode === 'adventure') return adventureCfg
+    if (mode === 'counting') return countingCfg
+    const snapshot = freePlayCfg(settings)
+    return () => snapshot
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode])
+
+  const startLevel =
+    mode === 'adventure'
+      ? Math.min(profile.adventureLevel, ADVENTURE_MAX)
+      : mode === 'counting'
+        ? Math.min(profile.countingLevel, COUNTING_MAX)
+        : 1
+
+  const stepMs = SPEED_MS[settings.speed]
+  const { state, dispatch } = useArcadeGame(cfgFor, startLevel, stepMs)
   const tile = useTileSize(state.maze.cols)
   const theme = THEMES[settings.theme] ?? THEMES.stars
+  const hero = HEROES[profile.character] ? profile.character : 'kitty'
   const touched = useRef(false)
 
-  // hands-free: when the beads settle on the right answer, off he goes —
-  // no Go button needed (wrong answers still need a Go press to check)
+  const maxLevel = mode === 'adventure' ? ADVENTURE_MAX : mode === 'counting' ? COUNTING_MAX : Infinity
+  const [rewards, setRewards] = useState<CompleteResult | null>(null)
+  const completedLevelRef = useRef(0)
+
+  // record progress + unlocks the moment a level is cleared
+  useEffect(() => {
+    if (state.phase !== 'levelClear' || mode === 'free') return
+    if (completedLevelRef.current === state.level) return
+    completedLevelRef.current = state.level
+    setRewards(profile.completeLevel(mode, state.level, state.clearStars))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.phase, state.level, mode])
+
+  // hands-free: right beads auto-submit after a short settle
   useEffect(() => {
     if (state.phase !== 'answer' || !touched.current) return
     if (state.answerValue !== state.problem.answer) return
@@ -95,14 +174,13 @@ export function ArcadeGame({ onExit }: { onExit: () => void }) {
     return () => window.removeEventListener('keydown', onKey)
   }, [dispatch])
 
-  // music — a different song each level, cycling through the songbook
+  // music + sfx
   useEffect(() => {
     if (settings.music) chiptune.playSong(state.level - 1)
     else chiptune.stopMusic()
     return () => chiptune.stopMusic()
   }, [settings.music, state.level])
 
-  // sound effects driven by game events
   const { phase } = state
   useEffect(() => {
     if (phase === 'levelClear') chiptune.sfx('fanfare')
@@ -120,24 +198,37 @@ export function ArcadeGame({ onExit }: { onExit: () => void }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [msgId])
 
-  const dotsLeft = state.dots.size
-  const prevDots = useRef(dotsLeft)
+  const treasuresLeft = state.treasures.size
+  const prevTreasures = useRef(treasuresLeft)
   useEffect(() => {
-    if (dotsLeft < prevDots.current) chiptune.sfx('eat')
-    prevDots.current = dotsLeft
-  }, [dotsLeft])
+    if (treasuresLeft < prevTreasures.current) chiptune.sfx('eat')
+    prevTreasures.current = treasuresLeft
+  }, [treasuresLeft])
 
   const { problem } = state
   const isChallenge = problem.technique === 'challenge'
+  const isVisual = problem.kind === 'count' || (problem.emoji != null && problem.kind === 'equation')
   const payout = movesForProblem(problem)
+
+  const setAnswer = useCallback(
+    (value: number) => {
+      touched.current = true
+      dispatch({ type: 'SET_ANSWER', value })
+    },
+    [dispatch],
+  )
 
   const goalText =
     phase === 'answer'
-      ? `Solve it to earn ${payout} moves!`
+      ? problem.kind === 'count'
+        ? `Count the ${problem.emoji}s and make the beads match!`
+        : `Solve it to earn ${payout} moves!`
       : phase === 'move'
-        ? `Steer! ${state.movesLeft} move${state.movesLeft === 1 ? '' : 's'} left — swipe the maze or use arrows`
+        ? `Steer! ${state.movesLeft} move${state.movesLeft === 1 ? '' : 's'} left — grab the treasure!`
         : phase === 'ghosts'
-          ? 'The baddies are moving… 👀'
+          ? state.jailTurns > 0
+            ? 'The baddies are stuck in jail! 🔒'
+            : 'The baddies are moving… 👀'
           : phase === 'reveal'
             ? 'Watch the beads show the answer…'
             : phase === 'caught'
@@ -150,20 +241,23 @@ export function ArcadeGame({ onExit }: { onExit: () => void }) {
       style={theme.vars as React.CSSProperties}
     >
       {theme.id === 'stars' && <Twinkles />}
+
       {/* HUD */}
       <div className="flex flex-wrap items-stretch justify-center gap-2">
-        <Stat label="Level" value={`${state.level} · ${state.maze.name}`} />
+        <Stat
+          label={mode === 'counting' ? 'Little Counters' : mode === 'adventure' ? 'Adventure' : 'Free Play'}
+          value={`Level ${state.level}`}
+        />
         <Stat
           label="Stars"
           value={`⭐ ${state.stars}${state.streak >= 2 ? ` 🔥${state.streak}` : ''}`}
         />
         <Stat label="Lives" value={'❤️'.repeat(state.lives) || '💔'} />
-        <Stat label="Dots" value={String(dotsLeft)} />
+        <Stat label="Treasure" value={String(treasuresLeft)} />
         <button
           type="button"
           onClick={() => settings.update({ music: !settings.music })}
           className="rounded-xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] px-3 text-lg hover:brightness-125"
-          title="Music on/off"
         >
           {settings.music ? '🔊' : '🔇'}
         </button>
@@ -172,7 +266,7 @@ export function ArcadeGame({ onExit }: { onExit: () => void }) {
           onClick={onExit}
           className="rounded-xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] px-4 text-sm font-bold hover:brightness-125"
         >
-          ⚙️ Setup
+          🏠 Home
         </button>
       </div>
 
@@ -183,12 +277,14 @@ export function ArcadeGame({ onExit }: { onExit: () => void }) {
       <MazeBoard
         maze={state.maze}
         tile={tile}
-        dots={state.dots}
+        treasures={state.treasures}
+        jailFruits={state.jailFruits}
+        jailTurns={state.jailTurns}
         pac={state.pac}
         facing={state.facing}
         ghosts={state.ghosts}
         stepMs={stepMs}
-        hero={settings.hero}
+        hero={hero}
         onSwipe={(dir) => dispatch({ type: 'MOVE', dir })}
       />
 
@@ -196,22 +292,26 @@ export function ArcadeGame({ onExit }: { onExit: () => void }) {
       <div className="flex flex-wrap items-start justify-center gap-4">
         <div
           className={[
-            'flex min-w-56 flex-col items-center rounded-2xl border-2 p-4',
+            'flex min-w-56 max-w-80 flex-col items-center rounded-2xl border-2 p-4',
             isChallenge
               ? 'border-amber-400 bg-amber-950/50'
               : 'border-[var(--c-border)] bg-[var(--c-panel)]',
           ].join(' ')}
         >
           <h3 className="text-xs font-bold tracking-wide text-[var(--c-soft)]">
-            {isChallenge ? '⚡ CHALLENGE — ONE TRY! ⚡' : 'SOLVE ME!'}
+            {isChallenge ? '⚡ CHALLENGE — ONE TRY! ⚡' : problem.kind === 'count' ? 'HOW MANY?' : 'SOLVE ME!'}
           </h3>
-          <div className="my-2 text-4xl font-black text-amber-300">
-            {problemText(problem)} = ?
-          </div>
+          {isVisual ? (
+            <VisualProblem problem={problem} />
+          ) : (
+            <div className="my-2 text-4xl font-black text-amber-300">
+              {problemText(problem)} = ?
+            </div>
+          )}
           <div className="mb-1 rounded-full border border-emerald-500 bg-emerald-500/15 px-3 py-0.5 text-xs font-bold text-emerald-300">
             worth +{payout} moves
           </div>
-          <p className="min-h-10 max-w-60 text-center text-sm text-[var(--c-soft)]">
+          <p className="min-h-10 max-w-64 text-center text-sm text-[var(--c-soft)]">
             {state.hint}
           </p>
           <div className="mt-2 flex gap-3">
@@ -232,7 +332,7 @@ export function ArcadeGame({ onExit }: { onExit: () => void }) {
               Go! ▶
             </button>
           </div>
-          {!isChallenge && (
+          {state.cfg.allowChallenge && !isChallenge && (
             <button
               type="button"
               onClick={() => dispatch({ type: 'CHALLENGE' })}
@@ -246,20 +346,17 @@ export function ArcadeGame({ onExit }: { onExit: () => void }) {
 
         <div className="flex flex-col items-center rounded-2xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] p-4">
           <h3 className="mb-2 text-xs font-bold tracking-wide text-[var(--c-soft)]">
-            YOUR ABACUS — TAP THE BEADS
+            YOUR ABACUS — TAP OR FLICK THE BEADS
           </h3>
           <Abacus
-            rodCount={2}
+            rodCount={state.cfg.rodCount}
             value={state.answerValue}
-            onChange={(value) => {
-              touched.current = true
-              dispatch({ type: 'SET_ANSWER', value })
-            }}
+            onChange={setAnswer}
             readOnly={phase !== 'answer'}
-            showLabels
+            showLabels={state.cfg.rodCount > 1}
           />
           <div className="mt-2 text-lg">
-            Your answer: <b className="text-2xl text-amber-300">{state.answerValue}</b>
+            Your beads say: <b className="text-2xl text-amber-300">{state.answerValue}</b>
           </div>
         </div>
 
@@ -306,12 +403,30 @@ export function ArcadeGame({ onExit }: { onExit: () => void }) {
       {phase === 'levelClear' && (
         <Overlay title="🎉 Level cleared! 🎉">
           <Confetti />
-          <p className="text-lg">
-            You ate every dot with <b>{state.stars}</b> ⭐!
-          </p>
-          <OverlayButton onClick={() => dispatch({ type: 'NEXT_LEVEL' })}>
-            Next level ▶
-          </OverlayButton>
+          <p className="text-2xl">{'⭐'.repeat(state.clearStars)}</p>
+          <p className="text-lg">You collected every treasure!</p>
+          {rewards?.newCharacters.map((id) => (
+            <p key={id} className="font-bold text-amber-300">
+              🎁 New friend unlocked: {HEROES[id].name}!
+            </p>
+          ))}
+          {rewards?.newBadges.map((b) => (
+            <p key={b.id} className="font-bold text-amber-300">
+              {b.emoji} New badge: {b.name}!
+            </p>
+          ))}
+          {state.level >= maxLevel ? (
+            <>
+              <p className="text-lg font-bold text-emerald-300">
+                You finished the whole {mode === 'counting' ? 'Little Counters journey' : 'adventure'}! 🏆
+              </p>
+              <OverlayButton onClick={onExit}>Back home 🏠</OverlayButton>
+            </>
+          ) : (
+            <OverlayButton onClick={() => { setRewards(null); dispatch({ type: 'NEXT_LEVEL' }) }}>
+              Next level ▶
+            </OverlayButton>
+          )}
         </Overlay>
       )}
       {phase === 'gameOver' && (
@@ -328,22 +443,12 @@ export function ArcadeGame({ onExit }: { onExit: () => void }) {
               onClick={onExit}
               className="rounded-xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] px-6 py-2 text-lg font-bold"
             >
-              Change setup
+              🏠 Home
             </button>
           </div>
         </Overlay>
       )}
     </div>
-  )
-}
-
-export function Twinkles() {
-  return (
-    <>
-      <span className="twinkle text-xl" style={{ top: '8%', left: '12%' }}>✦</span>
-      <span className="twinkle text-2xl" style={{ top: '16%', right: '10%', animationDelay: '0.5s' }}>✦</span>
-      <span className="twinkle text-lg" style={{ bottom: '14%', left: '7%', animationDelay: '1s' }}>✦</span>
-    </>
   )
 }
 

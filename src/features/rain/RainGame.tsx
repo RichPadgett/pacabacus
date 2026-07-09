@@ -269,7 +269,7 @@ export function RainGame({ onExit }: { onExit: () => void }) {
       </div>
 
       <div className="rounded-full border-2 border-emerald-400 bg-[var(--c-panel)] px-5 py-1 text-base font-bold text-emerald-300">
-        Start at {state.total} — make the beads show the new total!
+        Pop the falling block: solve it on your beads before it lands!
       </div>
 
       <div className="flex flex-wrap items-start justify-center gap-5">
@@ -313,10 +313,24 @@ export function RainGame({ onExit }: { onExit: () => void }) {
           />
         </div>
 
+        {/* the problem, front and center */}
+        <div className="flex min-w-52 flex-col items-center rounded-2xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] p-4">
+          <h3 className="text-xs font-bold tracking-wide text-[var(--c-soft)]">SOLVE ME!</h3>
+          <div className="my-2 text-5xl font-black text-amber-300">
+            {state.total} {sym} {state.delta.amount}
+          </div>
+          <div className="text-3xl font-black text-emerald-300">= ?</div>
+          <p className="mt-3 max-w-52 text-center text-xs text-[var(--c-soft)]">
+            Your number is <b className="text-amber-300">{state.total}</b>. The falling
+            block says <b className="text-amber-300">{sym} {state.delta.amount}</b> — make
+            your beads show the new total to pop it!
+          </p>
+        </div>
+
         {/* abacus controls */}
         <div className="flex flex-col items-center rounded-2xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] p-4">
           <h3 className="mb-1 text-xs font-bold tracking-wide text-[var(--c-soft)]">
-            {state.total} {sym} {state.delta.amount} = ?
+            YOUR ABACUS — TAP OR FLICK THE BEADS
           </h3>
           <p className="mb-2 text-xs text-[var(--c-soft)]">
             Right beads pop the block all by themselves!

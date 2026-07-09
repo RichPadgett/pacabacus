@@ -14,7 +14,9 @@ const SWIPE_MIN_PX = 24
 interface MazeBoardProps {
   maze: MazeDef
   tile: number
-  dots: Set<string>
+  treasures: Map<string, string>
+  jailFruits: Set<string>
+  jailTurns: number
   pac: Pos
   facing: Dir
   ghosts: Pos[]
@@ -26,7 +28,9 @@ interface MazeBoardProps {
 export function MazeBoard({
   maze,
   tile,
-  dots,
+  treasures,
+  jailFruits,
+  jailTurns,
   pac,
   facing,
   ghosts,
@@ -40,17 +44,31 @@ export function MazeBoard({
   for (let r = 0; r < maze.rows; r++) {
     for (let c = 0; c < maze.cols; c++) {
       const wall = isWall(maze, r, c)
+      const k = posKey({ r, c })
+      const treasure = treasures.get(k)
+      const isJailFruit = jailFruits.has(k)
       cells.push(
         <div
-          key={`${r},${c}`}
+          key={k}
           className={
             wall
               ? 'rounded-md bg-[var(--c-wall)] shadow-[inset_0_0_0_2px_var(--c-wall-edge)]'
               : 'relative'
           }
         >
-          {!wall && dots.has(posKey({ r, c })) && (
-            <div className="absolute inset-[38%] rounded-full bg-amber-100 shadow-[0_0_6px_rgba(255,233,176,0.8)]" />
+          {!wall && treasure && (
+            <span
+              className={[
+                'absolute inset-0 flex items-center justify-center leading-none',
+                isJailFruit ? 'animate-pulse' : '',
+              ].join(' ')}
+              style={{
+                fontSize: tile * (isJailFruit ? 0.62 : 0.45),
+                filter: isJailFruit ? 'drop-shadow(0 0 6px #ffd23f)' : undefined,
+              }}
+            >
+              {treasure}
+            </span>
           )}
         </div>,
       )
@@ -65,7 +83,6 @@ export function MazeBoard({
   })
 
   const heroDef = HEROES[hero]
-  // frame flips with every tile the hero moves — cheap walk animation
   const heroFrame = heroDef.frames[(pac.r + pac.c) % 2]
   const heroTransform = heroDef.rotates
     ? FACE_TRANSFORM[facing]
@@ -102,13 +119,22 @@ export function MazeBoard({
 
       {ghosts.map((g, i) => {
         const enemy = ENEMIES[i % ENEMIES.length]
+        const jailed = jailTurns > 0
         return (
           <div
             key={i}
             className="absolute top-1 left-1 z-4 flex items-center justify-center"
-            style={spriteStyle(g)}
+            style={{ ...spriteStyle(g), opacity: jailed ? 0.45 : 1 }}
           >
             <PixelSprite map={enemy.map} palette={enemy.palette} size={tile * 0.86} />
+            {jailed && (
+              <span
+                className="absolute inset-0 flex items-center justify-center"
+                style={{ fontSize: tile * 0.5 }}
+              >
+                🔒
+              </span>
+            )}
           </div>
         )
       })}

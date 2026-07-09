@@ -128,8 +128,79 @@ function buildMaze(name: string, grid: string[]): MazeDef {
 
 export const MAZES: MazeDef[] = LAYOUTS.map((l) => buildMaze(l.name, l.grid))
 
+// ---- seeded procedural mazes so 50 levels don't repeat ----
+
+function mulberry32(seed: number) {
+  let a = seed
+  return () => {
+    a |= 0
+    a = (a + 0x6d2b79f5) | 0
+    let t = Math.imul(a ^ (a >>> 15), 1 | a)
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+
+/**
+ * Generate a 13×9 maze with a recursive backtracker over the "room" grid
+ * (odd coordinates), then knock out extra walls to add loops. Connectivity
+ * is guaranteed by construction.
+ */
+function generateGrid(seed: number): string[] {
+  const rnd = mulberry32(seed * 7919 + 13)
+  const rows = 9
+  const cols = 13
+  const cells: string[][] = Array.from({ length: rows }, () =>
+    Array.from({ length: cols }, () => '#'),
+  )
+  const roomRows = 4 // rooms at r = 1,3,5,7
+  const roomCols = 6 // rooms at c = 1,3,5,7,9,11
+  const visited = new Set<string>()
+  const stack: [number, number][] = [[0, 0]]
+  visited.add('0,0')
+  cells[1][1] = '.'
+
+  while (stack.length) {
+    const [rr, rc] = stack[stack.length - 1]
+    const neighbors = (
+      [
+        [rr - 1, rc],
+        [rr + 1, rc],
+        [rr, rc - 1],
+        [rr, rc + 1],
+      ] as [number, number][]
+    ).filter(
+      ([nr, nc]) =>
+        nr >= 0 && nr < roomRows && nc >= 0 && nc < roomCols && !visited.has(`${nr},${nc}`),
+    )
+    if (!neighbors.length) {
+      stack.pop()
+      continue
+    }
+    const [nr, nc] = neighbors[Math.floor(rnd() * neighbors.length)]
+    visited.add(`${nr},${nc}`)
+    cells[nr * 2 + 1][nc * 2 + 1] = '.'
+    // carve the wall between the two rooms
+    cells[rr + nr + 1][rc + nc + 1] = '.'
+    stack.push([nr, nc])
+  }
+
+  // knock out extra walls so there are loops (no dead-end-only mazes)
+  for (let r = 1; r < rows - 1; r++) {
+    for (let c = 1; c < cols - 1; c++) {
+      if (cells[r][c] !== '#') continue
+      const horizontal = cells[r][c - 1] === '.' && cells[r][c + 1] === '.'
+      const vertical = cells[r - 1][c] === '.' && cells[r + 1][c] === '.'
+      if ((horizontal || vertical) && rnd() < 0.35) cells[r][c] = '.'
+    }
+  }
+
+  return cells.map((row) => row.join(''))
+}
+
 export function mazeForLevel(level: number): MazeDef {
-  return MAZES[(level - 1) % MAZES.length]
+  if (level <= MAZES.length) return MAZES[level - 1]
+  return buildMaze(`Maze ${level}`, generateGrid(level))
 }
 
 export const isWall = (maze: MazeDef, r: number, c: number) => wallAt(maze.grid, r, c)

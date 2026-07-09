@@ -22,6 +22,10 @@ export interface ArcadeProblem {
   op2?: Operation
   answer: number
   technique: Technique
+  /** 'count' shows a objects to count; 'equation' is normal math */
+  kind?: 'count' | 'equation'
+  /** cute object to render for visual counting problems */
+  emoji?: string
 }
 
 /** harder techniques pay out more maze moves */
@@ -191,6 +195,90 @@ function challengeFits(
   return answer >= 0 && answer <= max
 }
 
+// ---- gentle problems for Little Counters mode (age ~5) ----
+
+const COUNT_EMOJI = ['🍓', '🍎', '🐟', '🌼', '⭐', '🧁']
+
+export interface EarlyProblemCfg {
+  kind: 'early'
+  /** chance a problem is pure counting instead of addition */
+  countChance: number
+  countMin: number
+  countMax: number
+  /** addition sums stay at or under this (0 = counting only) */
+  sumCap: number
+}
+
+export interface SumProblemCfg {
+  kind: 'sum'
+  cap: number
+  /** allow sums that cross a ten (needs the make-10 trick) */
+  tenCross: boolean
+}
+
+export interface TechProblemCfg {
+  kind: 'tech'
+  mathLevel: MathLevel
+  ops: OpsChoice
+  maxAnswer: number
+}
+
+export type ProblemCfg = EarlyProblemCfg | SumProblemCfg | TechProblemCfg
+
+export function generateFromCfg(cfg: ProblemCfg): ArcadeProblem {
+  if (cfg.kind === 'tech') {
+    return generateProblem({
+      mathLevel: cfg.mathLevel,
+      ops: cfg.ops,
+      maxAnswer: cfg.maxAnswer,
+    })
+  }
+  if (cfg.kind === 'sum') {
+    let a: number, b: number
+    do {
+      a = rand(1, cfg.cap - 1)
+      b = rand(1, Math.min(9, cfg.cap - 1))
+    } while (a + b > cfg.cap || (!cfg.tenCross && (a % 10) + (b % 10) >= 10))
+    const problem: ArcadeProblem = {
+      a,
+      b,
+      op: 'add',
+      answer: a + b,
+      technique: (a % 10) + (b % 10) >= 10 ? 'ten' : 'direct',
+      kind: 'equation',
+    }
+    if (a <= 5 && b <= 5) problem.emoji = pick(COUNT_EMOJI)
+    return problem
+  }
+  // 'early': counting or tiny visual addition
+  if (cfg.sumCap === 0 || Math.random() < cfg.countChance) {
+    const count = rand(cfg.countMin, cfg.countMax)
+    return {
+      a: count,
+      b: 0,
+      op: 'add',
+      answer: count,
+      technique: 'direct',
+      kind: 'count',
+      emoji: pick(COUNT_EMOJI),
+    }
+  }
+  let a: number, b: number
+  do {
+    a = rand(1, cfg.sumCap - 1)
+    b = rand(1, cfg.sumCap - 1)
+  } while (a + b > cfg.sumCap)
+  return {
+    a,
+    b,
+    op: 'add',
+    answer: a + b,
+    technique: 'direct',
+    kind: 'equation',
+    emoji: pick(COUNT_EMOJI),
+  }
+}
+
 // ---- delta stream for Number Rain mode: one falling ±N at a time ----
 
 export interface DeltaOptions {
@@ -255,6 +343,12 @@ export function generateDelta(opts: DeltaOptions): DeltaStep {
 
 export function beadHint(p: ArcadeProblem, techniqueHints = true): string {
   const sym = p.op === 'add' ? '+' : '−'
+  if (p.kind === 'count') {
+    return `Count them one by one — slide one blue bead up for each ${p.emoji ?? 'one'}!${p.answer > 5 ? ' The gold bead counts as 5!' : ''}`
+  }
+  if (p.emoji) {
+    return `Count all the ${p.emoji} together — slide a bead for each one!`
+  }
   if (p.technique === 'challenge' && p.c != null && p.op2) {
     const mid = p.op === 'add' ? p.a + p.b : p.a - p.b
     return `Two steps! First ${p.a} ${sym} ${p.b} = ${mid}, then ${mid} ${p.op2 === 'add' ? '+' : '−'} ${p.c}.`

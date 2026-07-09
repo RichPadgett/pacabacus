@@ -7,7 +7,6 @@ import {
   type GhostDifficulty,
   type MaxAnswer,
 } from './settingsStore'
-import { HEROES, PixelSprite, type HeroId } from './sprites'
 import { THEMES, type ThemeId } from './themes'
 
 interface OptionProps<T extends string | number> {
@@ -51,7 +50,7 @@ function OptionGroup<T extends string | number>({
   )
 }
 
-export function SetupScreen({ onStart }: { onStart: () => void }) {
+export function SetupScreen({ onStart, onHome }: { onStart: () => void; onHome?: () => void }) {
   const settings = useArcadeSettings()
   const theme = THEMES[settings.theme] ?? THEMES.stars
 
@@ -97,16 +96,6 @@ export function SetupScreen({ onStart }: { onStart: () => void }) {
                 }}
               />
             ),
-          }))}
-        />
-        <OptionGroup<HeroId>
-          title="YOUR HERO"
-          current={settings.hero}
-          onPick={(hero) => settings.update({ hero })}
-          options={Object.values(HEROES).map((h) => ({
-            value: h.id,
-            label: h.name,
-            icon: <PixelSprite map={h.frames[0]} palette={h.palette} size={36} />,
           }))}
         />
         <OptionGroup<MathLevel>
@@ -164,13 +153,24 @@ export function SetupScreen({ onStart }: { onStart: () => void }) {
         />
       </div>
 
-      <button
-        type="button"
-        onClick={onStart}
-        className="rounded-2xl border-4 border-emerald-600 bg-emerald-400 px-12 py-4 text-2xl font-black text-emerald-950 transition hover:brightness-110 active:scale-95"
-      >
-        Play! ▶
-      </button>
+      <div className="flex items-center gap-3">
+        {onHome && (
+          <button
+            type="button"
+            onClick={onHome}
+            className="rounded-2xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] px-6 py-4 text-lg font-bold hover:brightness-125"
+          >
+            🏠
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={onStart}
+          className="rounded-2xl border-4 border-emerald-600 bg-emerald-400 px-12 py-4 text-2xl font-black text-emerald-950 transition hover:brightness-110 active:scale-95"
+        >
+          Play! ▶
+        </button>
+      </div>
     </div>
   )
 }

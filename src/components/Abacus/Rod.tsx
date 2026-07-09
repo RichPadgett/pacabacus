@@ -24,6 +24,7 @@ export function Rod({ rod, onChange, readOnly, label }: RodProps) {
           active={rod.heavenDown}
           readOnly={readOnly}
           onClick={() => onChange({ ...rod, heavenDown: !rod.heavenDown })}
+          onSwipe={(dir) => onChange({ ...rod, heavenDown: dir === 'down' })}
         />
         {!rod.heavenDown && <div className="flex-1" />}
       </div>
@@ -39,6 +40,9 @@ export function Rod({ rod, onChange, readOnly, label }: RodProps) {
             active
             readOnly={readOnly}
             onClick={() => onChange({ ...rod, earthUp: i })}
+            onSwipe={(dir) => {
+              if (dir === 'down') onChange({ ...rod, earthUp: i })
+            }}
           />
         ))}
         <div className="flex-1" />
@@ -49,6 +53,9 @@ export function Rod({ rod, onChange, readOnly, label }: RodProps) {
             active={false}
             readOnly={readOnly}
             onClick={() => onChange({ ...rod, earthUp: rod.earthUp + i + 1 })}
+            onSwipe={(dir) => {
+              if (dir === 'up') onChange({ ...rod, earthUp: rod.earthUp + i + 1 })
+            }}
           />
         ))}
       </div>

@@ -2,18 +2,53 @@ import { useState } from 'react'
 import { ArcadeGame } from '@/features/arcade/ArcadeGame'
 import { SetupScreen } from '@/features/arcade/SetupScreen'
 import { useArcadeSettings } from '@/features/arcade/settingsStore'
+import { CharacterSelect } from '@/features/home/CharacterSelect'
+import { HomeScreen } from '@/features/home/HomeScreen'
+import { RewardsScreen } from '@/features/home/RewardsScreen'
 import { RainGame } from '@/features/rain/RainGame'
 
-function App() {
-  const [playing, setPlaying] = useState(false)
-  const mode = useArcadeSettings((s) => s.mode)
+type Screen =
+  | 'home'
+  | 'characters'
+  | 'rewards'
+  | 'freeplay-setup'
+  | 'adventure'
+  | 'counting'
+  | 'free-game'
 
-  if (!playing) return <SetupScreen onStart={() => setPlaying(true)} />
-  return mode === 'rain' ? (
-    <RainGame key="rain" onExit={() => setPlaying(false)} />
-  ) : (
-    <ArcadeGame key="maze" onExit={() => setPlaying(false)} />
-  )
+function App() {
+  const [screen, setScreen] = useState<Screen>('home')
+  const mode = useArcadeSettings((s) => s.mode)
+  const goHome = () => setScreen('home')
+
+  switch (screen) {
+    case 'characters':
+      return <CharacterSelect onBack={goHome} />
+    case 'rewards':
+      return <RewardsScreen onBack={goHome} />
+    case 'freeplay-setup':
+      return <SetupScreen onStart={() => setScreen('free-game')} onHome={goHome} />
+    case 'adventure':
+      return <ArcadeGame key="adventure" mode="adventure" onExit={goHome} />
+    case 'counting':
+      return <ArcadeGame key="counting" mode="counting" onExit={goHome} />
+    case 'free-game':
+      return mode === 'rain' ? (
+        <RainGame key="rain" onExit={() => setScreen('freeplay-setup')} />
+      ) : (
+        <ArcadeGame key="free" mode="free" onExit={() => setScreen('freeplay-setup')} />
+      )
+    default:
+      return (
+        <HomeScreen
+          onAdventure={() => setScreen('adventure')}
+          onCounting={() => setScreen('counting')}
+          onCharacters={() => setScreen('characters')}
+          onRewards={() => setScreen('rewards')}
+          onFreePlay={() => setScreen('freeplay-setup')}
+        />
+      )
+  }
 }
 
 export default App

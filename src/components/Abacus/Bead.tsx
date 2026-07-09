@@ -1,11 +1,20 @@
+import { useRef } from 'react'
+
 interface BeadProps {
   active: boolean
   onClick: () => void
+  /** flick a bead toward/away from the beam, like a real soroban */
+  onSwipe?: (dir: 'up' | 'down') => void
   readOnly?: boolean
   tone: 'heaven' | 'earth'
 }
 
-export function Bead({ active, onClick, readOnly, tone }: BeadProps) {
+const SWIPE_MIN_PX = 10
+
+export function Bead({ active, onClick, onSwipe, readOnly, tone }: BeadProps) {
+  const touchStartY = useRef<number | null>(null)
+  const touchHandled = useRef(false)
+
   const toneClasses =
     tone === 'heaven'
       ? active
@@ -19,10 +28,30 @@ export function Bead({ active, onClick, readOnly, tone }: BeadProps) {
     <button
       type="button"
       disabled={readOnly}
-      onClick={onClick}
+      onClick={() => {
+        if (touchHandled.current) {
+          touchHandled.current = false
+          return
+        }
+        onClick()
+      }}
+      onTouchStart={(e) => {
+        touchStartY.current = e.touches[0].clientY
+      }}
+      onTouchEnd={(e) => {
+        if (touchStartY.current === null || readOnly) return
+        const dy = e.changedTouches[0].clientY - touchStartY.current
+        touchStartY.current = null
+        touchHandled.current = true
+        if (Math.abs(dy) >= SWIPE_MIN_PX && onSwipe) {
+          onSwipe(dy < 0 ? 'up' : 'down')
+        } else {
+          onClick()
+        }
+      }}
       aria-pressed={active}
       className={[
-        'h-7 w-16 shrink-0 rounded-full border-b-4 transition-colors',
+        'h-7 w-16 shrink-0 touch-none rounded-full border-b-4 transition-colors',
         toneClasses,
         readOnly ? 'cursor-default' : 'cursor-pointer hover:brightness-110 active:scale-95',
       ].join(' ')}
