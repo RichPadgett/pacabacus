@@ -1,12 +1,11 @@
 import { Twinkles } from '@/features/arcade/ArcadeGame'
 import { useArcadeSettings } from '@/features/arcade/settingsStore'
-import { CHARACTER_ORDER, HEROES, PixelSprite } from '@/features/arcade/sprites'
+import { BUDDY_ORDER, HEROES, PixelSprite } from '@/features/arcade/sprites'
 import { THEMES } from '@/features/arcade/themes'
 import { BADGES } from '@/features/profile/rewards'
 import {
   earnedBadges,
   totalCompleted,
-  unlockedCharacters,
   useProfile,
 } from '@/features/profile/profileStore'
 
@@ -15,7 +14,7 @@ export function RewardsScreen({ onBack }: { onBack: () => void }) {
   const settings = useArcadeSettings()
   const theme = THEMES[settings.theme] ?? THEMES.stars
   const total = totalCompleted(profile)
-  const unlocked = new Set(unlockedCharacters(total))
+  const unlocked = new Set(profile.ownedBuddies)
   const earned = new Set(earnedBadges(total).map((b) => b.id))
   const totalStars = Object.values(profile.stars).reduce((a, b) => a + b, 0)
 
@@ -34,15 +33,15 @@ export function RewardsScreen({ onBack }: { onBack: () => void }) {
       {theme.id === 'stars' && <Twinkles />}
       <h1 className="text-3xl font-black text-amber-300">Your Rewards 🏆</h1>
       <p className="text-sm text-[var(--c-soft)]">
-        {total} levels finished · {totalStars} ⭐ collected
+        {total} levels finished · {totalStars} ⭐ collected · {profile.treasureCoins} 🪙 saved
       </p>
 
       <section className="w-full max-w-2xl rounded-2xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] p-4">
         <h2 className="mb-3 text-center text-sm font-bold tracking-wide text-[var(--c-soft)]">
-          FRIENDS ({unlocked.size}/{CHARACTER_ORDER.length})
+          BUDDIES ({unlocked.size}/{BUDDY_ORDER.length})
         </h2>
         <div className="flex flex-wrap justify-center gap-3">
-          {CHARACTER_ORDER.map((id) => (
+          {BUDDY_ORDER.map((id) => (
             <div key={id} className="flex flex-col items-center gap-1">
               <PixelSprite
                 map={HEROES[id].frames[0]}

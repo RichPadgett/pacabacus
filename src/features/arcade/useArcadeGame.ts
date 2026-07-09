@@ -48,6 +48,7 @@ export interface GameState {
   stars: number
   streak: number
   pac: Pos
+  buddy: Pos
   facing: Dir
   ghosts: Pos[]
   treasures: Map<string, string>
@@ -222,6 +223,7 @@ function makeReducer(cfgFor: (level: number) => LevelCfg) {
       cfg,
       maze,
       pac: maze.pacSpawn,
+      buddy: maze.pacSpawn,
       facing: 'right',
       ghosts: maze.ghostSpawns.slice(0, cfg.enemy.count),
       treasures,
@@ -323,6 +325,7 @@ function makeReducer(cfgFor: (level: number) => LevelCfg) {
         let moved: GameState = {
           ...state,
           pac: target,
+          buddy: state.pac,
           facing: action.dir,
           treasures,
           movesLeft: state.movesLeft - 1,
@@ -410,6 +413,7 @@ function makeReducer(cfgFor: (level: number) => LevelCfg) {
         return {
           ...state,
           pac: state.maze.pacSpawn,
+          buddy: state.maze.pacSpawn,
           facing: 'right',
           ghosts: state.maze.ghostSpawns.slice(0, state.cfg.enemy.count),
           jailTurns: 0,
@@ -445,6 +449,7 @@ function makeInitialState(cfgFor: (level: number) => LevelCfg, startLevel: numbe
     stars: 0,
     streak: 0,
     pac: maze.pacSpawn,
+    buddy: maze.pacSpawn,
     facing: 'right',
     ghosts: maze.ghostSpawns.slice(0, cfg.enemy.count),
     treasures,

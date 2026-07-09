@@ -132,11 +132,12 @@ export function ArcadeGame({ mode, onExit }: { mode: PlayMode; onExit: () => voi
     cfgFor,
     startLevel,
     stepMs,
-    mode !== 'counting',
+    mode !== 'counting' && settings.rockTimer,
   )
   const tile = useTileSize(state.maze.cols)
   const theme = THEMES[settings.theme] ?? THEMES.stars
   const hero = HEROES[profile.character] ? profile.character : 'kitty'
+  const buddy = profile.buddy && HEROES[profile.buddy] ? profile.buddy : null
   const touched = useRef(false)
 
   const maxLevel = mode === 'adventure' ? ADVENTURE_MAX : mode === 'counting' ? COUNTING_MAX : Infinity
@@ -258,7 +259,7 @@ export function ArcadeGame({ mode, onExit }: { mode: PlayMode; onExit: () => voi
           value={`⭐ ${state.stars}${state.streak >= 2 ? ` 🔥${state.streak}` : ''}`}
         />
         <Stat label="Lives" value={'❤️'.repeat(state.lives) || '💔'} />
-        <Stat label="Treasure" value={String(treasuresLeft)} />
+        <Stat label="Items" value={String(treasuresLeft)} />
         <button
           type="button"
           onClick={() => settings.update({ music: !settings.music })}
@@ -290,6 +291,8 @@ export function ArcadeGame({ mode, onExit }: { mode: PlayMode; onExit: () => voi
         ghosts={state.ghosts}
         stepMs={stepMs}
         hero={hero}
+        buddy={state.buddy}
+        buddyId={buddy}
         onSwipe={(dir) => dispatch({ type: 'MOVE', dir })}
       />
 
@@ -401,10 +404,15 @@ export function ArcadeGame({ mode, onExit }: { mode: PlayMode; onExit: () => voi
         <Overlay title="🎉 Level cleared! 🎉">
           <Confetti />
           <p className="text-2xl">{'⭐'.repeat(state.clearStars)}</p>
-          <p className="text-lg">You collected every treasure!</p>
-          {rewards?.newCharacters.map((id) => (
+          <p className="text-lg">You cleared the whole board!</p>
+          {rewards && (
+            <p className="font-bold text-amber-300">
+              🪙 +{rewards.coinsEarned} treasure coins
+            </p>
+          )}
+          {rewards?.newBuddies.map((id) => (
             <p key={id} className="font-bold text-amber-300">
-              🎁 New friend unlocked: {HEROES[id].name}!
+              🎁 New buddy unlocked: {HEROES[id].name}!
             </p>
           ))}
           {rewards?.newBadges.map((b) => (

@@ -724,6 +724,25 @@ export const CHARACTER_ORDER: HeroId[] = [
 ]
 
 export const STARTER_HERO_IDS: HeroId[] = ['kitty', 'monkey', 'dino']
+export const BUDDY_ORDER: HeroId[] = CHARACTER_ORDER.filter(
+  (id) => !STARTER_HERO_IDS.includes(id),
+)
+export const BUDDY_COSTS: Partial<Record<HeroId, number>> = {
+  dog: 25,
+  chick: 30,
+  fox: 35,
+  snake: 45,
+  turtle: 55,
+  axolotl: 60,
+  rooster: 70,
+  lamby: 80,
+  lion: 90,
+  strawbat: 100,
+  orca: 110,
+  robo: 120,
+  elephant: 140,
+  chomper: 160,
+}
 
 // ============================== BADDIES ==============================
 

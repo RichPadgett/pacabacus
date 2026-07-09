@@ -19,6 +19,7 @@ export interface ArcadeSettings {
   theme: ThemeId
   hero: HeroId
   mode: GameMode
+  rockTimer: boolean
 }
 
 interface SettingsStore extends ArcadeSettings {
@@ -54,6 +55,7 @@ export const useArcadeSettings = create<SettingsStore>()(
       theme: 'stars',
       hero: 'chomper',
       mode: 'maze',
+      rockTimer: true,
       update: (patch) => set(patch),
     }),
     { name: 'pacabacus-arcade-settings' },

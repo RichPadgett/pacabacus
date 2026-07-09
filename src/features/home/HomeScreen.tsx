@@ -33,6 +33,7 @@ export function HomeScreen({
   const [showProfiles, setShowProfiles] = useState(false)
 
   const heroDef = HEROES[profile.character] ?? HEROES.kitty
+  const buddyDef = profile.buddy ? HEROES[profile.buddy] : null
   const total = totalCompleted(profile)
   const badges = earnedBadges(total)
 
@@ -65,7 +66,9 @@ export function HomeScreen({
             <div>
               <div className="text-xl font-black">Hi, {profile.username}! 👋</div>
               <div className="text-sm text-[var(--c-soft)]">
-                {heroDef.name} · {total} levels done · {badges.length} badges
+                {heroDef.name}
+                {buddyDef ? ` + ${buddyDef.name} buddy` : ''} · {total} levels done ·{' '}
+                {badges.length} badges · {profile.treasureCoins} 🪙
               </div>
             </div>
             <button
@@ -137,6 +140,13 @@ export function HomeScreen({
                   : 'Start Level 1'}{' '}
               ▶
             </MenuButton>
+            <button
+              type="button"
+              onClick={() => settings.update({ rockTimer: !settings.rockTimer })}
+              className="rounded-2xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] px-4 py-3 text-sm font-bold transition hover:brightness-125 active:scale-95"
+            >
+              🪨 Rock timer: {settings.rockTimer ? 'On' : 'Off'}
+            </button>
             <MenuButton onClick={onCounting} big>
               🐣 Little Counters —{' '}
               {profile.countingLevel > COUNTING_MAX
@@ -145,7 +155,7 @@ export function HomeScreen({
               ▶
             </MenuButton>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <MenuButton onClick={onCharacters}>🎭 Characters</MenuButton>
+              <MenuButton onClick={onCharacters}>🎭 Team</MenuButton>
               <MenuButton onClick={onRewards}>🏆 Rewards</MenuButton>
               <MenuButton onClick={onFreePlay}>🎮 Free Play</MenuButton>
             </div>

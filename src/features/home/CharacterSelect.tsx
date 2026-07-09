@@ -1,10 +1,10 @@
 import { Twinkles } from '@/features/arcade/ArcadeGame'
 import { useArcadeSettings } from '@/features/arcade/settingsStore'
-import { CHARACTER_ORDER, HEROES, PixelSprite } from '@/features/arcade/sprites'
+import { BUDDY_ORDER, HEROES, PixelSprite } from '@/features/arcade/sprites'
 import { THEMES } from '@/features/arcade/themes'
 import {
-  totalCompleted,
-  unlockedCharacters,
+  buddyCost,
+  playableCharacters,
   useProfile,
 } from '@/features/profile/profileStore'
 
@@ -12,8 +12,8 @@ export function CharacterSelect({ onBack }: { onBack: () => void }) {
   const profile = useProfile()
   const settings = useArcadeSettings()
   const theme = THEMES[settings.theme] ?? THEMES.stars
-  const total = totalCompleted(profile)
-  const unlocked = new Set(unlockedCharacters(total))
+  const ownedBuddies = new Set(profile.ownedBuddies)
+  const playable = playableCharacters()
 
   return (
     <div
@@ -21,49 +21,111 @@ export function CharacterSelect({ onBack }: { onBack: () => void }) {
       style={theme.vars as React.CSSProperties}
     >
       {theme.id === 'stars' && <Twinkles />}
-      <h1 className="text-3xl font-black text-amber-300">Choose your friend! 🎭</h1>
+      <h1 className="text-3xl font-black text-amber-300">Choose your team! 🎭</h1>
       <p className="text-sm text-[var(--c-soft)]">
-        Finish more levels to unlock new friends!
+        Pick your player, buy buddies, then choose one to follow you.
       </p>
-
-      <div className="grid max-w-2xl grid-cols-2 gap-3 sm:grid-cols-3">
-        {CHARACTER_ORDER.map((id) => {
-          const hero = HEROES[id]
-          const isUnlocked = unlocked.has(id)
-          const isCurrent = profile.character === id
-          return (
-            <button
-              key={id}
-              type="button"
-              disabled={!isUnlocked}
-              onClick={() => profile.setCharacter(id)}
-              className={[
-                'flex flex-col items-center gap-2 rounded-2xl border-2 p-4 transition',
-                isCurrent
-                  ? 'border-emerald-400 bg-emerald-500/20'
-                  : isUnlocked
-                    ? 'border-[var(--c-border)] bg-[var(--c-panel)] hover:brightness-125'
-                    : 'border-[var(--c-border)] bg-black/30 opacity-70',
-              ].join(' ')}
-            >
-              <PixelSprite
-                map={hero.frames[0]}
-                palette={hero.palette}
-                size={64}
-                style={isUnlocked ? undefined : { filter: 'grayscale(1) brightness(0.4)' }}
-              />
-              <span className="font-bold">{isUnlocked ? hero.name : '???'}</span>
-              <span className="text-xs text-[var(--c-soft)]">
-                {isCurrent
-                  ? '✓ Playing!'
-                  : isUnlocked
-                    ? 'Tap to pick'
-                    : `🔒 Finish ${hero.unlockLevel} levels`}
-              </span>
-            </button>
-          )
-        })}
+      <div className="rounded-full border-2 border-amber-400 bg-amber-500/15 px-5 py-2 text-lg font-black text-amber-200">
+        🪙 {profile.treasureCoins} treasure coins
       </div>
+
+      <section className="w-full max-w-2xl rounded-2xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] p-4">
+        <h2 className="mb-3 text-center text-sm font-bold tracking-wide text-[var(--c-soft)]">
+          PLAYER
+        </h2>
+        <div className="grid grid-cols-3 gap-3">
+          {playable.map((id) => {
+            const hero = HEROES[id]
+            const isCurrent = profile.character === id
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => profile.setCharacter(id)}
+                className={[
+                  'flex flex-col items-center gap-2 rounded-2xl border-2 p-4 transition',
+                  isCurrent
+                    ? 'border-emerald-400 bg-emerald-500/20'
+                    : 'border-[var(--c-border)] bg-black/20 hover:brightness-125',
+                ].join(' ')}
+              >
+                <PixelSprite map={hero.frames[0]} palette={hero.palette} size={64} />
+                <span className="font-bold">{hero.name}</span>
+                <span className="text-xs text-[var(--c-soft)]">
+                  {isCurrent ? '✓ Playing!' : 'Tap to pick'}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      </section>
+
+      <section className="w-full max-w-2xl rounded-2xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] p-4">
+        <h2 className="mb-3 text-center text-sm font-bold tracking-wide text-[var(--c-soft)]">
+          BUDDY
+        </h2>
+        <div className="mb-3 flex justify-center">
+          <button
+            type="button"
+            onClick={() => profile.setBuddy(null)}
+            className={[
+              'rounded-2xl border-2 px-5 py-3 font-bold',
+              profile.buddy == null
+                ? 'border-emerald-400 bg-emerald-500/20'
+                : 'border-[var(--c-border)] bg-black/20 hover:brightness-125',
+            ].join(' ')}
+          >
+            No buddy
+          </button>
+        </div>
+        <div className="grid max-w-2xl grid-cols-2 gap-3 sm:grid-cols-3">
+          {BUDDY_ORDER.map((id) => {
+            const hero = HEROES[id]
+            const cost = buddyCost(id)
+            const isOwned = ownedBuddies.has(id)
+            const canBuy = profile.treasureCoins >= cost
+            const isCurrent = profile.buddy === id
+            return (
+              <button
+                key={id}
+                type="button"
+                disabled={!isOwned && !canBuy}
+                onClick={() => {
+                  if (isOwned) profile.setBuddy(id)
+                  else profile.buyBuddy(id)
+                }}
+                className={[
+                  'flex flex-col items-center gap-2 rounded-2xl border-2 p-4 transition',
+                  isCurrent
+                    ? 'border-emerald-400 bg-emerald-500/20'
+                    : isOwned
+                      ? 'border-[var(--c-border)] bg-[var(--c-panel)] hover:brightness-125'
+                      : canBuy
+                        ? 'border-amber-400 bg-amber-500/15 hover:brightness-125'
+                        : 'border-[var(--c-border)] bg-black/30 opacity-70',
+                ].join(' ')}
+              >
+                <PixelSprite
+                  map={hero.frames[0]}
+                  palette={hero.palette}
+                  size={64}
+                  style={isOwned ? undefined : { filter: 'grayscale(1) brightness(0.45)' }}
+                />
+                <span className="font-bold">{hero.name}</span>
+                <span className="text-xs text-[var(--c-soft)]">
+                  {isCurrent
+                    ? '✓ Following!'
+                    : isOwned
+                      ? 'Tap for buddy'
+                      : canBuy
+                        ? `Buy for ${cost} 🪙`
+                        : `${cost} 🪙`}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      </section>
 
       <button
         type="button"

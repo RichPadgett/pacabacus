@@ -18,10 +18,12 @@ interface MazeBoardProps {
   jailFruits: Set<string>
   jailTurns: number
   pac: Pos
+  buddy: Pos
   facing: Dir
   ghosts: Pos[]
   stepMs: number
   hero: HeroId
+  buddyId: HeroId | null
   onSwipe?: (dir: Dir) => void
 }
 
@@ -32,10 +34,12 @@ export function MazeBoard({
   jailFruits,
   jailTurns,
   pac,
+  buddy,
   facing,
   ghosts,
   stepMs,
   hero,
+  buddyId,
   onSwipe,
 }: MazeBoardProps) {
   const touchStart = useRef<{ x: number; y: number } | null>(null)
@@ -139,6 +143,19 @@ export function MazeBoard({
         )
       })}
 
+      {buddyId && !samePosForBoard(buddy, pac) && (
+        <div
+          className="absolute top-1 left-1 z-4 flex items-center justify-center"
+          style={{ ...spriteStyle(buddy), opacity: 0.92 }}
+        >
+          <PixelSprite
+            map={HEROES[buddyId].frames[(buddy.r + buddy.c) % 2]}
+            palette={HEROES[buddyId].palette}
+            size={tile * 0.58}
+          />
+        </div>
+      )}
+
       <div
         className="absolute top-1 left-1 z-5 flex items-center justify-center"
         style={spriteStyle(pac)}
@@ -152,4 +169,8 @@ export function MazeBoard({
       </div>
     </div>
   )
+}
+
+function samePosForBoard(a: Pos, b: Pos) {
+  return a.r === b.r && a.c === b.c
 }
