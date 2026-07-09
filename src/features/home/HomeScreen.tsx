@@ -29,7 +29,7 @@ export function HomeScreen({
   const settings = useArcadeSettings()
   const theme = THEMES[settings.theme] ?? THEMES.stars
   const [nameInput, setNameInput] = useState('')
-  const [starterHero, setStarterHero] = useState<HeroId>('kitty')
+  const [starterHero, setStarterHero] = useState<HeroId>(STARTER_HERO_IDS[0])
   const [showProfiles, setShowProfiles] = useState(false)
   const [showTools, setShowTools] = useState(false)
 

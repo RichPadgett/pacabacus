@@ -591,8 +591,8 @@ export const HEROES: Record<HeroId, HeroDef> = {
   },
   dog: {
     id: 'dog',
-    name: 'Dog',
-    unlockLevel: 2,
+    name: 'Puppy',
+    unlockLevel: 0,
     frames: [DOG_A, DOG_B],
     palette: { D: '#b8753b', F: '#f2c18b', I: '#4b2a16', N: '#2a1508' },
     rotates: false,
@@ -600,7 +600,7 @@ export const HEROES: Record<HeroId, HeroDef> = {
   fox: {
     id: 'fox',
     name: 'Fox',
-    unlockLevel: 5,
+    unlockLevel: 0,
     frames: [FOX_A, FOX_B],
     palette: { O: '#f97316', W: '#fff4df', B: '#2a1206', F: '#ffd3a3', N: '#3a1808' },
     rotates: false,
@@ -672,7 +672,7 @@ export const HEROES: Record<HeroId, HeroDef> = {
   orca: {
     id: 'orca',
     name: 'Orca',
-    unlockLevel: 32,
+    unlockLevel: 0,
     frames: [ORCA_A, ORCA_B],
     palette: { K: '#2c3a52', W: '#f5fbff', B: '#0c1420' },
     rotates: false,
@@ -723,14 +723,12 @@ export const CHARACTER_ORDER: HeroId[] = [
   'chomper',
 ]
 
-export const STARTER_HERO_IDS: HeroId[] = ['kitty', 'monkey', 'dino']
+export const STARTER_HERO_IDS: HeroId[] = ['dog', 'kitty', 'orca', 'fox']
 export const BUDDY_ORDER: HeroId[] = CHARACTER_ORDER.filter(
   (id) => !STARTER_HERO_IDS.includes(id),
 )
 export const BUDDY_COSTS: Partial<Record<HeroId, number>> = {
-  dog: 25,
   chick: 30,
-  fox: 35,
   snake: 45,
   turtle: 55,
   axolotl: 60,
@@ -738,7 +736,6 @@ export const BUDDY_COSTS: Partial<Record<HeroId, number>> = {
   lamby: 80,
   lion: 90,
   strawbat: 100,
-  orca: 110,
   robo: 120,
   elephant: 140,
   chomper: 160,
