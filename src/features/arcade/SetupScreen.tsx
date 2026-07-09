@@ -2,6 +2,7 @@ import type { MathLevel, OpsChoice } from '@/features/drills/problemGenerator'
 import { Twinkles } from './ArcadeGame'
 import {
   useArcadeSettings,
+  type GameMode,
   type GameSpeed,
   type GhostDifficulty,
   type MaxAnswer,
@@ -71,6 +72,15 @@ export function SetupScreen({ onStart }: { onStart: () => void }) {
       </header>
 
       <div className="flex w-full max-w-xl flex-col gap-5 rounded-3xl border-2 border-[var(--c-border)] bg-black/20 p-6">
+        <OptionGroup<GameMode>
+          title="GAME"
+          current={settings.mode}
+          onPick={(mode) => settings.update({ mode })}
+          options={[
+            { value: 'maze', label: '👾 Maze Chase', sub: 'eat dots, dodge baddies' },
+            { value: 'rain', label: '🧱 Number Rain', sub: 'pop falling math blocks' },
+          ]}
+        />
         <OptionGroup<ThemeId>
           title="YOUR COLORS"
           current={settings.theme}

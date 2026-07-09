@@ -65,6 +65,20 @@ export function ArcadeGame({ onExit }: { onExit: () => void }) {
   const { state, dispatch, stepMs } = useArcadeGame(settings)
   const tile = useTileSize(state.maze.cols)
   const theme = THEMES[settings.theme] ?? THEMES.stars
+  const touched = useRef(false)
+
+  // hands-free: when the beads settle on the right answer, off he goes —
+  // no Go button needed (wrong answers still need a Go press to check)
+  useEffect(() => {
+    if (state.phase !== 'answer' || !touched.current) return
+    if (state.answerValue !== state.problem.answer) return
+    const t = setTimeout(() => dispatch({ type: 'SUBMIT' }), 550)
+    return () => clearTimeout(t)
+  }, [state.answerValue, state.problem, state.phase, dispatch])
+
+  useEffect(() => {
+    touched.current = false
+  }, [state.problem])
 
   // keyboard
   useEffect(() => {
@@ -237,7 +251,10 @@ export function ArcadeGame({ onExit }: { onExit: () => void }) {
           <Abacus
             rodCount={2}
             value={state.answerValue}
-            onChange={(value) => dispatch({ type: 'SET_ANSWER', value })}
+            onChange={(value) => {
+              touched.current = true
+              dispatch({ type: 'SET_ANSWER', value })
+            }}
             readOnly={phase !== 'answer'}
             showLabels
           />

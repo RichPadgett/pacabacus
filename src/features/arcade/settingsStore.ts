@@ -7,6 +7,7 @@ import type { ThemeId } from './themes'
 export type GhostDifficulty = 'off' | 'chill' | 'spooky' | 'scary'
 export type GameSpeed = 'relaxed' | 'normal' | 'speedy'
 export type MaxAnswer = 10 | 20 | 50
+export type GameMode = 'maze' | 'rain'
 
 export interface ArcadeSettings {
   mathLevel: MathLevel
@@ -17,6 +18,7 @@ export interface ArcadeSettings {
   music: boolean
   theme: ThemeId
   hero: HeroId
+  mode: GameMode
 }
 
 interface SettingsStore extends ArcadeSettings {
@@ -51,6 +53,7 @@ export const useArcadeSettings = create<SettingsStore>()(
       music: true,
       theme: 'stars',
       hero: 'chomper',
+      mode: 'maze',
       update: (patch) => set(patch),
     }),
     { name: 'pacabacus-arcade-settings' },

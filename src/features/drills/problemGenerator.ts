@@ -191,6 +191,68 @@ function challengeFits(
   return answer >= 0 && answer <= max
 }
 
+// ---- delta stream for Number Rain mode: one falling ±N at a time ----
+
+export interface DeltaOptions {
+  mathLevel: MathLevel
+  ops: OpsChoice
+  maxAnswer: number
+  current: number
+}
+
+export interface DeltaStep {
+  op: Operation
+  amount: number
+  next: number
+  technique: Technique
+}
+
+/**
+ * Pick a falling operation (+5, −3, …) that keeps the running total in
+ * range AND exercises the bead techniques for the chosen math level.
+ */
+export function generateDelta(opts: DeltaOptions): DeltaStep {
+  const { mathLevel, maxAnswer, current } = opts
+  const allowed = new Set(techniquesForMathLevel(mathLevel))
+  const wildcard = allowed.has('plain')
+  const opsAllowed: Operation[] =
+    opts.ops === 'mixed' ? ['add', 'sub'] : [opts.ops]
+  const maxAmt = mathLevel >= 4 ? Math.min(19, maxAnswer) : 9
+
+  const candidates: DeltaStep[] = []
+  for (const op of opsAllowed) {
+    for (let amount = 1; amount <= maxAmt; amount++) {
+      const next = op === 'add' ? current + amount : current - amount
+      if (next < 0 || next > maxAnswer) continue
+      const crossTen = Math.floor(current / 10) !== Math.floor(next / 10)
+      const crossFive = !crossTen && (current % 10 < 5) !== (next % 10 < 5)
+      const technique: Technique = crossTen
+        ? amount > 9
+          ? 'twodigit'
+          : 'ten'
+        : amount === 5
+          ? 'direct' // ±5 is one heaven-bead slide
+          : crossFive
+            ? 'five'
+            : 'direct'
+      if (wildcard || allowed.has(technique)) {
+        candidates.push({ op, amount, next, technique })
+      }
+    }
+  }
+  if (candidates.length) return pick(candidates)
+
+  // safety net: any in-range small step
+  for (const op of opsAllowed) {
+    for (let amount = 1; amount <= 9; amount++) {
+      const next = op === 'add' ? current + amount : current - amount
+      if (next >= 0 && next <= maxAnswer)
+        candidates.push({ op, amount, next, technique: 'direct' })
+    }
+  }
+  return pick(candidates)
+}
+
 export function beadHint(p: ArcadeProblem, techniqueHints = true): string {
   const sym = p.op === 'add' ? '+' : '−'
   if (p.technique === 'challenge' && p.c != null && p.op2) {
