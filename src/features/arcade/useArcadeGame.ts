@@ -52,7 +52,7 @@ const ROCK_EMOJI = '🪨'
 const JAIL_TURNS = 3
 const ROCK_DELAY_MIN_MS = 10_000
 const ROCK_DELAY_MAX_MS = 20_000
-const CLOAK_SAFE_DISTANCE = 2
+const CLOAK_SAFE_DISTANCE = 4
 
 export interface GameState {
   level: number
@@ -63,6 +63,7 @@ export interface GameState {
   streak: number
   pac: Pos
   buddy: Pos
+  buddyTrail: Pos[]
   facing: Dir
   ghosts: Pos[]
   ghostPrev: Pos[]
@@ -199,7 +200,8 @@ function randomSafeStep(maze: MazeDef, from: Pos, pac: Pos, avoid?: Pos): Pos {
       (!avoid || !samePos(p, avoid)),
   )
   const safe = open.filter((p) => dist(p, pac) >= CLOAK_SAFE_DISTANCE)
-  const fallback = away.length ? away : sideways.length ? sideways : safe.length ? safe : open
+  const notPlayer = open.filter((p) => !samePos(p, pac))
+  const fallback = away.length ? away : sideways.length ? sideways : safe.length ? safe : notPlayer
   return fallback.length ? fallback[Math.floor(Math.random() * fallback.length)] : from
 }
 
@@ -315,6 +317,7 @@ function makeReducer(cfgFor: (level: number) => LevelCfg) {
       maze,
       pac: maze.pacSpawn,
       buddy: maze.pacSpawn,
+      buddyTrail: [maze.pacSpawn, maze.pacSpawn, maze.pacSpawn],
       facing: 'right',
       ghosts: maze.ghostSpawns.slice(0, cfg.enemy.count),
       ghostPrev: maze.ghostSpawns.slice(0, cfg.enemy.count),
@@ -419,6 +422,7 @@ function makeReducer(cfgFor: (level: number) => LevelCfg) {
           ...state,
           pac: target,
           buddy: state.pac,
+          buddyTrail: [state.pac, ...state.buddyTrail].slice(0, 3),
           facing: action.dir,
           treasures,
           movesLeft: state.movesLeft - 1,
@@ -526,6 +530,7 @@ function makeReducer(cfgFor: (level: number) => LevelCfg) {
           ...state,
           pac: state.maze.pacSpawn,
           buddy: state.maze.pacSpawn,
+          buddyTrail: [state.maze.pacSpawn, state.maze.pacSpawn, state.maze.pacSpawn],
           facing: 'right',
           ghosts: state.maze.ghostSpawns.slice(0, state.cfg.enemy.count),
           ghostPrev: state.maze.ghostSpawns.slice(0, state.cfg.enemy.count),
@@ -563,6 +568,7 @@ function makeInitialState(cfgFor: (level: number) => LevelCfg, startLevel: numbe
     streak: 0,
     pac: maze.pacSpawn,
     buddy: maze.pacSpawn,
+    buddyTrail: [maze.pacSpawn, maze.pacSpawn, maze.pacSpawn],
     facing: 'right',
     ghosts: maze.ghostSpawns.slice(0, cfg.enemy.count),
     ghostPrev: maze.ghostSpawns.slice(0, cfg.enemy.count),

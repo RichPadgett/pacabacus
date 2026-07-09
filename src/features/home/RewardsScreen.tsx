@@ -1,7 +1,8 @@
 import { Twinkles } from '@/features/arcade/ArcadeGame'
 import { useArcadeSettings } from '@/features/arcade/settingsStore'
-import { BUDDY_ORDER, HEROES, PixelSprite } from '@/features/arcade/sprites'
+import { BUDDY_ORDER, CHARACTER_ORDER, HEROES, PixelSprite, STARTER_HERO_IDS } from '@/features/arcade/sprites'
 import { THEMES } from '@/features/arcade/themes'
+import { ADVENTURE_WORLDS } from '@/features/arcade/worlds'
 import { BADGES } from '@/features/profile/rewards'
 import {
   earnedBadges,
@@ -14,15 +15,19 @@ export function RewardsScreen({ onBack }: { onBack: () => void }) {
   const settings = useArcadeSettings()
   const theme = THEMES[settings.theme] ?? THEMES.stars
   const total = totalCompleted(profile)
-  const unlocked = new Set(profile.ownedBuddies)
+  const unlockedBuddies = new Set(profile.ownedBuddies)
+  const unlockedCharacters = new Set([...STARTER_HERO_IDS, ...profile.ownedCharacters])
   const earned = new Set(earnedBadges(total).map((b) => b.id))
   const totalStars = Object.values(profile.stars).reduce((a, b) => a + b, 0)
 
-  const trophies = Object.entries(profile.stars).sort((a, b) => {
-    const modeA = a[0][0]
-    const modeB = b[0][0]
-    if (modeA !== modeB) return modeA < modeB ? -1 : 1
-    return Number(a[0].slice(1)) - Number(b[0].slice(1))
+  const worldTrophies = ADVENTURE_WORLDS.map((world) => {
+    const levels = Array.from(
+      { length: world.levelEnd - world.levelStart + 1 },
+      (_, i) => world.levelStart + i,
+    )
+    const stars = levels.reduce((sum, level) => sum + (profile.stars[`a${level}`] ?? 0), 0)
+    const complete = levels.every((level) => profile.stars[`a${level}`] != null)
+    return { world, stars, complete, maxStars: levels.length * 3 }
   })
 
   return (
@@ -38,7 +43,30 @@ export function RewardsScreen({ onBack }: { onBack: () => void }) {
 
       <section className="w-full max-w-2xl rounded-2xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] p-4">
         <h2 className="mb-3 text-center text-sm font-bold tracking-wide text-[var(--c-soft)]">
-          BUDDIES ({unlocked.size}/{BUDDY_ORDER.length})
+          CHARACTERS ({unlockedCharacters.size}/{CHARACTER_ORDER.length})
+        </h2>
+        <div className="flex flex-wrap justify-center gap-3">
+          {CHARACTER_ORDER.map((id) => (
+            <div key={id} className="flex flex-col items-center gap-1">
+              <PixelSprite
+                map={HEROES[id].frames[0]}
+                palette={HEROES[id].palette}
+                size={44}
+                style={
+                  unlockedCharacters.has(id) ? undefined : { filter: 'grayscale(1) brightness(0.4)' }
+                }
+              />
+              <span className="text-[10px] text-[var(--c-soft)]">
+                {unlockedCharacters.has(id) ? HEROES[id].name : `L${HEROES[id].unlockLevel}`}
+              </span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="w-full max-w-2xl rounded-2xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] p-4">
+        <h2 className="mb-3 text-center text-sm font-bold tracking-wide text-[var(--c-soft)]">
+          BABY BUDDIES ({unlockedBuddies.size}/{BUDDY_ORDER.length})
         </h2>
         <div className="flex flex-wrap justify-center gap-3">
           {BUDDY_ORDER.map((id) => (
@@ -48,11 +76,11 @@ export function RewardsScreen({ onBack }: { onBack: () => void }) {
                 palette={HEROES[id].palette}
                 size={44}
                 style={
-                  unlocked.has(id) ? undefined : { filter: 'grayscale(1) brightness(0.4)' }
+                  unlockedBuddies.has(id) ? undefined : { filter: 'grayscale(1) brightness(0.4)' }
                 }
               />
               <span className="text-[10px] text-[var(--c-soft)]">
-                {unlocked.has(id) ? HEROES[id].name : '🔒'}
+                {unlockedBuddies.has(id) ? HEROES[id].name : 'Shop'}
               </span>
             </div>
           ))}
@@ -84,23 +112,28 @@ export function RewardsScreen({ onBack }: { onBack: () => void }) {
         </div>
       </section>
 
-      {trophies.length > 0 && (
-        <section className="w-full max-w-2xl rounded-2xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] p-4">
-          <h2 className="mb-3 text-center text-sm font-bold tracking-wide text-[var(--c-soft)]">
-            LEVEL TROPHIES
-          </h2>
-          <div className="flex flex-wrap justify-center gap-2">
-            {trophies.map(([key, stars]) => (
-              <span
-                key={key}
-                className="rounded-full border border-[var(--c-border)] bg-black/20 px-3 py-1 text-xs font-bold"
-              >
-                {key.startsWith('a') ? '🗺️' : '🐣'} L{key.slice(1)} {'⭐'.repeat(stars)}
-              </span>
-            ))}
-          </div>
-        </section>
-      )}
+      <section className="w-full max-w-2xl rounded-2xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] p-4">
+        <h2 className="mb-3 text-center text-sm font-bold tracking-wide text-[var(--c-soft)]">
+          WORLD TROPHIES
+        </h2>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          {worldTrophies.map(({ world, stars, complete, maxStars }) => (
+            <div
+              key={world.id}
+              className={[
+                'rounded-xl border-2 p-3 text-center',
+                complete ? 'border-amber-400 bg-amber-500/15' : 'border-[var(--c-border)] bg-black/25',
+              ].join(' ')}
+            >
+              <div className="text-2xl">{complete ? world.emoji : '🔒'}</div>
+              <div className="text-sm font-black">{world.name}</div>
+              <div className="text-xs text-[var(--c-soft)]">
+                {complete ? `${stars}/${maxStars} stars` : `Levels ${world.levelStart}-${world.levelEnd}`}
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
 
       <button
         type="button"

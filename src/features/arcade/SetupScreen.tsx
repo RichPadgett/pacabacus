@@ -62,11 +62,10 @@ export function SetupScreen({ onStart, onHome }: { onStart: () => void; onHome?:
       {theme.id === 'stars' && <Twinkles />}
       <header className="text-center">
         <h1 className="text-4xl font-black tracking-wide text-amber-300 [text-shadow:0_2px_0_#7a5a00]">
-          PacAbacus
+          Game Settings
         </h1>
         <p className="mt-2 max-w-md text-[var(--c-soft)]">
-          Solve problems on your abacus to earn moves. Steer through the maze,
-          collect fruit, and stay ahead of the baddies!
+          Choose the game feel for Free Play and Adventure replays.
         </p>
       </header>
 
@@ -168,7 +167,7 @@ export function SetupScreen({ onStart, onHome }: { onStart: () => void; onHome?:
           onClick={onStart}
           className="rounded-2xl border-4 border-emerald-600 bg-emerald-400 px-12 py-4 text-2xl font-black text-emerald-950 transition hover:brightness-110 active:scale-95"
         >
-          Play! ▶
+          Play Free ▶
         </button>
       </div>
     </div>

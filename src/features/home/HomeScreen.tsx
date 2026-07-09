@@ -34,7 +34,7 @@ export function HomeScreen({
   const [showTools, setShowTools] = useState(false)
 
   const heroDef = HEROES[profile.character] ?? HEROES.kitty
-  const buddyDef = profile.buddy ? HEROES[profile.buddy] : null
+  const buddyNames = profile.buddies.map((id) => HEROES[id]?.name).filter(Boolean)
   const total = totalCompleted(profile)
   const badges = earnedBadges(total)
 
@@ -68,7 +68,7 @@ export function HomeScreen({
               <div className="text-xl font-black">Hi, {profile.username}! 👋</div>
               <div className="text-sm text-[var(--c-soft)]">
                 {heroDef.name}
-                {buddyDef ? ` + ${buddyDef.name} buddy` : ''} · {total} levels done ·{' '}
+                {buddyNames.length ? ` + ${buddyNames.length} babies` : ''} · {total} levels done ·{' '}
                 {badges.length} badges · {profile.treasureCoins} gold
               </div>
             </div>
@@ -179,7 +179,7 @@ export function HomeScreen({
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <MenuButton onClick={onCharacters}>🎭 Team</MenuButton>
               <MenuButton onClick={onRewards}>🏆 Rewards</MenuButton>
-              <MenuButton onClick={onFreePlay}>🎮 Free Play</MenuButton>
+              <MenuButton onClick={onFreePlay}>⚙️ Settings</MenuButton>
             </div>
             {showTools && (
               <div className="flex flex-col gap-2 rounded-2xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] p-4">

@@ -13,7 +13,8 @@ export function CharacterSelect({ onBack }: { onBack: () => void }) {
   const settings = useArcadeSettings()
   const theme = THEMES[settings.theme] ?? THEMES.stars
   const ownedBuddies = new Set(profile.ownedBuddies)
-  const playable = playableCharacters()
+  const activeBuddies = new Set(profile.buddies)
+  const playable = playableCharacters(profile.ownedCharacters)
 
   return (
     <div
@@ -23,7 +24,7 @@ export function CharacterSelect({ onBack }: { onBack: () => void }) {
       {theme.id === 'stars' && <Twinkles />}
       <h1 className="text-3xl font-black text-amber-300">Choose your team! 🎭</h1>
       <p className="text-sm text-[var(--c-soft)]">
-        Pick your player, buy buddies, then choose one to follow you.
+        Pick your player, buy baby buddies, then choose up to three to follow you.
       </p>
       <div className="rounded-full border-2 border-amber-400 bg-amber-500/15 px-5 py-2 text-lg font-black text-amber-200">
         <GoldCoin /> {profile.treasureCoins} treasure coins
@@ -33,7 +34,7 @@ export function CharacterSelect({ onBack }: { onBack: () => void }) {
         <h2 className="mb-3 text-center text-sm font-bold tracking-wide text-[var(--c-soft)]">
           PLAYER
         </h2>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {playable.map((id) => {
             const hero = HEROES[id]
             const isCurrent = profile.character === id
@@ -62,7 +63,7 @@ export function CharacterSelect({ onBack }: { onBack: () => void }) {
 
       <section className="w-full max-w-2xl rounded-2xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] p-4">
         <h2 className="mb-3 text-center text-sm font-bold tracking-wide text-[var(--c-soft)]">
-          BUDDY
+          BABY BUDDIES ({profile.buddies.length}/3)
         </h2>
         <div className="mb-3 flex justify-center">
           <button
@@ -75,7 +76,7 @@ export function CharacterSelect({ onBack }: { onBack: () => void }) {
                 : 'border-[var(--c-border)] bg-black/20 hover:brightness-125',
             ].join(' ')}
           >
-            No buddy
+            No buddies
           </button>
         </div>
         <div className="grid max-w-2xl grid-cols-2 gap-3 sm:grid-cols-3">
@@ -84,14 +85,14 @@ export function CharacterSelect({ onBack }: { onBack: () => void }) {
             const cost = buddyCost(id)
             const isOwned = ownedBuddies.has(id)
             const canBuy = profile.treasureCoins >= cost
-            const isCurrent = profile.buddy === id
+            const isCurrent = activeBuddies.has(id)
             return (
               <button
                 key={id}
                 type="button"
                 disabled={!isOwned && !canBuy}
                 onClick={() => {
-                  if (isOwned) profile.setBuddy(id)
+                  if (isOwned) profile.toggleBuddy(id)
                   else profile.buyBuddy(id)
                 }}
                 className={[
@@ -116,7 +117,9 @@ export function CharacterSelect({ onBack }: { onBack: () => void }) {
                   {isCurrent
                     ? '✓ Following!'
                     : isOwned
-                      ? 'Tap for buddy'
+                      ? profile.buddies.length >= 3
+                        ? 'Tap to swap'
+                        : 'Tap to follow'
                       : canBuy
                         ? (
                             <>

@@ -19,11 +19,13 @@ interface MazeBoardProps {
   jailTurns: number
   pac: Pos
   buddy: Pos
+  buddyTrail: Pos[]
   facing: Dir
   ghosts: Pos[]
   stepMs: number
   hero: HeroId
   buddyId: HeroId | null
+  buddyIds?: HeroId[]
   cloaked?: boolean
   onSwipe?: (dir: Dir) => void
 }
@@ -36,11 +38,13 @@ export function MazeBoard({
   jailTurns,
   pac,
   buddy,
+  buddyTrail,
   facing,
   ghosts,
   stepMs,
   hero,
   buddyId,
+  buddyIds,
   cloaked,
   onSwipe,
 }: MazeBoardProps) {
@@ -162,18 +166,23 @@ export function MazeBoard({
         )
       })}
 
-      {buddyId && !samePosForBoard(buddy, pac) && (
-        <div
-          className="absolute top-1 left-1 z-4 flex items-center justify-center"
-          style={{ ...spriteStyle(buddy), opacity: 0.92 }}
-        >
-          <PixelSprite
-            map={HEROES[buddyId].frames[(buddy.r + buddy.c) % 2]}
-            palette={HEROES[buddyId].palette}
-            size={tile * 0.58}
-          />
-        </div>
-      )}
+      {(buddyIds?.length ? buddyIds : buddyId ? [buddyId] : []).map((id, i) => {
+        const p = buddyTrail[i] ?? buddy
+        if (samePosForBoard(p, pac)) return null
+        return (
+          <div
+            key={`${id}-${i}`}
+            className="absolute top-1 left-1 z-4 flex items-center justify-center"
+            style={{ ...spriteStyle(p), opacity: 0.92 - i * 0.08 }}
+          >
+            <PixelSprite
+              map={HEROES[id].frames[(p.r + p.c) % 2]}
+              palette={HEROES[id].palette}
+              size={tile * (0.58 - i * 0.04)}
+            />
+          </div>
+        )
+      })}
 
       {cloaked && (
         <div

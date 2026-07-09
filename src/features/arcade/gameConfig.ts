@@ -25,7 +25,7 @@ export interface LevelCfg {
 }
 
 /** Main 50-level adventure: eases in, then grows through real soroban skills. */
-export function adventureCfg(level: number): LevelCfg {
+export function adventureCfg(level: number, settings?: ArcadeSettings): LevelCfg {
   const problem: ProblemCfg =
     level <= 6
       ? { kind: 'tech', mathLevel: 1, ops: 'add', maxAnswer: 10 }
@@ -39,13 +39,22 @@ export function adventureCfg(level: number): LevelCfg {
               ? { kind: 'tech', mathLevel: 4, ops: 'mixed', maxAnswer: 50 }
               : { kind: 'tech', mathLevel: 5, ops: 'mixed', maxAnswer: 50 }
 
-  const enemy: EnemyCfg = {
+  const baseEnemy: EnemyCfg = {
     count: level <= 2 ? 1 : level <= 8 ? 1 : level <= 16 ? 2 : 3,
     correctSteps: level <= 14 ? 1 : level <= 30 ? 1 : 2,
     wrongSteps: Math.min(3, 1 + Math.floor(level / 15)),
     chaseChance: Math.min(0.85, 0.3 + level * 0.012),
     spawnChance: level <= 10 ? 0 : Math.min(0.35, (level - 10) * 0.012),
   }
+  const tuned = settings ? GHOST_CONFIG[settings.ghosts] : null
+  const enemy: EnemyCfg = tuned
+    ? {
+        ...baseEnemy,
+        count: Math.min(baseEnemy.count, tuned.count),
+        correctSteps: tuned.correctSteps,
+        wrongSteps: tuned.wrongSteps,
+      }
+    : baseEnemy
 
   return {
     problem,

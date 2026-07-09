@@ -576,7 +576,7 @@ export const HEROES: Record<HeroId, HeroDef> = {
   monkey: {
     id: 'monkey',
     name: 'Monkey',
-    unlockLevel: 0,
+    unlockLevel: 6,
     frames: [MONKEY_A, MONKEY_B],
     palette: { B: '#8b5a2b', S: '#c4864a', F: '#f4c28b', P: '#ff9ec6' },
     rotates: false,
@@ -584,7 +584,7 @@ export const HEROES: Record<HeroId, HeroDef> = {
   dino: {
     id: 'dino',
     name: 'Dino',
-    unlockLevel: 0,
+    unlockLevel: 10,
     frames: [DINO_A, DINO_B],
     palette: { G: '#5fd068', B: '#123a16', R: '#ff8b5f' },
     rotates: false,
@@ -704,11 +704,12 @@ export const HEROES: Record<HeroId, HeroDef> = {
 }
 
 export const CHARACTER_ORDER: HeroId[] = [
+  'dog',
   'kitty',
+  'orca',
+  'fox',
   'monkey',
   'dino',
-  'dog',
-  'fox',
   'snake',
   'turtle',
   'chick',
@@ -717,7 +718,6 @@ export const CHARACTER_ORDER: HeroId[] = [
   'lamby',
   'lion',
   'strawbat',
-  'orca',
   'robo',
   'elephant',
   'chomper',

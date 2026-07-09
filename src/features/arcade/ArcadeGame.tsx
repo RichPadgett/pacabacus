@@ -119,12 +119,12 @@ export function ArcadeGame({ mode, onExit }: { mode: PlayMode; onExit: () => voi
   const profile = useProfile()
 
   const cfgFor = useMemo(() => {
-    if (mode === 'adventure') return adventureCfg
+    if (mode === 'adventure') return (level: number) => adventureCfg(level, settings)
     if (mode === 'counting') return countingCfg
     const snapshot = freePlayCfg(settings)
     return () => snapshot
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode])
+  }, [mode, settings])
 
   const startLevel =
     mode === 'adventure'
@@ -143,10 +143,11 @@ export function ArcadeGame({ mode, onExit }: { mode: PlayMode; onExit: () => voi
   const tile = useTileSize(state.maze.cols, state.maze.rows)
   const world = mode === 'adventure' ? worldForAdventureLevel(state.level) : null
   const nextWorld = world && state.level < ADVENTURE_MAX ? worldForAdventureLevel(state.level + 1) : null
-  const songIndex = world ? world.musicIndex : state.level - 1
+  const songIndex = world ? world.musicIndex + ((state.level - world.levelStart) % 2) : state.level - 1
   const theme = world ? THEMES[world.theme] : (THEMES[settings.theme] ?? THEMES.stars)
   const hero = HEROES[profile.character] ? profile.character : 'kitty'
-  const buddy = profile.buddy && HEROES[profile.buddy] ? profile.buddy : null
+  const buddies = profile.buddies.filter((id) => HEROES[id]).slice(0, 3)
+  const buddy = buddies[0] ?? (profile.buddy && HEROES[profile.buddy] ? profile.buddy : null)
   const touched = useRef(false)
 
   const maxLevel = mode === 'adventure' ? ADVENTURE_MAX : mode === 'counting' ? COUNTING_MAX : Infinity
@@ -307,7 +308,9 @@ export function ArcadeGame({ mode, onExit }: { mode: PlayMode; onExit: () => voi
         stepMs={stepMs}
         hero={hero}
         buddy={state.buddy}
+        buddyTrail={state.buddyTrail}
         buddyId={buddy}
+        buddyIds={buddies}
         cloaked={phase === 'answer' && state.ghosts.length > 0}
         onSwipe={(dir) => dispatch({ type: 'MOVE', dir })}
       />
@@ -427,9 +430,9 @@ export function ArcadeGame({ mode, onExit }: { mode: PlayMode; onExit: () => voi
               +{rewards.coinsEarned} gold coins
             </p>
           )}
-          {rewards?.newBuddies.map((id) => (
+          {rewards?.newCharacters.map((id) => (
             <p key={id} className="font-bold text-amber-300">
-              🎁 New buddy unlocked: {HEROES[id].name}!
+              🎁 New character unlocked: {HEROES[id].name}!
             </p>
           ))}
           {rewards?.newBadges.map((b) => (
