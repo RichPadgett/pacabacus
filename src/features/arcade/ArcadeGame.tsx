@@ -128,7 +128,12 @@ export function ArcadeGame({ mode, onExit }: { mode: PlayMode; onExit: () => voi
         : 1
 
   const stepMs = SPEED_MS[settings.speed]
-  const { state, dispatch } = useArcadeGame(cfgFor, startLevel, stepMs)
+  const { state, dispatch } = useArcadeGame(
+    cfgFor,
+    startLevel,
+    stepMs,
+    mode !== 'counting',
+  )
   const tile = useTileSize(state.maze.cols)
   const theme = THEMES[settings.theme] ?? THEMES.stars
   const hero = HEROES[profile.character] ? profile.character : 'kitty'

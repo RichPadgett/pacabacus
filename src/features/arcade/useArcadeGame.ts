@@ -37,6 +37,8 @@ export interface GameMessage {
 const TREASURE_EMOJI = ['🍒', '🍊', '🍌', '🍉', '🫐', '💎', '⭐', '🪙', '🧁', '💖', '🌼']
 const ROCK_EMOJI = '🪨'
 const JAIL_TURNS = 3
+const ROCK_DELAY_MIN_MS = 10_000
+const ROCK_DELAY_MAX_MS = 20_000
 
 export interface GameState {
   level: number
@@ -71,7 +73,7 @@ type Action =
   | { type: 'CHALLENGE' }
   | { type: 'MOVE'; dir: Dir }
   | { type: 'END_MOVE' }
-  | { type: 'AGE_TREASURES' }
+  | { type: 'AGE_TREASURES'; count: number }
   | { type: 'GHOST_TICK' }
   | { type: 'REVEAL_DONE' }
   | { type: 'RESPAWN' }
@@ -85,6 +87,8 @@ const GENTLE_RETRY = [
   'Good trying! Count them slowly! 🐢',
 ]
 const pickFrom = (arr: string[]) => arr[Math.floor(Math.random() * arr.length)]
+const randomRockDelay = () =>
+  ROCK_DELAY_MIN_MS + Math.floor(Math.random() * (ROCK_DELAY_MAX_MS - ROCK_DELAY_MIN_MS + 1))
 
 function shuffle<T>(items: T[]) {
   const out = [...items]
@@ -358,9 +362,8 @@ function makeReducer(cfgFor: (level: number) => LevelCfg) {
           (k) => state.treasures.get(k) !== ROCK_EMOJI && !state.jailFruits.has(k),
         )
         if (!candidates.length) return { ...state, answerTicks: state.answerTicks + 1 }
-        const rocksToAdd = state.cfg.gentle ? 1 : Math.min(2, 1 + Math.floor(state.level / 20))
         const treasures = new Map(state.treasures)
-        for (const k of shuffle(candidates).slice(0, rocksToAdd)) {
+        for (const k of shuffle(candidates).slice(0, action.count)) {
           treasures.set(k, ROCK_EMOJI)
         }
         return {
@@ -465,6 +468,7 @@ export function useArcadeGame(
   cfgFor: (level: number) => LevelCfg,
   startLevel: number,
   stepMs: number,
+  rockAgingEnabled: boolean,
 ) {
   const reducer = useMemo(() => makeReducer(cfgFor), [cfgFor])
   const [state, dispatch] = useReducer(
@@ -474,9 +478,12 @@ export function useArcadeGame(
   )
 
   useEffect(() => {
-    if (state.phase === 'answer') {
-      const t = setInterval(() => dispatch({ type: 'AGE_TREASURES' }), 7000)
-      return () => clearInterval(t)
+    if (state.phase === 'answer' && rockAgingEnabled) {
+      const t = setTimeout(
+        () => dispatch({ type: 'AGE_TREASURES', count: 1 }),
+        randomRockDelay(),
+      )
+      return () => clearTimeout(t)
     }
     if (state.phase === 'ghosts') {
       const t = setInterval(() => dispatch({ type: 'GHOST_TICK' }), stepMs + 40)
@@ -490,7 +497,7 @@ export function useArcadeGame(
       const t = setTimeout(() => dispatch({ type: 'REVEAL_DONE' }), 1900)
       return () => clearTimeout(t)
     }
-  }, [state.phase, stepMs])
+  }, [state.phase, state.answerTicks, stepMs, rockAgingEnabled])
 
   return { state, dispatch }
 }
