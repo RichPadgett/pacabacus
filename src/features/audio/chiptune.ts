@@ -139,6 +139,13 @@ interface Song {
   harmony: string[]
   bass: string[]
   drums: string[]
+  leadWave?: OscillatorType
+  harmonyWave?: OscillatorType
+  bassWave?: OscillatorType
+  leadVol?: number
+  harmonyVol?: number
+  bassVol?: number
+  swing?: number
 }
 
 const SONG_MARCH: Song = {
@@ -212,7 +219,76 @@ const SONG_CHASE: Song = {
   `),
 }
 
-export const SONGS: Song[] = [SONG_MARCH, SONG_WALTZ, SONG_CHASE]
+// ---- Song 4: a woody forest two-step with more rests and a plucky bass ----
+const SONG_FOREST: Song = {
+  name: 'Mossy Two-Step',
+  bpm: 132,
+  leadWave: 'triangle',
+  harmonyWave: 'square',
+  bassWave: 'triangle',
+  leadVol: 0.62,
+  harmonyVol: 0.16,
+  bassVol: 0.68,
+  swing: 0.18,
+  melody: parse(`
+    E5 .  G5 E5  D5 .  C5 .    G4 .  C5 D5  E5 -  .  .
+    A4 .  C5 A4  G4 .  E4 .    D5 .  E5 G5  C5 -  .  .
+    E5 G5 A5 .   G5 E5 D5 .    C5 .  E5 G5  A5 -  .  .
+    G5 .  E5 C5  D5 .  G4 .    C5 -  .  .   G4 .  C5 .
+  `),
+  harmony: parse(`
+    .  C4 .  E4  .  C4 .  E4   .  G3 .  C4  .  G3 .  C4
+    .  F4 .  A4  .  F4 .  A4   .  G4 .  B4  .  G4 .  B4
+    .  C4 .  E4  .  C4 .  E4   .  F4 .  A4  .  F4 .  A4
+    .  G4 .  B4  .  G4 .  B4   .  C4 .  E4  .  C4 .  E4
+  `),
+  bass: parse(`
+    C3 .  .  G2  C3 .  .  G2   C3 .  .  G2  C3 .  .  G2
+    F2 .  .  C3  F2 .  .  C3   G2 .  .  D3  G2 .  .  D3
+    C3 .  .  G2  C3 .  .  G2   F2 .  .  C3  F2 .  .  C3
+    G2 .  .  D3  G2 .  .  D3   C3 .  G2 .   C3 .  .  .
+  `),
+  drums: parse(`
+    k . h s . h k .    k . h s . h k .    k . h s . h k .    k . h s s h s .
+    k . h s . h k .    k . h s . h k .    k . h s . h k .    k . h s s s s .
+  `),
+}
+
+// ---- Song 5: a warm castle/sunset tune with a slower heroic feel ----
+const SONG_CASTLE: Song = {
+  name: 'Sunset Castle Parade',
+  bpm: 118,
+  leadWave: 'sawtooth',
+  harmonyWave: 'triangle',
+  bassWave: 'triangle',
+  leadVol: 0.36,
+  harmonyVol: 0.22,
+  bassVol: 0.78,
+  melody: parse(`
+    C5 -  G4 -  A4 -  E4 -    F4 -  C5 -  B4 -  G4 -
+    E5 -  C5 -  D5 -  B4 -    C5 -  -  .  G4 .  C5 .
+    A4 -  E5 -  D5 -  C5 -    B4 -  G5 -  F5 -  D5 -
+    E5 -  G5 -  C6 -  B5 -    C6 -  -  .  G5 .  E5 .
+  `),
+  harmony: parse(`
+    C4 -  -  -   E4 -  -  -   F4 -  -  -   G4 -  -  -
+    C4 -  -  -   E4 -  -  -   G4 -  -  -   C5 -  -  -
+    A3 -  -  -   C4 -  -  -   G3 -  -  -   B3 -  -  -
+    C4 -  -  -   E4 -  -  -   G4 -  -  -   C5 -  -  -
+  `),
+  bass: parse(`
+    C2 .  C3 .   G2 .  G3 .   F2 .  F3 .   G2 .  G3 .
+    C2 .  C3 .   A2 .  A3 .   G2 .  G3 .   C3 .  G2 .
+    A2 .  A3 .   F2 .  F3 .   G2 .  G3 .   G2 .  D3 .
+    C2 .  G2 .   E3 .  G3 .   C3 .  G2 .   C3 .  .  .
+  `),
+  drums: parse(`
+    k . . h s . h .    k . . h s . h .    k . . h s . h .    k . s . c . s .
+    k . . h s . h .    k . . h s . h .    k . . h s . h .    c . s . k s s .
+  `),
+}
+
+export const SONGS: Song[] = [SONG_MARCH, SONG_WALTZ, SONG_CHASE, SONG_FOREST, SONG_CASTLE]
 
 const LOOKAHEAD_SEC = 0.12
 const TICK_MS = 30
@@ -308,20 +384,43 @@ class Chiptune {
     const music = this.musicGain!
     const { melody, harmony, bass, drums } = this.song
     const stepSec = this.stepSec
+    const swingDelay = this.song.swing && step % 2 === 1 ? stepSec * this.song.swing : 0
+    const noteTime = time + swingDelay
     const mel = melody[step % melody.length]
     if (mel !== '.' && mel !== '-') {
       const len = this.holdLength(melody, step % melody.length)
-      this.tone(music, noteFreq(mel), time, stepSec * len * 0.9, 'square', 0.5)
+      this.tone(
+        music,
+        noteFreq(mel),
+        noteTime,
+        stepSec * len * 0.9,
+        this.song.leadWave ?? 'square',
+        this.song.leadVol ?? 0.5,
+      )
     }
     const har = harmony[step % harmony.length]
     if (har !== '.' && har !== '-') {
       const len = this.holdLength(harmony, step % harmony.length)
-      this.tone(music, noteFreq(har), time, stepSec * len * 0.85, 'square', 0.22)
+      this.tone(
+        music,
+        noteFreq(har),
+        noteTime,
+        stepSec * len * 0.85,
+        this.song.harmonyWave ?? 'square',
+        this.song.harmonyVol ?? 0.22,
+      )
     }
     const bs = bass[step % bass.length]
     if (bs !== '.' && bs !== '-') {
       const len = this.holdLength(bass, step % bass.length)
-      this.tone(music, noteFreq(bs), time, stepSec * len * 0.9, 'triangle', 0.75)
+      this.tone(
+        music,
+        noteFreq(bs),
+        noteTime,
+        stepSec * len * 0.9,
+        this.song.bassWave ?? 'triangle',
+        this.song.bassVol ?? 0.75,
+      )
     }
     const drum = drums[step % drums.length]
     if (drum === 'k') this.tone(music, 70, time, 0.09, 'square', 0.5)

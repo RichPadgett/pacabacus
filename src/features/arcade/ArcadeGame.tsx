@@ -14,6 +14,7 @@ import { HEROES } from './sprites'
 import { SPEED_MS, useArcadeSettings } from './settingsStore'
 import { THEMES } from './themes'
 import { useArcadeGame } from './useArcadeGame'
+import { worldForAdventureLevel } from './worlds'
 
 export type PlayMode = 'adventure' | 'counting' | 'free'
 
@@ -135,7 +136,10 @@ export function ArcadeGame({ mode, onExit }: { mode: PlayMode; onExit: () => voi
     mode !== 'counting' && settings.rockTimer,
   )
   const tile = useTileSize(state.maze.cols)
-  const theme = THEMES[settings.theme] ?? THEMES.stars
+  const world = mode === 'adventure' ? worldForAdventureLevel(state.level) : null
+  const nextWorld = world && state.level < ADVENTURE_MAX ? worldForAdventureLevel(state.level + 1) : null
+  const songIndex = world ? world.musicIndex : state.level - 1
+  const theme = world ? THEMES[world.theme] : (THEMES[settings.theme] ?? THEMES.stars)
   const hero = HEROES[profile.character] ? profile.character : 'kitty'
   const buddy = profile.buddy && HEROES[profile.buddy] ? profile.buddy : null
   const touched = useRef(false)
@@ -182,10 +186,10 @@ export function ArcadeGame({ mode, onExit }: { mode: PlayMode; onExit: () => voi
 
   // music + sfx
   useEffect(() => {
-    if (settings.music) chiptune.playSong(state.level - 1)
+    if (settings.music) chiptune.playSong(songIndex)
     else chiptune.stopMusic()
     return () => chiptune.stopMusic()
-  }, [settings.music, state.level])
+  }, [settings.music, songIndex])
 
   const { phase } = state
   useEffect(() => {
@@ -254,6 +258,12 @@ export function ArcadeGame({ mode, onExit }: { mode: PlayMode; onExit: () => voi
           label={mode === 'counting' ? 'Little Counters' : mode === 'adventure' ? 'Adventure' : 'Free Play'}
           value={`Level ${state.level}`}
         />
+        {world && (
+          <Stat
+            label="World"
+            value={`${world.emoji} ${world.name}`}
+          />
+        )}
         <Stat
           label="Stars"
           value={`⭐ ${state.stars}${state.streak >= 2 ? ` 🔥${state.streak}` : ''}`}
@@ -405,9 +415,14 @@ export function ArcadeGame({ mode, onExit }: { mode: PlayMode; onExit: () => voi
           <Confetti />
           <p className="text-2xl">{'⭐'.repeat(state.clearStars)}</p>
           <p className="text-lg">You cleared the whole board!</p>
+          {world && nextWorld && state.level < maxLevel && (
+            <p className="font-bold text-emerald-300">
+              {world.doorText} Next stop: {nextWorld.emoji} {nextWorld.name}
+            </p>
+          )}
           {rewards && (
             <p className="font-bold text-amber-300">
-              🪙 +{rewards.coinsEarned} treasure coins
+              +{rewards.coinsEarned} gold coins
             </p>
           )}
           {rewards?.newBuddies.map((id) => (

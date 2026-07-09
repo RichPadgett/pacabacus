@@ -68,7 +68,7 @@ export function HomeScreen({
               <div className="text-sm text-[var(--c-soft)]">
                 {heroDef.name}
                 {buddyDef ? ` + ${buddyDef.name} buddy` : ''} · {total} levels done ·{' '}
-                {badges.length} badges · {profile.treasureCoins} 🪙
+                {badges.length} badges · {profile.treasureCoins} gold
               </div>
             </div>
             <button

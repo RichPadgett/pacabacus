@@ -33,7 +33,7 @@ export function RewardsScreen({ onBack }: { onBack: () => void }) {
       {theme.id === 'stars' && <Twinkles />}
       <h1 className="text-3xl font-black text-amber-300">Your Rewards 🏆</h1>
       <p className="text-sm text-[var(--c-soft)]">
-        {total} levels finished · {totalStars} ⭐ collected · {profile.treasureCoins} 🪙 saved
+        {total} levels finished · {totalStars} ⭐ collected · {profile.treasureCoins} gold saved
       </p>
 
       <section className="w-full max-w-2xl rounded-2xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] p-4">

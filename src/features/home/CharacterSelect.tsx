@@ -26,7 +26,7 @@ export function CharacterSelect({ onBack }: { onBack: () => void }) {
         Pick your player, buy buddies, then choose one to follow you.
       </p>
       <div className="rounded-full border-2 border-amber-400 bg-amber-500/15 px-5 py-2 text-lg font-black text-amber-200">
-        🪙 {profile.treasureCoins} treasure coins
+        <GoldCoin /> {profile.treasureCoins} treasure coins
       </div>
 
       <section className="w-full max-w-2xl rounded-2xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] p-4">
@@ -118,8 +118,16 @@ export function CharacterSelect({ onBack }: { onBack: () => void }) {
                     : isOwned
                       ? 'Tap for buddy'
                       : canBuy
-                        ? `Buy for ${cost} 🪙`
-                        : `${cost} 🪙`}
+                        ? (
+                            <>
+                              Buy for {cost} <GoldCoin small />
+                            </>
+                          )
+                        : (
+                            <>
+                              {cost} <GoldCoin small />
+                            </>
+                          )}
                 </span>
               </button>
             )
@@ -135,5 +143,18 @@ export function CharacterSelect({ onBack }: { onBack: () => void }) {
         🏠 Back home
       </button>
     </div>
+  )
+}
+
+function GoldCoin({ small }: { small?: boolean }) {
+  return (
+    <span
+      className={[
+        'inline-flex items-center justify-center rounded-full border border-yellow-100 bg-gradient-to-br from-yellow-100 via-yellow-300 to-amber-500 font-black text-amber-900 shadow-[inset_0_-1px_0_rgba(146,64,14,0.55)] align-middle',
+        small ? 'h-4 w-4 text-[10px]' : 'h-6 w-6 text-sm',
+      ].join(' ')}
+    >
+      $
+    </span>
   )
 }

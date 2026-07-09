@@ -34,7 +34,7 @@ export interface GameMessage {
   id: number
 }
 
-const TREASURE_EMOJI = ['🍒', '🍊', '🍌', '🍉', '🫐', '💎', '⭐', '🪙', '🧁', '💖', '🌼']
+const TREASURE_EMOJI = ['🍒', '🍊', '🍌', '🍉', '🫐', '💎', '⭐', 'gold-coin', '🧁', '💖', '🌼']
 const ROCK_EMOJI = '🪨'
 const JAIL_TURNS = 3
 const ROCK_DELAY_MIN_MS = 10_000

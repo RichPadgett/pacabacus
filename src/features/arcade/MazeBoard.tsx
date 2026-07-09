@@ -60,7 +60,24 @@ export function MazeBoard({
               : 'relative'
           }
         >
-          {!wall && treasure && (
+          {!wall && treasure === 'gold-coin' && (
+            <span
+              className="absolute inset-0 flex items-center justify-center"
+              style={{ filter: 'drop-shadow(0 0 5px #ffd23f)' }}
+            >
+              <span
+                className="flex items-center justify-center rounded-full border-2 border-yellow-200 bg-gradient-to-br from-yellow-100 via-yellow-300 to-amber-500 font-black text-amber-900 shadow-[inset_0_-2px_0_rgba(146,64,14,0.45)]"
+                style={{
+                  width: tile * 0.52,
+                  height: tile * 0.52,
+                  fontSize: tile * 0.25,
+                }}
+              >
+                $
+              </span>
+            </span>
+          )}
+          {!wall && treasure && treasure !== 'gold-coin' && (
             <span
               className={[
                 'absolute inset-0 flex items-center justify-center leading-none',
