@@ -16,13 +16,15 @@ export function Rod({ rod, onChange, readOnly }: RodProps) {
       <div className="absolute top-0 bottom-0 w-px bg-neutral-700" />
 
       {/* heaven deck: 1 bead, worth 5, active = pushed down toward beam */}
-      <div className="flex h-14 w-full flex-col items-center justify-end pb-1">
+      <div className="flex h-14 w-full flex-col items-center pt-1 pb-1">
+        {rod.heavenDown && <div className="flex-1" />}
         <Bead
           tone="heaven"
           active={rod.heavenDown}
           readOnly={readOnly}
           onClick={() => onChange({ ...rod, heavenDown: !rod.heavenDown })}
         />
+        {!rod.heavenDown && <div className="flex-1" />}
       </div>
 
       <div className="h-1 w-full bg-neutral-600" />
