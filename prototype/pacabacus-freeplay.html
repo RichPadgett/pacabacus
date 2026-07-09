@@ -1,0 +1,1110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PacAbacus — Practice Mode</title>
+<style>
+  :root {
+    --bg: #1a1440;
+    --panel: #241b5e;
+    --wall: #4433aa;
+    --wall-edge: #6a58e8;
+    --floor: #17103a;
+    --text: #fdf6ff;
+    --accent: #ffd23f;
+    --good: #4ade80;
+    --soft: #b9aef5;
+    --pellet: #ffd23f;
+    --pellet-minus: #60c8ff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100svh;
+    background: radial-gradient(circle at 50% 20%, #2b2070, var(--bg) 70%);
+    color: var(--text);
+    font-family: 'Comic Sans MS', 'Chalkboard SE', 'Segoe UI', sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
+  }
+  h1 {
+    margin: 4px 0 0;
+    font-size: 28px;
+    color: var(--accent);
+    letter-spacing: 1px;
+    text-shadow: 0 2px 0 #7a5a00;
+  }
+
+  /* ===== TOP HUD ===== */
+  #hud {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .stat {
+    background: var(--panel);
+    border: 2px solid var(--wall-edge);
+    border-radius: 14px;
+    padding: 6px 14px;
+    text-align: center;
+    min-width: 86px;
+  }
+  .stat .label { font-size: 12px; color: var(--soft); }
+  .stat .value { font-size: 24px; font-weight: bold; }
+  #sumStat .value { color: var(--accent); }
+  #targetStat .value { color: var(--good); }
+  #gearBtn {
+    background: var(--panel);
+    border: 2px solid var(--wall-edge);
+    border-radius: 14px;
+    color: var(--text);
+    font-size: 20px;
+    padding: 6px 14px;
+    cursor: pointer;
+  }
+  #goalBar {
+    background: var(--panel);
+    border: 2px solid var(--good);
+    border-radius: 999px;
+    padding: 6px 20px;
+    font-size: 18px;
+    font-weight: bold;
+    color: var(--good);
+    text-align: center;
+  }
+
+  /* ===== BOARD ===== */
+  #boardWrap { position: relative; }
+  #board {
+    display: grid;
+    background: var(--floor);
+    border: 4px solid var(--wall-edge);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .cell { position: relative; }
+  .cell.wall {
+    background: var(--wall);
+    border-radius: 6px;
+    box-shadow: inset 0 0 0 2px var(--wall-edge);
+  }
+  .pellet {
+    position: absolute;
+    inset: 18%;
+    border-radius: 50%;
+    background: #fff5e6;
+    color: #7a3fb0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 14px;
+    box-shadow: 0 0 8px rgba(255, 245, 230, 0.6);
+  }
+  .pellet.minus {
+    background: var(--pellet-minus);
+    color: #003a5a;
+    box-shadow: 0 0 10px rgba(96, 200, 255, 0.7);
+  }
+  .pellet.best {
+    animation: bestPulse 0.7s infinite alternate;
+    outline: 3px solid #4ade80;
+  }
+  @keyframes bestPulse {
+    from { transform: scale(1); }
+    to { transform: scale(1.22); box-shadow: 0 0 18px #4ade80; }
+  }
+  .qmark {
+    position: absolute;
+    inset: 12%;
+    border-radius: 50%;
+    background: #a78bfa;
+    color: #2e1065;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 18px;
+    box-shadow: 0 0 12px rgba(167, 139, 250, 0.8);
+  }
+  #player {
+    position: absolute;
+    top: 4px;   /* board border offset */
+    left: 4px;
+    width: var(--tile);
+    height: var(--tile);
+    z-index: 5;
+  }
+  #playerFace {
+    width: 88%;
+    height: 88%;
+    margin: 6%;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #ffe680, #ffc400);
+    position: relative;
+    box-shadow: 0 0 14px rgba(255, 200, 60, 0.9);
+    transform: var(--face-t, none);
+    transition: transform 0.15s;
+  }
+  /* one eye, classic side-facing look */
+  #playerFace::before {
+    content: '';
+    position: absolute;
+    top: 16%;
+    left: 52%;
+    width: 16%;
+    height: 16%;
+    border-radius: 50%;
+    background: #3a2800;
+  }
+  /* chomping mouth: a wedge of floor color that opens and closes */
+  #playerMouth {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: conic-gradient(from -35deg, var(--floor) 70deg, transparent 0);
+    animation: chomp 0.5s steps(1) infinite;
+  }
+  @keyframes chomp {
+    0%, 100% { background: conic-gradient(from -35deg, var(--floor) 70deg, transparent 0); }
+    50% { background: conic-gradient(from -10deg, var(--floor) 20deg, transparent 0); }
+  }
+  #youTag {
+    position: absolute;
+    top: -26px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--good);
+    color: #06301d;
+    font-size: 13px;
+    font-weight: bold;
+    padding: 2px 10px;
+    border-radius: 999px;
+    white-space: nowrap;
+    animation: youBounce 0.6s infinite alternate, youFade 1s 8s forwards;
+  }
+  @keyframes youBounce { from { margin-top: 0; } to { margin-top: -5px; } }
+  @keyframes youFade { to { opacity: 0; visibility: hidden; } }
+
+  /* ===== BOTTOM: ABACUS + TRAIL ===== */
+  #bottom {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: stretch;
+  }
+  .panelBox {
+    background: var(--panel);
+    border: 2px solid var(--wall-edge);
+    border-radius: 14px;
+    padding: 10px 14px;
+  }
+  .panelBox h3 { margin: 0 0 6px; font-size: 13px; color: var(--soft); text-align: center; }
+  #abacus { display: flex; gap: 6px; justify-content: center; }
+  .rod { position: relative; width: 44px; display: flex; flex-direction: column; align-items: center; }
+  .rod .pole { position: absolute; top: 0; bottom: 16px; width: 3px; background: #6a58e8; border-radius: 2px; }
+  .rod .deck-heaven { height: 44px; display: flex; flex-direction: column; padding: 2px 0; width: 100%; align-items: center; }
+  .rod .beam { height: 5px; width: 100%; background: #8f7ff0; border-radius: 2px; z-index: 2; }
+  .rod .deck-earth { height: 96px; display: flex; flex-direction: column; gap: 3px; padding: 3px 0; width: 100%; align-items: center; }
+  .rod .digit { font-size: 13px; color: var(--soft); height: 16px; }
+  .bead { width: 34px; height: 14px; border-radius: 999px; z-index: 2; }
+  .bead.heaven { background: #f5b02e; box-shadow: inset 0 -3px 0 #b97d0a; }
+  .bead.heaven.off { background: #7a6a3c; box-shadow: inset 0 -3px 0 #55491f; }
+  .bead.earth { background: #45b1f5; box-shadow: inset 0 -3px 0 #1272ad; }
+  .bead.earth.off { background: #3c5a7a; box-shadow: inset 0 -3px 0 #24405c; }
+  .spacer { flex: 1; }
+  #trailBox { min-width: 220px; max-width: 330px; display: flex; flex-direction: column; }
+  #trail {
+    flex: 1;
+    font-size: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 4px;
+    min-height: 44px;
+    color: var(--accent);
+  }
+  #trail .eq { color: var(--good); }
+
+  /* ===== TOASTS / OVERLAYS ===== */
+  #toast {
+    position: fixed;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #34d399;
+    color: #06301d;
+    font-size: 18px;
+    font-weight: bold;
+    padding: 10px 20px;
+    border-radius: 999px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+    z-index: 50;
+    max-width: 90vw;
+    text-align: center;
+  }
+  #toast.show { opacity: 1; }
+  .overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(10, 6, 40, 0.75);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 40;
+    padding: 16px;
+  }
+  .overlay.show { display: flex; }
+  .card {
+    background: var(--panel);
+    border: 3px solid var(--wall-edge);
+    border-radius: 20px;
+    padding: 22px 26px;
+    max-width: 420px;
+    width: 100%;
+    text-align: center;
+  }
+  .card h2 { margin: 0 0 8px; color: var(--accent); }
+  .card p { margin: 6px 0; font-size: 17px; line-height: 1.4; }
+  .card .big { font-size: 34px; font-weight: bold; margin: 10px 0; }
+  .choices { display: flex; gap: 10px; justify-content: center; margin-top: 14px; flex-wrap: wrap; }
+  .choices button, .card > button, .cardBtnRow button {
+    font-family: inherit;
+    font-size: 22px;
+    font-weight: bold;
+    padding: 10px 22px;
+    border-radius: 14px;
+    border: 3px solid #2c9e57;
+    background: var(--good);
+    color: #06301d;
+    cursor: pointer;
+  }
+  .choices button { background: var(--accent); border-color: #b98a00; color: #5a3c00; min-width: 76px; }
+  .choices button:active { transform: scale(0.95); }
+  .hintText { color: var(--soft); font-size: 15px; }
+  .cardBtnRow { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 12px; }
+  .cardBtnRow .alt { background: #a78bfa; border-color: #6d4fd8; color: #2e1065; }
+
+  /* ===== SETTINGS ===== */
+  #settingsCard { text-align: left; max-height: 86svh; overflow-y: auto; }
+  #settingsCard label { display: block; font-size: 14px; color: var(--soft); margin-top: 10px; }
+  #settingsCard select {
+    width: 100%;
+    font-family: inherit;
+    font-size: 16px;
+    padding: 6px;
+    border-radius: 8px;
+    border: 2px solid var(--wall-edge);
+    background: var(--floor);
+    color: var(--text);
+  }
+
+  /* ===== TOUCH D-PAD ===== */
+  #dpad {
+    display: grid;
+    grid-template-columns: repeat(3, 56px);
+    grid-template-rows: repeat(2, 56px);
+    gap: 6px;
+    margin-top: 2px;
+  }
+  #dpad button {
+    font-size: 24px;
+    border-radius: 14px;
+    border: 2px solid var(--wall-edge);
+    background: var(--panel);
+    color: var(--text);
+    cursor: pointer;
+  }
+  #dpad button:active { background: var(--wall-edge); }
+  #dpadUp { grid-column: 2; grid-row: 1; }
+  #dpadLeft { grid-column: 1; grid-row: 2; }
+  #dpadDown { grid-column: 2; grid-row: 2; }
+  #dpadRight { grid-column: 3; grid-row: 2; }
+
+  /* confetti */
+  .confetti {
+    position: fixed;
+    top: -20px;
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    z-index: 60;
+    animation: fall linear forwards;
+    pointer-events: none;
+  }
+  @keyframes fall {
+    to { transform: translateY(105svh) rotate(720deg); }
+  }
+</style>
+</head>
+<body>
+
+<h1>PacAbacus</h1>
+
+<div id="hud">
+  <div class="stat" id="targetStat"><div class="label">Target</div><div class="value" id="targetVal">–</div></div>
+  <div class="stat" id="sumStat"><div class="label">My Number</div><div class="value" id="sumVal">0</div></div>
+  <div class="stat"><div class="label">Level</div><div class="value" id="levelVal">1</div></div>
+  <div class="stat"><div class="label">Stars</div><div class="value" id="starsVal">⭐ 0</div></div>
+  <button id="gearBtn" title="Parent settings">⚙️</button>
+</div>
+
+<div id="goalBar">Eat pellets to make the target!</div>
+
+<div id="boardWrap">
+  <div id="board"></div>
+  <div id="player">
+    <div id="playerFace"><div id="playerMouth"></div></div>
+    <div id="youTag">You!</div>
+  </div>
+</div>
+
+<div id="bottom">
+  <div class="panelBox">
+    <h3>My Abacus</h3>
+    <div id="abacus"></div>
+  </div>
+  <div class="panelBox" id="trailBox">
+    <h3>Number Trail</h3>
+    <div id="trail">Collect a pellet!</div>
+  </div>
+  <div class="panelBox">
+    <h3>Move</h3>
+    <div id="dpad">
+      <button id="dpadUp">⬆️</button>
+      <button id="dpadLeft">⬅️</button>
+      <button id="dpadDown">⬇️</button>
+      <button id="dpadRight">➡️</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<!-- math prompt -->
+<div class="overlay" id="promptOverlay">
+  <div class="card">
+    <h2>Quick Math!</h2>
+    <div class="big" id="promptEq"></div>
+    <div class="choices" id="promptChoices"></div>
+    <p class="hintText" id="promptHint"></p>
+  </div>
+</div>
+
+<!-- overshoot / win / settings -->
+<div class="overlay" id="msgOverlay">
+  <div class="card">
+    <h2 id="msgTitle"></h2>
+    <p id="msgBody"></p>
+    <div class="cardBtnRow" id="msgBtns"></div>
+  </div>
+</div>
+
+<div class="overlay" id="settingsOverlay">
+  <div class="card" id="settingsCard">
+    <h2>Parent Settings</h2>
+    <label>Starting speed
+      <select id="setSpeed">
+        <option value="veryslow">Very slow</option>
+        <option value="slow">Slow</option>
+        <option value="normal">Normal</option>
+      </select>
+    </label>
+    <label>Speed ramp
+      <select id="setRamp">
+        <option value="off">Off</option>
+        <option value="gentle">Gentle</option>
+        <option value="normal">Normal</option>
+      </select>
+    </label>
+    <label>Max speed
+      <select id="setCap">
+        <option value="low">Gentle cap</option>
+        <option value="mid">Medium cap</option>
+        <option value="high">Fast cap</option>
+      </select>
+    </label>
+    <label>Practice mode (always slow, no pressure)
+      <select id="setPractice">
+        <option value="on">On</option>
+        <option value="off">Off</option>
+      </select>
+    </label>
+    <label>Mistake penalty
+      <select id="setPenalty">
+        <option value="none">None</option>
+        <option value="slow">Slight slowdown</option>
+        <option value="streak">Reset star streak</option>
+      </select>
+    </label>
+    <label>Math type
+      <select id="setOps">
+        <option value="mixed">Addition and subtraction</option>
+        <option value="add">Addition only</option>
+        <option value="sub">Subtraction only</option>
+      </select>
+    </label>
+    <label>Biggest answer
+      <select id="setMax">
+        <option value="10">Up to 10</option>
+        <option value="20" selected>Up to 20</option>
+        <option value="50">Up to 50</option>
+      </select>
+    </label>
+    <div class="cardBtnRow" style="margin-top:16px">
+      <button id="settingsDone">Done</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// =====================================================================
+// STATE
+// =====================================================================
+const MAZE = [
+  '#############',
+  '#...........#',
+  '#.##.###.##.#',
+  '#.....Q.....#',
+  '#.##.###.##.#',
+  '#Q....#....Q#',
+  '#.##.###.##.#',
+  '#...........#',
+  '#############',
+];
+const ROWS = MAZE.length;
+const COLS = MAZE[0].length;
+const START = { r: 1, c: 1 };
+
+const SPEED_BASE = { veryslow: 700, slow: 550, normal: 420 };
+const SPEED_CAP = { low: 500, mid: 380, high: 260 };
+const RAMP_STEP = { off: 0, gentle: 15, normal: 30 };
+
+const state = {
+  level: 1,
+  stars: 0,
+  streak: 0,
+  sum: 0,
+  target: 0,
+  trail: [],            // e.g. [5, 4, -2]
+  player: { r: START.r, c: START.c },
+  dir: null,            // {dr, dc}
+  wantDir: null,
+  moveDelay: 700,
+  paused: true,         // paused while any overlay is up
+  pellets: new Map(),   // "r,c" -> value
+  qTiles: new Set(),    // remaining question tiles "r,c"
+  overshootShown: false,
+  slowUntil: 0,
+};
+
+const settings = {
+  speed: 'veryslow',
+  ramp: 'gentle',
+  cap: 'mid',
+  practice: 'on',
+  penalty: 'none',
+  ops: 'mixed',
+  max: 20,
+};
+
+function loadSettings() {
+  try {
+    Object.assign(settings, JSON.parse(localStorage.getItem('pacabacus-settings') || '{}'));
+  } catch { /* fresh start is fine */ }
+}
+function saveSettings() {
+  localStorage.setItem('pacabacus-settings', JSON.stringify(settings));
+}
+
+const rand = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+const key = (r, c) => r + ',' + c;
+const isWall = (r, c) => MAZE[r][c] === '#';
+
+// =====================================================================
+// BOARD GENERATION
+// =====================================================================
+const boardEl = document.getElementById('board');
+const playerEl = document.getElementById('player');
+let TILE = 44;
+const cellEls = {};
+
+function buildBoard() {
+  TILE = Math.max(30, Math.min(52, Math.floor((window.innerWidth - 40) / COLS)));
+  document.documentElement.style.setProperty('--tile', TILE + 'px');
+  boardEl.style.gridTemplateColumns = `repeat(${COLS}, ${TILE}px)`;
+  boardEl.style.gridTemplateRows = `repeat(${ROWS}, ${TILE}px)`;
+  playerEl.style.width = TILE + 'px';
+  playerEl.style.height = TILE + 'px';
+  boardEl.innerHTML = '';
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const cell = document.createElement('div');
+      cell.className = 'cell' + (isWall(r, c) ? ' wall' : '');
+      boardEl.appendChild(cell);
+      cellEls[key(r, c)] = cell;
+    }
+  }
+}
+
+function corridorCells() {
+  const out = [];
+  for (let r = 0; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++)
+      if (!isWall(r, c) && !(r === START.r && c === START.c)) out.push({ r, c });
+  return out;
+}
+
+/** Split the target into 2-4 pellet-sized addends (1-9). */
+function splitTarget(t) {
+  const parts = [];
+  let left = t;
+  while (left > 0) {
+    if (left <= 9 && (parts.length >= 1 || left <= 9)) {
+      if (left <= 9 && parts.length >= 1) { parts.push(left); break; }
+    }
+    const take = rand(1, Math.min(9, left - 1 > 0 ? left - 1 : left));
+    parts.push(take);
+    left -= take;
+    if (parts.length === 3 && left > 0 && left <= 9) { parts.push(left); break; }
+  }
+  return parts;
+}
+
+function targetForLevel(level) {
+  const maxA = settings.max;
+  let cap = 20;
+  if (maxA <= 10) cap = 10;
+  else if (maxA >= 50 && level >= 4) cap = Math.min(50, 20 + (level - 3) * 5);
+  return Math.min(cap, 6 + level * 2 + rand(0, 4));
+}
+
+function spawnPellets() {
+  state.pellets.clear();
+  document.querySelectorAll('.pellet').forEach((el) => el.remove());
+
+  const values = splitTarget(state.target);          // guaranteed exact path
+  for (let i = 0; i < 3; i++) values.push(rand(1, 9)); // decoys
+  if (settings.ops !== 'add') { values.push(-rand(2, 4)); values.push(-rand(2, 4)); }
+
+  const spots = corridorCells()
+    .filter(({ r, c }) => MAZE[r][c] !== 'Q')
+    .sort(() => Math.random() - 0.5);
+  values.forEach((v, i) => {
+    if (i >= spots.length) return;
+    placePellet(spots[i].r, spots[i].c, v);
+  });
+}
+
+function placePellet(r, c, v) {
+  state.pellets.set(key(r, c), v);
+  const el = document.createElement('div');
+  el.className = 'pellet' + (v < 0 ? ' minus' : '');
+  el.textContent = v < 0 ? '−' + Math.abs(v) : v;
+  cellEls[key(r, c)].appendChild(el);
+}
+
+function spawnQTiles() {
+  state.qTiles.clear();
+  document.querySelectorAll('.qmark').forEach((el) => el.remove());
+  for (let r = 0; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++)
+      if (MAZE[r][c] === 'Q') {
+        state.qTiles.add(key(r, c));
+        const el = document.createElement('div');
+        el.className = 'qmark';
+        el.textContent = '?';
+        cellEls[key(r, c)].appendChild(el);
+      }
+}
+
+/** If the board runs dry and the target isn't reached, drop in a helpful pellet. */
+function spawnHelperIfStuck() {
+  if (state.sum === state.target) return;
+  const values = [...state.pellets.values()];
+  const need = state.target - state.sum;
+  const freeSpots = corridorCells().filter(({ r, c }) =>
+    !state.pellets.has(key(r, c)) && MAZE[r][c] !== 'Q' &&
+    !(r === state.player.r && c === state.player.c));
+  const spot = freeSpots[rand(0, freeSpots.length - 1)];
+
+  if (need > 0 && !values.some((v) => v > 0)) {
+    placePellet(spot.r, spot.c, need <= 9 ? need : rand(4, 9));
+    toast('A new pellet appeared! 🌟');
+  } else if (need < 0 && settings.ops !== 'add' && !values.some((v) => v < 0)) {
+    placePellet(spot.r, spot.c, -Math.min(9, -need));
+    toast('A blue take-away pellet appeared! 💙');
+  }
+}
+
+// =====================================================================
+// MOVEMENT
+// =====================================================================
+function placePlayer(animate) {
+  playerEl.style.transition = animate ? `transform ${effectiveDelay()}ms linear` : 'none';
+  playerEl.style.transform = `translate(${state.player.c * TILE}px, ${state.player.r * TILE}px)`;
+}
+
+function tryStep() {
+  const { player } = state;
+  // turn if the wanted direction is open
+  if (state.wantDir) {
+    const nr = player.r + state.wantDir.dr, nc = player.c + state.wantDir.dc;
+    if (!isWall(nr, nc)) state.dir = state.wantDir;
+  }
+  if (!state.dir) return false;
+  const nr = player.r + state.dir.dr, nc = player.c + state.dir.dc;
+  if (isWall(nr, nc)) { state.dir = null; return false; } // forgiving: just stop
+  player.r = nr; player.c = nc;
+  facePlayer();
+  placePlayer(true);
+  return true;
+}
+
+function facePlayer() {
+  const { dr, dc } = state.dir;
+  const t = dc === 1 ? 'none'
+    : dc === -1 ? 'scaleX(-1)'
+    : dr === 1 ? 'rotate(90deg)'
+    : 'rotate(-90deg)';
+  playerEl.style.setProperty('--face-t', t);
+}
+
+let stepTimer = null;
+function startLoop() {
+  clearTimeout(stepTimer);
+  loop();
+}
+function loop() {
+  clearTimeout(stepTimer);
+  if (!state.paused && tryStep()) {
+    // arrive exactly when the slide animation lands, then take the next step
+    stepTimer = setTimeout(() => {
+      onArrive(state.player.r, state.player.c);
+      loop();
+    }, effectiveDelay());
+  } else {
+    stepTimer = setTimeout(loop, 120); // waiting for a direction or unpause
+  }
+}
+
+function effectiveDelay() {
+  let d = state.moveDelay;
+  if (Date.now() < state.slowUntil) d += 200;
+  return d;
+}
+
+function onArrive(r, c) {
+  const k = key(r, c);
+  if (state.pellets.has(k)) collectPellet(r, c);
+  if (state.qTiles.has(k)) openPrompt(k);
+}
+
+// =====================================================================
+// MATH PROMPTS
+// =====================================================================
+const PRAISE = ['Great thinking! 🌟', 'You got it! 🎉', 'Super math brain! 💪', 'Wow, nice one! ✨'];
+
+function makePrompt() {
+  const maxA = settings.max;
+  let op = settings.ops;
+  if (op === 'mixed') op = Math.random() < 0.5 ? 'add' : 'sub';
+  let a, b, answer;
+  if (op === 'add') {
+    answer = rand(5, maxA);
+    b = rand(1, Math.min(9, answer - 1));
+    a = answer - b;
+    if (a < 1) { a = 1; b = answer - 1; }
+  } else {
+    a = rand(5, maxA);
+    b = rand(1, Math.min(9, a));
+    answer = a - b;
+  }
+  return { a, b, op, answer };
+}
+
+function hintFor(p) {
+  if (p.op === 'add') {
+    const ones = (p.a % 10) + (p.b % 10);
+    let h = `${p.a} + ${p.b} means start at ${p.a} and add ${p.b} more.`;
+    if (ones >= 10 && p.a % 10 !== 0) h += ' Try making 10 first!';
+    return h;
+  }
+  return `${p.a} − ${p.b} means take ${p.b} away from ${p.a}.`;
+}
+
+const promptOverlay = document.getElementById('promptOverlay');
+const promptEq = document.getElementById('promptEq');
+const promptChoices = document.getElementById('promptChoices');
+const promptHint = document.getElementById('promptHint');
+
+function openPrompt(tileKey) {
+  state.paused = true;
+  delete promptChoices.dataset.done;
+  const p = makePrompt();
+  promptEq.textContent = `${p.a} ${p.op === 'add' ? '+' : '−'} ${p.b} = ?`;
+  promptHint.textContent = '';
+
+  const opts = new Set([p.answer]);
+  while (opts.size < 3) {
+    const d = p.answer + rand(-3, 3);
+    if (d >= 0 && d !== p.answer) opts.add(d);
+  }
+  const shuffled = [...opts].sort(() => Math.random() - 0.5);
+  promptChoices.innerHTML = '';
+  shuffled.forEach((val) => {
+    const btn = document.createElement('button');
+    btn.textContent = val;
+    btn.onclick = () => answerPrompt(val === p.answer, p, tileKey);
+    promptChoices.appendChild(btn);
+  });
+  promptOverlay.classList.add('show');
+}
+
+function answerPrompt(correct, p, tileKey) {
+  if (promptChoices.dataset.done) return; // one answer per visit
+  promptChoices.dataset.done = '1';
+  if (correct) {
+    consumeQTile(tileKey);
+    closePrompt();
+    state.stars++;
+    state.streak++;
+    updateHud();
+    toast(PRAISE[rand(0, PRAISE.length - 1)]);
+    highlightBestPellet();
+  } else {
+    promptHint.textContent = hintFor(p);
+    applyMistakePenalty();
+    // one more try with the hint visible; the tile stays until answered right,
+    // but let them walk away after this attempt too
+    setTimeout(() => { consumeQTile(tileKey); closePrompt(); }, 2600);
+  }
+}
+
+function consumeQTile(tileKey) {
+  state.qTiles.delete(tileKey);
+  const q = cellEls[tileKey].querySelector('.qmark');
+  if (q) q.remove();
+}
+
+function anyOverlayOpen() {
+  return document.querySelector('.overlay.show') !== null;
+}
+
+function closePrompt() {
+  promptOverlay.classList.remove('show');
+  state.paused = anyOverlayOpen();
+}
+
+function applyMistakePenalty() {
+  if (settings.penalty === 'slow') state.slowUntil = Date.now() + 6000;
+  if (settings.penalty === 'streak') state.streak = 0;
+  updateHud();
+}
+
+/** Correct answers guide the way: glow the smartest pellet to grab next. */
+function highlightBestPellet() {
+  document.querySelectorAll('.pellet.best').forEach((el) => el.classList.remove('best'));
+  const need = state.target - state.sum;
+  let bestKey = null, bestScore = -Infinity;
+  for (const [k, v] of state.pellets) {
+    let score;
+    if (v === need) score = 100;                    // finishes the round!
+    else if (v > 0 && v < need) score = 50 - (need - v); // helpful step
+    else if (v < 0 && need < 0) score = 60;              // we're over; minus helps
+    else score = -10;                                    // would overshoot
+    if (score > bestScore) { bestScore = score; bestKey = k; }
+  }
+  if (bestKey) {
+    const el = cellEls[bestKey].querySelector('.pellet');
+    if (el) {
+      el.classList.add('best');
+      setTimeout(() => el.classList.remove('best'), 5000);
+    }
+  }
+}
+
+// =====================================================================
+// SCORING & EQUATION TRAIL
+// =====================================================================
+function collectPellet(r, c) {
+  const k = key(r, c);
+  const v = state.pellets.get(k);
+  if (v < 0 && state.sum + v < 0) {
+    toast('Not enough to take away yet!');
+    return; // pellet stays
+  }
+  state.pellets.delete(k);
+  const el = cellEls[k].querySelector('.pellet');
+  if (el) el.remove();
+
+  const before = state.sum;
+  state.sum += v;
+  state.trail.push(v);
+  updateHud();
+  renderTrail();
+  renderAbacus();
+
+  if (state.sum === 10 && v > 0) {
+    const altA = before === 7 || v === 7 ? 6 : 7; // suggest a genuinely different bond
+    toast(`You made 10 with ${before} + ${v}! Another way: ${altA} + ${10 - altA}`);
+  }
+
+  if (state.sum === state.target) { winRound(); return; }
+  if (state.sum > state.target) overshoot();
+  spawnHelperIfStuck();
+}
+
+function renderTrail() {
+  const trailEl = document.getElementById('trail');
+  if (state.trail.length === 0) { trailEl.textContent = 'Collect a pellet!'; return; }
+  let html = '';
+  state.trail.forEach((v, i) => {
+    if (i === 0) html += v < 0 ? '0 − ' + Math.abs(v) : v;
+    else html += v < 0 ? ' − ' + Math.abs(v) : ' + ' + v;
+  });
+  html += ' <span class="eq">= ' + state.sum + '</span>';
+  trailEl.innerHTML = html;
+}
+
+function updateHud() {
+  document.getElementById('targetVal').textContent = state.target;
+  document.getElementById('sumVal').textContent = state.sum;
+  document.getElementById('levelVal').textContent = state.level;
+  document.getElementById('starsVal').textContent =
+    '⭐ ' + state.stars + (state.streak >= 2 ? ' 🔥' + state.streak : '');
+
+  const need = state.target - state.sum;
+  const goal = document.getElementById('goalBar');
+  if (need > 0) goal.textContent = `🎯 Make ${state.target} — eat ${need} more!`;
+  else if (need === 0) goal.textContent = `🎉 You made ${state.target}!`;
+  else goal.textContent = `Too much by ${-need} — find a blue pellet!`;
+}
+
+// =====================================================================
+// ABACUS RENDERING (always matches the current sum)
+// =====================================================================
+const abacusEl = document.getElementById('abacus');
+
+function renderAbacus() {
+  const sum = Math.max(0, state.sum);
+  const tens = Math.floor(sum / 10) % 10;
+  const ones = sum % 10;
+  abacusEl.innerHTML = '';
+  [tens, ones].forEach((digit, i) => {
+    const rod = document.createElement('div');
+    rod.className = 'rod';
+    const heavenOn = digit >= 5;
+    const earthOn = digit % 5;
+    let html = '<div class="pole"></div><div class="deck-heaven">';
+    html += heavenOn
+      ? '<div class="spacer"></div><div class="bead heaven"></div>'
+      : '<div class="bead heaven off"></div><div class="spacer"></div>';
+    html += '</div><div class="beam"></div><div class="deck-earth">';
+    for (let b = 0; b < earthOn; b++) html += '<div class="bead earth"></div>';
+    html += '<div class="spacer"></div>';
+    for (let b = 0; b < 4 - earthOn; b++) html += '<div class="bead earth off"></div>';
+    html += '</div>';
+    rod.innerHTML = html + `<div class="digit">${i === 0 ? 'tens' : 'ones'}</div>`;
+    abacusEl.appendChild(rod);
+  });
+}
+
+// =====================================================================
+// ROUND PROGRESSION & OVERSHOOT
+// =====================================================================
+const msgOverlay = document.getElementById('msgOverlay');
+const msgTitle = document.getElementById('msgTitle');
+const msgBody = document.getElementById('msgBody');
+const msgBtns = document.getElementById('msgBtns');
+
+function showMsg(title, body, buttons) {
+  state.paused = true;
+  msgTitle.textContent = title;
+  msgBody.innerHTML = body;
+  msgBtns.innerHTML = '';
+  buttons.forEach(({ label, alt, fn }) => {
+    const b = document.createElement('button');
+    b.textContent = label;
+    if (alt) b.className = 'alt';
+    b.onclick = () => { msgOverlay.classList.remove('show'); state.paused = anyOverlayOpen(); fn && fn(); };
+    msgBtns.appendChild(b);
+  });
+  msgOverlay.classList.add('show');
+}
+
+function overshoot() {
+  const over = state.sum - state.target;
+  const buttons = [{ label: 'Keep going!', fn: () => highlightBestPellet() }];
+  if (settings.ops === 'add') {
+    buttons.push({ label: 'Start my number over', alt: true, fn: resetSum });
+  }
+  const tip = settings.ops === 'add'
+    ? 'You can start your number over and try a new path.'
+    : 'Look for a blue take-away pellet! 💙';
+  showMsg('Oops, a little too much!',
+    `Too much by <b>${over}</b>. What could we choose differently?<br><span class="hintText">${tip}</span>`,
+    buttons);
+}
+
+function resetSum() {
+  state.sum = 0;
+  state.trail = [];
+  updateHud(); renderTrail(); renderAbacus();
+  spawnPellets();
+}
+
+function winRound() {
+  confetti();
+  const bond = state.trail.filter((v) => v > 0).slice(-2);
+  const bondNote = bond.length === 2 ? `<br><span class="hintText">${bond[0]} + ${bond[1]} = ${bond[0] + bond[1]} — nice combo!</span>` : '';
+  state.stars += 3;
+  showMsg('🎉 Round cleared! 🎉',
+    `You made exactly <b>${state.target}</b>!${bondNote}`,
+    [{ label: 'Next round ▶', fn: nextRound }]);
+  updateHud();
+}
+
+function nextRound() {
+  state.level++;
+  startRound();
+}
+
+function startRound() {
+  state.sum = 0;
+  state.trail = [];
+  state.target = targetForLevel(state.level);
+  state.player = { r: START.r, c: START.c };
+  state.dir = null;
+  state.wantDir = null;
+  state.overshootShown = false;
+  applySpeed();
+  spawnPellets();
+  spawnQTiles();
+  updateHud(); renderTrail(); renderAbacus();
+  placePlayer(false);
+  startLoop();
+}
+
+// =====================================================================
+// SPEED / PACING
+// =====================================================================
+function applySpeed() {
+  if (settings.practice === 'on') {
+    state.moveDelay = SPEED_BASE.veryslow;
+  } else {
+    const base = SPEED_BASE[settings.speed];
+    const ramp = RAMP_STEP[settings.ramp] * (state.level - 1);
+    state.moveDelay = Math.max(SPEED_CAP[settings.cap], base - ramp);
+  }
+}
+
+// =====================================================================
+// SETTINGS UI
+// =====================================================================
+const settingsOverlay = document.getElementById('settingsOverlay');
+const fields = {
+  speed: document.getElementById('setSpeed'),
+  ramp: document.getElementById('setRamp'),
+  cap: document.getElementById('setCap'),
+  practice: document.getElementById('setPractice'),
+  penalty: document.getElementById('setPenalty'),
+  ops: document.getElementById('setOps'),
+  max: document.getElementById('setMax'),
+};
+
+document.getElementById('gearBtn').onclick = () => {
+  Object.entries(fields).forEach(([k, el]) => { el.value = String(settings[k]); });
+  state.paused = true;
+  settingsOverlay.classList.add('show');
+};
+document.getElementById('settingsDone').onclick = () => {
+  Object.entries(fields).forEach(([k, el]) => {
+    settings[k] = k === 'max' ? Number(el.value) : el.value;
+  });
+  saveSettings();
+  settingsOverlay.classList.remove('show');
+  state.paused = anyOverlayOpen();
+  applySpeed();
+  startLoop();
+};
+
+// =====================================================================
+// INPUT (keyboard + touch)
+// =====================================================================
+const DIRS = {
+  ArrowUp: { dr: -1, dc: 0 }, ArrowDown: { dr: 1, dc: 0 },
+  ArrowLeft: { dr: 0, dc: -1 }, ArrowRight: { dr: 0, dc: 1 },
+  w: { dr: -1, dc: 0 }, s: { dr: 1, dc: 0 }, a: { dr: 0, dc: -1 }, d: { dr: 0, dc: 1 },
+};
+window.addEventListener('keydown', (e) => {
+  const dir = DIRS[e.key] || DIRS[e.key.toLowerCase()];
+  if (dir) { e.preventDefault(); state.wantDir = dir; }
+});
+const bindPad = (id, dir) => {
+  const el = document.getElementById(id);
+  const set = (e) => { e.preventDefault(); state.wantDir = dir; };
+  el.addEventListener('touchstart', set, { passive: false });
+  el.addEventListener('mousedown', set);
+};
+bindPad('dpadUp', DIRS.ArrowUp);
+bindPad('dpadDown', DIRS.ArrowDown);
+bindPad('dpadLeft', DIRS.ArrowLeft);
+bindPad('dpadRight', DIRS.ArrowRight);
+
+// =====================================================================
+// FEEDBACK HELPERS
+// =====================================================================
+let toastTimer = null;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2400);
+}
+
+function confetti() {
+  const colors = ['#ffd23f', '#4ade80', '#60c8ff', '#f472b6', '#a78bfa'];
+  for (let i = 0; i < 40; i++) {
+    const c = document.createElement('div');
+    c.className = 'confetti';
+    c.style.left = rand(0, 100) + 'vw';
+    c.style.background = colors[rand(0, colors.length - 1)];
+    c.style.animationDuration = rand(12, 25) / 10 + 's';
+    c.style.animationDelay = rand(0, 6) / 10 + 's';
+    document.body.appendChild(c);
+    setTimeout(() => c.remove(), 3500);
+  }
+}
+
+// =====================================================================
+// BOOT
+// =====================================================================
+loadSettings();
+buildBoard();
+startRound();
+state.paused = true;
+showMsg('How to play 👋',
+  `🎯 <b>Eat number pellets to make exactly the Target number!</b><br>
+   Each pellet you eat adds to <b>My Number</b>.<br>
+   Land right on the Target to win the round! 🎉<br>
+   <span class="hintText">Move with arrow keys, WASD, or the buttons.
+   Purple ? spots ask a quick math question for stars.
+   Your abacus counts along with you!</span>`,
+  [{ label: "Let's play!", fn: null }]);
+</script>
+</body>
+</html>

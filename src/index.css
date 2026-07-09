@@ -1,13 +1,126 @@
 @import 'tailwindcss';
 
 :root {
-  color-scheme: light dark;
+  color-scheme: dark;
+  --maze-floor: #17103a;
 }
 
 body {
   margin: 0;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
 }
 
 #root {
   min-height: 100svh;
+}
+
+/* ===== game sprites (complex gradients/clip-paths live here, layout in JSX) ===== */
+.pac-face {
+  width: 88%;
+  height: 88%;
+  margin: 6%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #ffe680, #ffc400);
+  position: relative;
+  box-shadow: 0 0 14px rgba(255, 200, 60, 0.9);
+  transition: transform 0.15s;
+}
+.pac-face::before {
+  content: '';
+  position: absolute;
+  top: 16%;
+  left: 52%;
+  width: 16%;
+  height: 16%;
+  border-radius: 50%;
+  background: #3a2800;
+}
+.pac-mouth {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(from -35deg, var(--maze-floor) 70deg, transparent 0);
+  animation: chomp 0.5s steps(1) infinite;
+}
+@keyframes chomp {
+  0%,
+  100% {
+    background: conic-gradient(from -35deg, var(--maze-floor) 70deg, transparent 0);
+  }
+  50% {
+    background: conic-gradient(from -10deg, var(--maze-floor) 20deg, transparent 0);
+  }
+}
+
+.ghost-body {
+  width: 84%;
+  height: 84%;
+  margin: 8%;
+  border-radius: 50% 50% 6% 6% / 60% 60% 6% 6%;
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% 88%,
+    84% 100%,
+    68% 88%,
+    50% 100%,
+    32% 88%,
+    16% 100%,
+    0 88%
+  );
+  position: relative;
+}
+.ghost-body::before,
+.ghost-body::after {
+  content: '';
+  position: absolute;
+  top: 24%;
+  width: 26%;
+  height: 30%;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: inset -3px 2px 0 3px #2c2c6e;
+}
+.ghost-body::before {
+  left: 14%;
+}
+.ghost-body::after {
+  right: 14%;
+}
+
+.toast-pop {
+  animation: toastPop 2.4s forwards;
+}
+@keyframes toastPop {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -8px);
+  }
+  8%,
+  80% {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -8px);
+  }
+}
+
+.confetti-piece {
+  position: fixed;
+  top: -20px;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  z-index: 60;
+  animation: confettiFall linear forwards;
+  pointer-events: none;
+}
+@keyframes confettiFall {
+  to {
+    transform: translateY(105svh) rotate(720deg);
+  }
 }

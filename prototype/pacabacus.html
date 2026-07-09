@@ -1,0 +1,1011 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PacAbacus</title>
+<style>
+  :root {
+    --bg: #1a1440;
+    --panel: #241b5e;
+    --wall: #4433aa;
+    --wall-edge: #6a58e8;
+    --floor: #17103a;
+    --path: #251c56;
+    --text: #fdf6ff;
+    --accent: #ffd23f;
+    --good: #4ade80;
+    --bad: #ff5f7a;
+    --soft: #b9aef5;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100svh;
+    background: radial-gradient(circle at 50% 20%, #2b2070, var(--bg) 70%);
+    color: var(--text);
+    font-family: 'Comic Sans MS', 'Chalkboard SE', 'Segoe UI', sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
+  }
+  h1 {
+    margin: 4px 0 0;
+    font-size: 26px;
+    color: var(--accent);
+    letter-spacing: 1px;
+    text-shadow: 0 2px 0 #7a5a00;
+  }
+
+  /* ===== HUD ===== */
+  #hud { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; align-items: stretch; }
+  .stat {
+    background: var(--panel);
+    border: 2px solid var(--wall-edge);
+    border-radius: 14px;
+    padding: 5px 14px;
+    text-align: center;
+    min-width: 80px;
+  }
+  .stat .label { font-size: 12px; color: var(--soft); }
+  .stat .value { font-size: 22px; font-weight: bold; }
+  #gearBtn {
+    background: var(--panel);
+    border: 2px solid var(--wall-edge);
+    border-radius: 14px;
+    color: var(--text);
+    font-size: 20px;
+    padding: 5px 14px;
+    cursor: pointer;
+  }
+  #goalBar {
+    background: var(--panel);
+    border: 2px solid var(--good);
+    border-radius: 999px;
+    padding: 5px 20px;
+    font-size: 17px;
+    font-weight: bold;
+    color: var(--good);
+    text-align: center;
+  }
+
+  /* ===== BOARD ===== */
+  #boardWrap { position: relative; }
+  #board {
+    display: grid;
+    background: var(--floor);
+    border: 4px solid var(--wall-edge);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .cell { position: relative; }
+  .cell.wall { background: var(--wall); border-radius: 6px; box-shadow: inset 0 0 0 2px var(--wall-edge); }
+  .cell.path { background: var(--path); }
+  .dot {
+    position: absolute;
+    inset: 38%;
+    border-radius: 50%;
+    background: #ffe9b0;
+    box-shadow: 0 0 6px rgba(255, 233, 176, 0.8);
+  }
+  .flag {
+    position: absolute;
+    inset: 8%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+  }
+
+  /* pac */
+  #player {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    width: var(--tile);
+    height: var(--tile);
+    z-index: 5;
+  }
+  #playerFace {
+    width: 88%;
+    height: 88%;
+    margin: 6%;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #ffe680, #ffc400);
+    position: relative;
+    box-shadow: 0 0 14px rgba(255, 200, 60, 0.9);
+    transform: var(--face-t, none);
+    transition: transform 0.15s;
+  }
+  #playerFace::before {
+    content: '';
+    position: absolute;
+    top: 16%;
+    left: 52%;
+    width: 16%;
+    height: 16%;
+    border-radius: 50%;
+    background: #3a2800;
+  }
+  #playerMouth {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: conic-gradient(from -35deg, var(--floor) 70deg, transparent 0);
+    animation: chomp 0.5s steps(1) infinite;
+  }
+  @keyframes chomp {
+    0%, 100% { background: conic-gradient(from -35deg, var(--floor) 70deg, transparent 0); }
+    50% { background: conic-gradient(from -10deg, var(--floor) 20deg, transparent 0); }
+  }
+  #youTag {
+    position: absolute;
+    top: -26px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--good);
+    color: #06301d;
+    font-size: 13px;
+    font-weight: bold;
+    padding: 2px 10px;
+    border-radius: 999px;
+    white-space: nowrap;
+    animation: youBounce 0.6s infinite alternate, youFade 1s 8s forwards;
+  }
+  @keyframes youBounce { from { margin-top: 0; } to { margin-top: -5px; } }
+  @keyframes youFade { to { opacity: 0; visibility: hidden; } }
+
+  /* ghost */
+  #ghost {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    width: var(--tile);
+    height: var(--tile);
+    z-index: 4;
+  }
+  #ghostBody {
+    width: 84%;
+    height: 84%;
+    margin: 8%;
+    background: linear-gradient(#ff8ba0, #ff5f7a);
+    border-radius: 50% 50% 6% 6% / 60% 60% 6% 6%;
+    clip-path: polygon(0 0, 100% 0, 100% 88%, 84% 100%, 68% 88%, 50% 100%, 32% 88%, 16% 100%, 0 88%);
+    position: relative;
+    box-shadow: 0 0 12px rgba(255, 95, 122, 0.8);
+  }
+  #ghostBody::before, #ghostBody::after {
+    content: '';
+    position: absolute;
+    top: 24%;
+    width: 26%;
+    height: 30%;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: inset -3px 2px 0 3px #2c2c6e;
+  }
+  #ghostBody::before { left: 14%; }
+  #ghostBody::after { right: 14%; }
+  #ghost.spooked #ghostBody { filter: grayscale(0.6) brightness(0.8); }
+
+  /* ===== PROBLEM + ABACUS ===== */
+  #gamePanel {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: stretch;
+  }
+  .panelBox {
+    background: var(--panel);
+    border: 2px solid var(--wall-edge);
+    border-radius: 14px;
+    padding: 10px 16px;
+  }
+  .panelBox h3 { margin: 0 0 6px; font-size: 13px; color: var(--soft); text-align: center; }
+
+  #problemBox { display: flex; flex-direction: column; align-items: center; min-width: 220px; }
+  #problemEq { font-size: 40px; font-weight: bold; color: var(--accent); margin: 6px 0; }
+  #problemHint { font-size: 15px; color: var(--soft); text-align: center; min-height: 42px; max-width: 240px; }
+  #history { font-size: 15px; color: var(--soft); margin-top: 8px; text-align: center; line-height: 1.5; }
+  #history .ok { color: var(--good); }
+
+  #abacusBox { display: flex; flex-direction: column; align-items: center; }
+  #abacus { display: flex; gap: 10px; justify-content: center; }
+  .rod { position: relative; width: 58px; display: flex; flex-direction: column; align-items: center; }
+  .rod .pole { position: absolute; top: 0; bottom: 18px; width: 4px; background: #6a58e8; border-radius: 2px; }
+  .rod .deck-heaven { height: 58px; display: flex; flex-direction: column; padding: 3px 0; width: 100%; align-items: center; }
+  .rod .beam { height: 6px; width: 100%; background: #8f7ff0; border-radius: 2px; z-index: 2; }
+  .rod .deck-earth { height: 124px; display: flex; flex-direction: column; gap: 3px; padding: 3px 0; width: 100%; align-items: center; }
+  .rod .digit { font-size: 12px; color: var(--soft); height: 16px; }
+  .bead {
+    width: 48px;
+    height: 20px;
+    border-radius: 999px;
+    z-index: 2;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+  }
+  .bead:active { transform: scale(0.94); }
+  .bead.heaven { background: #f5b02e; box-shadow: inset 0 -4px 0 #b97d0a; }
+  .bead.heaven.off { background: #7a6a3c; box-shadow: inset 0 -4px 0 #55491f; }
+  .bead.earth { background: #45b1f5; box-shadow: inset 0 -4px 0 #1272ad; }
+  .bead.earth.off { background: #3c5a7a; box-shadow: inset 0 -4px 0 #24405c; }
+  .spacer { flex: 1; }
+  #abacusValue { font-size: 20px; margin-top: 6px; }
+  #abacusValue b { color: var(--accent); font-size: 26px; }
+  #abacusBtns { display: flex; gap: 10px; margin-top: 8px; }
+  #goBtn {
+    font-family: inherit;
+    font-size: 24px;
+    font-weight: bold;
+    padding: 10px 34px;
+    border-radius: 14px;
+    border: 3px solid #2c9e57;
+    background: var(--good);
+    color: #06301d;
+    cursor: pointer;
+  }
+  #goBtn:disabled { opacity: 0.4; cursor: default; }
+  #clearBtn {
+    font-family: inherit;
+    font-size: 16px;
+    padding: 10px 16px;
+    border-radius: 14px;
+    border: 2px solid var(--wall-edge);
+    background: var(--panel);
+    color: var(--text);
+    cursor: pointer;
+  }
+
+  /* ===== TOAST / OVERLAYS ===== */
+  #toast {
+    position: fixed;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #34d399;
+    color: #06301d;
+    font-size: 18px;
+    font-weight: bold;
+    padding: 10px 20px;
+    border-radius: 999px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+    z-index: 50;
+    max-width: 90vw;
+    text-align: center;
+  }
+  #toast.show { opacity: 1; }
+  #toast.bad { background: #fca5a5; color: #591111; }
+  .overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(10, 6, 40, 0.75);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 40;
+    padding: 16px;
+  }
+  .overlay.show { display: flex; }
+  .card {
+    background: var(--panel);
+    border: 3px solid var(--wall-edge);
+    border-radius: 20px;
+    padding: 22px 26px;
+    max-width: 430px;
+    width: 100%;
+    text-align: center;
+  }
+  .card h2 { margin: 0 0 8px; color: var(--accent); }
+  .card p { margin: 6px 0; font-size: 17px; line-height: 1.45; }
+  .hintText { color: var(--soft); font-size: 15px; }
+  .cardBtnRow { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 14px; }
+  .cardBtnRow button {
+    font-family: inherit;
+    font-size: 20px;
+    font-weight: bold;
+    padding: 10px 24px;
+    border-radius: 14px;
+    border: 3px solid #2c9e57;
+    background: var(--good);
+    color: #06301d;
+    cursor: pointer;
+  }
+  .cardBtnRow .alt { background: #a78bfa; border-color: #6d4fd8; color: #2e1065; }
+
+  /* ===== SETTINGS ===== */
+  #settingsCard { text-align: left; max-height: 86svh; overflow-y: auto; }
+  #settingsCard label { display: block; font-size: 14px; color: var(--soft); margin-top: 10px; }
+  #settingsCard select {
+    width: 100%;
+    font-family: inherit;
+    font-size: 16px;
+    padding: 6px;
+    border-radius: 8px;
+    border: 2px solid var(--wall-edge);
+    background: var(--floor);
+    color: var(--text);
+  }
+
+  .confetti {
+    position: fixed;
+    top: -20px;
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    z-index: 60;
+    animation: fall linear forwards;
+    pointer-events: none;
+  }
+  @keyframes fall { to { transform: translateY(105svh) rotate(720deg); } }
+</style>
+</head>
+<body>
+
+<h1>PacAbacus</h1>
+
+<div id="hud">
+  <div class="stat"><div class="label">Level</div><div class="value" id="levelVal">1</div></div>
+  <div class="stat"><div class="label">Stars</div><div class="value" id="starsVal">⭐ 0</div></div>
+  <div class="stat"><div class="label">Lives</div><div class="value" id="livesVal">❤️❤️❤️</div></div>
+  <button id="gearBtn" title="Parent settings">⚙️</button>
+</div>
+
+<div id="goalBar">Solve the problem to run!</div>
+
+<div id="boardWrap">
+  <div id="board"></div>
+  <div id="ghost"><div id="ghostBody"></div></div>
+  <div id="player">
+    <div id="playerFace"><div id="playerMouth"></div></div>
+    <div id="youTag">You!</div>
+  </div>
+</div>
+
+<div id="gamePanel">
+  <div class="panelBox" id="problemBox">
+    <h3>Solve me!</h3>
+    <div id="problemEq">…</div>
+    <div id="problemHint"></div>
+    <div id="history"></div>
+  </div>
+  <div class="panelBox" id="abacusBox">
+    <h3>Your abacus — click the beads!</h3>
+    <div id="abacus"></div>
+    <div id="abacusValue">Your answer: <b>0</b></div>
+    <div id="abacusBtns">
+      <button id="clearBtn">Clear</button>
+      <button id="goBtn">Go! ▶</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<div class="overlay" id="msgOverlay">
+  <div class="card">
+    <h2 id="msgTitle"></h2>
+    <p id="msgBody"></p>
+    <div class="cardBtnRow" id="msgBtns"></div>
+  </div>
+</div>
+
+<div class="overlay" id="settingsOverlay">
+  <div class="card" id="settingsCard">
+    <h2>Parent Settings</h2>
+    <label>Ghost
+      <select id="setGhost">
+        <option value="off">Off (practice mode)</option>
+        <option value="sleepy" selected>Sleepy (moves 1 on a mistake)</option>
+        <option value="walking">Walking (moves 2 on a mistake)</option>
+        <option value="hungry">Hungry (moves 3 on a mistake)</option>
+      </select>
+    </label>
+    <label>Math type
+      <select id="setOps">
+        <option value="mixed">Addition and subtraction</option>
+        <option value="add">Addition only</option>
+        <option value="sub">Subtraction only</option>
+      </select>
+    </label>
+    <label>Biggest answer
+      <select id="setMax">
+        <option value="10">Up to 10</option>
+        <option value="20" selected>Up to 20</option>
+        <option value="50">Up to 50</option>
+      </select>
+    </label>
+    <label>Abacus hints on mistakes
+      <select id="setHints">
+        <option value="on" selected>On</option>
+        <option value="off">Off</option>
+      </select>
+    </label>
+    <div class="cardBtnRow" style="margin-top:16px">
+      <button id="settingsDone">Done</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// =====================================================================
+// STATE
+// =====================================================================
+const MAZE = [
+  '#############',
+  '#...........#',
+  '#.##.###.##.#',
+  '#...........#',
+  '#.##.###.##.#',
+  '#.....#.....#',
+  '#.##.###.##.#',
+  '#...........#',
+  '#############',
+];
+const ROWS = MAZE.length;
+const COLS = MAZE[0].length;
+
+// the chase route: across the top, down the right side, back along the bottom
+const PATH = [];
+for (let c = 1; c <= 11; c++) PATH.push({ r: 1, c });
+for (let r = 2; r <= 7; r++) PATH.push({ r, c: 11 });
+for (let c = 10; c >= 1; c--) PATH.push({ r: 7, c });
+const END = PATH.length - 1;
+
+const PAC_START = 3;
+const GHOST_START = 0;
+const STEPS_PER_CORRECT = 3;
+const GHOST_STEPS = { off: 0, sleepy: 1, walking: 2, hungry: 3 };
+const CATCH_KNOCKBACK = 6;
+const STEP_MS = 170;
+
+const state = {
+  level: 1,
+  stars: 0,
+  streak: 0,
+  lives: 3,
+  pacIdx: PAC_START,
+  ghostIdx: GHOST_START,
+  problem: null,
+  attempts: 0,
+  abacus: { tens: 0, ones: 0 },
+  animating: false,
+  paused: true,
+  history: [],
+};
+
+const settings = { ghost: 'sleepy', ops: 'mixed', max: 20, hints: 'on' };
+
+function loadSettings() {
+  try {
+    Object.assign(settings, JSON.parse(localStorage.getItem('pacabacus-v2-settings') || '{}'));
+  } catch { /* fresh start is fine */ }
+}
+function saveSettings() {
+  localStorage.setItem('pacabacus-v2-settings', JSON.stringify(settings));
+}
+
+const rand = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+const pick = (arr) => arr[rand(0, arr.length - 1)];
+const key = (r, c) => r + ',' + c;
+const isWall = (r, c) => MAZE[r][c] === '#';
+
+// =====================================================================
+// BOARD
+// =====================================================================
+const boardEl = document.getElementById('board');
+const playerEl = document.getElementById('player');
+const ghostEl = document.getElementById('ghost');
+let TILE = 44;
+const cellEls = {};
+const pathSet = new Set(PATH.map((p) => key(p.r, p.c)));
+
+function buildBoard() {
+  TILE = Math.max(30, Math.min(50, Math.floor((window.innerWidth - 40) / COLS)));
+  document.documentElement.style.setProperty('--tile', TILE + 'px');
+  boardEl.style.gridTemplateColumns = `repeat(${COLS}, ${TILE}px)`;
+  boardEl.style.gridTemplateRows = `repeat(${ROWS}, ${TILE}px)`;
+  [playerEl, ghostEl].forEach((el) => {
+    el.style.width = TILE + 'px';
+    el.style.height = TILE + 'px';
+  });
+  boardEl.innerHTML = '';
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const cell = document.createElement('div');
+      cell.className = 'cell' + (isWall(r, c) ? ' wall' : pathSet.has(key(r, c)) ? ' path' : '');
+      boardEl.appendChild(cell);
+      cellEls[key(r, c)] = cell;
+    }
+  }
+  const flag = document.createElement('div');
+  flag.className = 'flag';
+  flag.textContent = '🏁';
+  cellEls[key(PATH[END].r, PATH[END].c)].appendChild(flag);
+}
+
+function spawnDots() {
+  document.querySelectorAll('.dot').forEach((el) => el.remove());
+  PATH.forEach((p, i) => {
+    if (i > state.pacIdx && i < END) {
+      const dot = document.createElement('div');
+      dot.className = 'dot';
+      cellEls[key(p.r, p.c)].appendChild(dot);
+    }
+  });
+}
+
+function eatDot(idx) {
+  const p = PATH[idx];
+  const dot = cellEls[key(p.r, p.c)].querySelector('.dot');
+  if (dot) dot.remove();
+}
+
+// =====================================================================
+// SPRITE MOVEMENT ALONG THE PATH
+// =====================================================================
+function placeSprite(el, idx, animate) {
+  const p = PATH[Math.max(0, idx)];
+  el.style.transition = animate ? `transform ${STEP_MS}ms linear` : 'none';
+  el.style.transform = `translate(${p.c * TILE}px, ${p.r * TILE}px)`;
+}
+
+function faceFromStep(fromIdx, toIdx) {
+  const a = PATH[fromIdx], b = PATH[toIdx];
+  const dc = b.c - a.c, dr = b.r - a.r;
+  return dc === 1 ? 'none'
+    : dc === -1 ? 'scaleX(-1)'
+    : dr === 1 ? 'rotate(90deg)'
+    : 'rotate(-90deg)';
+}
+
+/** Walk a sprite forward `steps` tiles, one at a time, then call done(). */
+function walk(el, who, steps, done) {
+  if (steps <= 0) { done && done(); return; }
+  state.animating = true;
+  const cur = who === 'pac' ? state.pacIdx : state.ghostIdx;
+  const next = Math.min(END, cur + 1);
+  if (who === 'pac') {
+    playerEl.style.setProperty('--face-t', faceFromStep(cur, next));
+    state.pacIdx = next;
+    eatDot(next);
+  } else {
+    state.ghostIdx = next;
+  }
+  placeSprite(el, next, true);
+  setTimeout(() => {
+    if (next >= END && who === 'pac') { done && done(); return; }
+    walk(el, who, steps - 1, done);
+  }, STEP_MS + 15);
+}
+
+// =====================================================================
+// ABACUS-GEARED PROBLEM GENERATOR
+// techniques: direct (plain bead slides), five (5-complement),
+// ten (10-complement), twodigit, plain (regular mental math mix-in)
+// =====================================================================
+function techniquesForLevel(level) {
+  if (level === 1) return ['direct'];
+  if (level === 2) return ['direct', 'five'];
+  if (level === 3) return ['five', 'ten', 'direct'];
+  if (level === 4) return ['ten', 'five', 'twodigit'];
+  return ['twodigit', 'ten', 'five', 'plain'];
+}
+
+function pickOp() {
+  if (settings.ops === 'mixed') return Math.random() < 0.5 ? 'add' : 'sub';
+  return settings.ops;
+}
+
+function makeProblem() {
+  let techs = techniquesForLevel(state.level);
+  if (settings.max <= 10) techs = techs.filter((t) => t !== 'twodigit');
+  const technique = pick(techs.length ? techs : ['direct', 'five']);
+  const op = pickOp();
+  const maxA = settings.max;
+  let a, b;
+
+  if (technique === 'direct') {
+    if (op === 'add') {
+      // no complement needed: ones beads have room, or +5 straight onto the heaven bead
+      do { a = rand(0, 8); b = rand(1, 4); } while ((a % 5) + b > 4);
+      if (Math.random() < 0.2 && a < 5) b = 5;
+    } else {
+      do { a = rand(2, 9); b = rand(1, 4); } while (a % 5 < b && !(b === 5 && a >= 5));
+      if (Math.random() < 0.2 && a >= 5 && a % 5 < 1) b = 5;
+    }
+  } else if (technique === 'five') {
+    if (op === 'add') {
+      // crosses the 5 within one rod: 3+4 → +5−1
+      do { a = rand(1, 4); b = rand(1, 4); } while ((a % 5) + b <= 4 || a + b > 9);
+    } else {
+      // needs the 5 back: 6−2 → −5+3
+      do { a = rand(5, 9); b = rand(1, 4); } while (a % 5 >= b);
+    }
+  } else if (technique === 'ten') {
+    if (op === 'add') {
+      do { a = rand(2, 9); b = rand(2, 9); } while (a + b < 10 || a + b > Math.min(18, maxA));
+    } else {
+      do { a = rand(10, Math.min(19, maxA)); b = rand(2, 9); } while (a % 10 >= b);
+    }
+  } else if (technique === 'twodigit') {
+    if (op === 'add') {
+      do { a = rand(10, maxA - 1); b = rand(1, 9); } while (a + b > maxA);
+    } else {
+      a = rand(11, maxA); b = rand(1, 9);
+    }
+  } else { // plain mental-math mix-in
+    if (op === 'add') {
+      do { a = rand(1, maxA - 1); b = rand(1, maxA - 1); } while (a + b > maxA);
+    } else {
+      a = rand(2, maxA); b = rand(1, a - 1);
+    }
+  }
+
+  const answer = op === 'add' ? a + b : a - b;
+  return { a, b, op, answer, technique };
+}
+
+function beadHint(p) {
+  const sym = p.op === 'add' ? '+' : '−';
+  const generic = p.op === 'add'
+    ? `${p.a} ${sym} ${p.b} means start at ${p.a} and add ${p.b} more.`
+    : `${p.a} ${sym} ${p.b} means take ${p.b} away from ${p.a}.`;
+  if (settings.hints === 'off') return generic;
+
+  if (p.technique === 'five') {
+    return p.op === 'add'
+      ? `Not enough ones beads? Use the 5 bead! Push 5 down, then take away ${5 - p.b}.`
+      : `Not enough ones beads? Lift the 5 bead up, then give back ${5 - p.b}.`;
+  }
+  if (p.technique === 'ten') {
+    return p.op === 'add'
+      ? `Make 10! Add 10 on the next rod, then take away ${10 - p.b}.`
+      : `Break a 10! Take 10 away, then add back ${10 - p.b}.`;
+  }
+  if (p.technique === 'direct') {
+    return p.op === 'add'
+      ? `Just slide ${p.b === 5 ? 'the 5 bead down' : p.b + ' ones beads up'}!`
+      : `Just slide ${p.b === 5 ? 'the 5 bead up' : p.b + ' ones beads down'}!`;
+  }
+  return generic;
+}
+
+// =====================================================================
+// INTERACTIVE ABACUS (the controller!)
+// =====================================================================
+const abacusEl = document.getElementById('abacus');
+
+function abacusValue() {
+  return state.abacus.tens * 10 + state.abacus.ones;
+}
+
+function setDigit(rodName, digit) {
+  state.abacus[rodName] = Math.max(0, Math.min(9, digit));
+  renderAbacus();
+}
+
+function renderAbacus() {
+  abacusEl.innerHTML = '';
+  ['tens', 'ones'].forEach((rodName) => {
+    const d = state.abacus[rodName];
+    const heavenOn = d >= 5;
+    const earth = d % 5;
+    const rod = document.createElement('div');
+    rod.className = 'rod';
+
+    const pole = document.createElement('div');
+    pole.className = 'pole';
+    rod.appendChild(pole);
+
+    // heaven deck: active bead sits down at the beam
+    const heaven = document.createElement('div');
+    heaven.className = 'deck-heaven';
+    const hBead = document.createElement('button');
+    hBead.type = 'button';
+    hBead.className = 'bead heaven' + (heavenOn ? '' : ' off');
+    hBead.onclick = () => setDigit(rodName, heavenOn ? d - 5 : d + 5);
+    if (heavenOn) {
+      heaven.appendChild(Object.assign(document.createElement('div'), { className: 'spacer' }));
+      heaven.appendChild(hBead);
+    } else {
+      heaven.appendChild(hBead);
+      heaven.appendChild(Object.assign(document.createElement('div'), { className: 'spacer' }));
+    }
+    rod.appendChild(heaven);
+
+    const beam = document.createElement('div');
+    beam.className = 'beam';
+    rod.appendChild(beam);
+
+    // earth deck: active beads sit up at the beam
+    const earthDeck = document.createElement('div');
+    earthDeck.className = 'deck-earth';
+    for (let i = 0; i < earth; i++) {
+      const bead = document.createElement('button');
+      bead.type = 'button';
+      bead.className = 'bead earth';
+      bead.onclick = () => setDigit(rodName, (heavenOn ? 5 : 0) + i);
+      earthDeck.appendChild(bead);
+    }
+    earthDeck.appendChild(Object.assign(document.createElement('div'), { className: 'spacer' }));
+    for (let j = 0; j < 4 - earth; j++) {
+      const bead = document.createElement('button');
+      bead.type = 'button';
+      bead.className = 'bead earth off';
+      bead.onclick = () => setDigit(rodName, (heavenOn ? 5 : 0) + earth + j + 1);
+      earthDeck.appendChild(bead);
+    }
+    rod.appendChild(earthDeck);
+
+    const label = document.createElement('div');
+    label.className = 'digit';
+    label.textContent = rodName;
+    rod.appendChild(label);
+
+    abacusEl.appendChild(rod);
+  });
+  document.querySelector('#abacusValue b').textContent = abacusValue();
+}
+
+function clearAbacus() {
+  state.abacus = { tens: 0, ones: 0 };
+  renderAbacus();
+}
+
+/** Teach by showing: set the beads to a value with a highlight flash. */
+function showValueOnAbacus(v) {
+  state.abacus = { tens: Math.floor(v / 10) % 10, ones: v % 10 };
+  renderAbacus();
+  abacusEl.style.filter = 'drop-shadow(0 0 10px #4ade80)';
+  setTimeout(() => { abacusEl.style.filter = ''; }, 1500);
+}
+
+// =====================================================================
+// GAME FLOW: problem → answer on abacus → run or ghost creeps
+// =====================================================================
+const PRAISE = ['Great thinking! 🌟', 'You got it! 🎉', 'Super math brain! 💪', 'Zoom zoom! ✨'];
+const problemEq = document.getElementById('problemEq');
+const problemHint = document.getElementById('problemHint');
+const goBtn = document.getElementById('goBtn');
+
+function nextProblem() {
+  state.problem = makeProblem();
+  state.attempts = 0;
+  problemEq.textContent = `${state.problem.a} ${state.problem.op === 'add' ? '+' : '−'} ${state.problem.b} = ?`;
+  problemHint.textContent = '';
+  clearAbacus();
+  goBtn.disabled = false;
+}
+
+function submitAnswer() {
+  if (state.animating || state.paused || !state.problem) return;
+  const p = state.problem;
+  const guess = abacusValue();
+
+  if (guess === p.answer) {
+    state.stars++;
+    state.streak++;
+    logHistory(p, true);
+    toast(pick(PRAISE));
+    updateHud();
+    goBtn.disabled = true;
+    walk(playerEl, 'pac', STEPS_PER_CORRECT, afterPacMove);
+  } else {
+    state.attempts++;
+    state.streak = 0;
+    if (state.attempts === 1) {
+      problemHint.textContent = beadHint(p);
+      toast('Almost! Try again — check the hint. 💡', true);
+      ghostCreep(afterGhostMove);
+    } else {
+      logHistory(p, false);
+      problemHint.textContent = `The answer is ${p.answer} — look at the beads!`;
+      showValueOnAbacus(p.answer);
+      toast(`It was ${p.answer}. You'll get the next one! 💪`, true);
+      ghostCreep(() => afterGhostMove(true));
+    }
+    updateHud();
+  }
+}
+
+function afterPacMove() {
+  state.animating = false;
+  updateHud();
+  if (state.pacIdx >= END) { levelClear(); return; }
+  nextProblem();
+}
+
+function afterGhostMove(moveOn) {
+  state.animating = false;
+  if (checkCaught()) return;
+  if (moveOn) setTimeout(nextProblem, 1600);
+  else goBtn.disabled = false;
+  updateHud();
+}
+
+function ghostCreep(done) {
+  const steps = GHOST_STEPS[settings.ghost];
+  if (steps === 0) { done && done(); return; }
+  walk(ghostEl, 'ghost', steps, done);
+}
+
+function checkCaught() {
+  if (settings.ghost === 'off') return false;
+  if (state.ghostIdx < state.pacIdx) return false;
+  state.lives--;
+  updateHud();
+  if (state.lives <= 0) {
+    showMsg('The ghost got you! 👻',
+      `You solved <b>${state.stars}</b> problems — great practice!<br>
+       <span class="hintText">Let's try this level again. You've got this! 💪</span>`,
+      [{ label: 'Try again', fn: retryLevel }]);
+    return true;
+  }
+  ghostEl.classList.add('spooked');
+  state.ghostIdx = Math.max(GHOST_START, state.pacIdx - CATCH_KNOCKBACK);
+  placeSprite(ghostEl, state.ghostIdx, false);
+  setTimeout(() => ghostEl.classList.remove('spooked'), 1200);
+  toast('The ghost got you! It jumped back — keep going! ❤️', true);
+  goBtn.disabled = false;
+  return false;
+}
+
+function logHistory(p, ok) {
+  const sym = p.op === 'add' ? '+' : '−';
+  state.history.unshift(`${p.a} ${sym} ${p.b} = ${p.answer} ${ok ? '<span class="ok">✓</span>' : '✗'}`);
+  state.history = state.history.slice(0, 4);
+  document.getElementById('history').innerHTML = state.history.join('<br>');
+}
+
+// =====================================================================
+// ROUNDS / LEVELS
+// =====================================================================
+function startLevel() {
+  state.pacIdx = PAC_START;
+  state.ghostIdx = GHOST_START;
+  state.lives = 3;
+  state.animating = false;
+  playerEl.style.setProperty('--face-t', 'none');
+  spawnDots();
+  placeSprite(playerEl, state.pacIdx, false);
+  placeSprite(ghostEl, state.ghostIdx, false);
+  ghostEl.style.display = settings.ghost === 'off' ? 'none' : '';
+  updateHud();
+  nextProblem();
+}
+
+function retryLevel() {
+  startLevel();
+}
+
+function levelClear() {
+  confetti();
+  const nextTech = techniquesForLevel(state.level + 1);
+  const teaser = nextTech.includes('ten') && !techniquesForLevel(state.level).includes('ten')
+    ? '<br><span class="hintText">Next up: making 10s — the abacus superpower! ⚡</span>' : '';
+  showMsg('🎉 Level cleared! 🎉',
+    `PacAbacus made it home safe with <b>${state.stars}</b> ⭐!${teaser}`,
+    [{ label: 'Next level ▶', fn: () => { state.level++; startLevel(); } }]);
+}
+
+function updateHud() {
+  document.getElementById('levelVal').textContent = state.level;
+  document.getElementById('starsVal').textContent =
+    '⭐ ' + state.stars + (state.streak >= 2 ? ' 🔥' + state.streak : '');
+  document.getElementById('livesVal').textContent = '❤️'.repeat(Math.max(0, state.lives)) || '💔';
+  const togo = END - state.pacIdx;
+  const goal = document.getElementById('goalBar');
+  goal.textContent = settings.ghost === 'off'
+    ? `🏁 ${togo} steps to home — solve to run!`
+    : `🏁 ${togo} steps to home — don't let the ghost catch you!`;
+}
+
+// =====================================================================
+// OVERLAYS / SETTINGS / FEEDBACK
+// =====================================================================
+const msgOverlay = document.getElementById('msgOverlay');
+
+function anyOverlayOpen() {
+  return document.querySelector('.overlay.show') !== null;
+}
+
+function showMsg(title, body, buttons) {
+  state.paused = true;
+  document.getElementById('msgTitle').innerHTML = title;
+  document.getElementById('msgBody').innerHTML = body;
+  const btnRow = document.getElementById('msgBtns');
+  btnRow.innerHTML = '';
+  buttons.forEach(({ label, alt, fn }) => {
+    const b = document.createElement('button');
+    b.textContent = label;
+    if (alt) b.className = 'alt';
+    b.onclick = () => {
+      msgOverlay.classList.remove('show');
+      state.paused = anyOverlayOpen();
+      fn && fn();
+    };
+    btnRow.appendChild(b);
+  });
+  msgOverlay.classList.add('show');
+}
+
+const settingsOverlay = document.getElementById('settingsOverlay');
+const fields = {
+  ghost: document.getElementById('setGhost'),
+  ops: document.getElementById('setOps'),
+  max: document.getElementById('setMax'),
+  hints: document.getElementById('setHints'),
+};
+document.getElementById('gearBtn').onclick = () => {
+  Object.entries(fields).forEach(([k, el]) => { el.value = String(settings[k]); });
+  state.paused = true;
+  settingsOverlay.classList.add('show');
+};
+document.getElementById('settingsDone').onclick = () => {
+  Object.entries(fields).forEach(([k, el]) => {
+    settings[k] = k === 'max' ? Number(el.value) : el.value;
+  });
+  saveSettings();
+  settingsOverlay.classList.remove('show');
+  state.paused = anyOverlayOpen();
+  ghostEl.style.display = settings.ghost === 'off' ? 'none' : '';
+  updateHud();
+};
+
+goBtn.onclick = submitAnswer;
+document.getElementById('clearBtn').onclick = clearAbacus;
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') submitAnswer();
+});
+
+let toastTimer = null;
+function toast(msg, bad) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'show' + (bad ? ' bad' : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.className = ''; }, 2400);
+}
+
+function confetti() {
+  const colors = ['#ffd23f', '#4ade80', '#60c8ff', '#f472b6', '#a78bfa'];
+  for (let i = 0; i < 40; i++) {
+    const c = document.createElement('div');
+    c.className = 'confetti';
+    c.style.left = rand(0, 100) + 'vw';
+    c.style.background = colors[rand(0, colors.length - 1)];
+    c.style.animationDuration = rand(12, 25) / 10 + 's';
+    c.style.animationDelay = rand(0, 6) / 10 + 's';
+    document.body.appendChild(c);
+    setTimeout(() => c.remove(), 3500);
+  }
+}
+
+// =====================================================================
+// BOOT
+// =====================================================================
+loadSettings();
+buildBoard();
+renderAbacus();
+startLevel();
+showMsg('How to play 👋',
+  `A math problem appears — <b>solve it on your abacus</b> by clicking beads,
+   then press <b>Go!</b><br>
+   ✅ Right answer: PacAbacus runs toward home! 🏁<br>
+   👻 Mistake: the ghost sneaks closer…<br>
+   <span class="hintText">Reach the flag to clear the level. The hints teach you
+   real abacus tricks — like making 5s and 10s!</span>`,
+  [{ label: "Let's play!", fn: () => { state.paused = false; } }]);
+</script>
+</body>
+</html>
