@@ -237,7 +237,7 @@ export function ArcadeGame({ mode, onExit }: { mode: PlayMode; onExit: () => voi
 
   return (
     <div
-      className="relative flex min-h-svh flex-col items-center gap-3 overflow-hidden bg-[radial-gradient(circle_at_50%_20%,var(--c-bg1),var(--c-bg2)_70%)] p-3 text-slate-50"
+      className="relative flex min-h-svh flex-col items-center gap-3 overflow-hidden bg-[radial-gradient(circle_at_50%_20%,var(--c-bg1),var(--c-bg2)_70%)] p-3 pb-40 text-slate-50 sm:pb-3"
       style={theme.vars as React.CSSProperties}
     >
       {theme.id === 'stars' && <Twinkles />}
@@ -360,29 +360,21 @@ export function ArcadeGame({ mode, onExit }: { mode: PlayMode; onExit: () => voi
           </div>
         </div>
 
-        <div className="flex flex-col items-center gap-2 rounded-2xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] p-4">
-          <h3 className="text-xs font-bold tracking-wide text-[var(--c-soft)]">STEER</h3>
-          <p className="max-w-40 text-center text-xs text-[var(--c-soft)]">
-            Swipe the maze on a tablet, or:
-          </p>
-          <div className="grid grid-cols-3 grid-rows-2 gap-1.5">
-            <div />
-            <DirBtn dir="up" onMove={(dir) => dispatch({ type: 'MOVE', dir })} disabled={phase !== 'move'} />
-            <div />
-            <DirBtn dir="left" onMove={(dir) => dispatch({ type: 'MOVE', dir })} disabled={phase !== 'move'} />
-            <DirBtn dir="down" onMove={(dir) => dispatch({ type: 'MOVE', dir })} disabled={phase !== 'move'} />
-            <DirBtn dir="right" onMove={(dir) => dispatch({ type: 'MOVE', dir })} disabled={phase !== 'move'} />
-          </div>
-          <button
-            type="button"
-            onClick={() => dispatch({ type: 'END_MOVE' })}
-            disabled={phase !== 'move'}
-            className="mt-1 rounded-xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] px-4 py-1.5 text-sm font-bold brightness-110 disabled:opacity-40"
-          >
-            Stay here
-          </button>
-        </div>
+        <SteeringControls
+          className="hidden sm:flex"
+          canMove={phase === 'move'}
+          onMove={(dir) => dispatch({ type: 'MOVE', dir })}
+          onStay={() => dispatch({ type: 'END_MOVE' })}
+        />
       </div>
+
+      <SteeringControls
+        className="fixed inset-x-0 bottom-0 z-30 flex rounded-t-3xl border-x-0 border-b-0 bg-[color-mix(in_srgb,var(--c-panel)_94%,black)] px-3 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-10px_30px_rgba(0,0,0,0.35)] sm:hidden"
+        compact
+        canMove={phase === 'move'}
+        onMove={(dir) => dispatch({ type: 'MOVE', dir })}
+        onStay={() => dispatch({ type: 'END_MOVE' })}
+      />
 
       {/* toast */}
       {state.message && (
@@ -463,21 +455,73 @@ function Stat({ label, value }: { label: string; value: string }) {
 
 const DIR_ARROWS: Record<Dir, string> = { up: '⬆️', down: '⬇️', left: '⬅️', right: '➡️' }
 
+function SteeringControls({
+  className,
+  compact,
+  canMove,
+  onMove,
+  onStay,
+}: {
+  className?: string
+  compact?: boolean
+  canMove: boolean
+  onMove: (dir: Dir) => void
+  onStay: () => void
+}) {
+  return (
+    <div
+      className={[
+        'flex-col items-center gap-2 border-2 border-[var(--c-border)] bg-[var(--c-panel)] p-3',
+        compact ? '' : 'rounded-2xl p-4',
+        className ?? '',
+      ].join(' ')}
+    >
+      <h3 className="text-xs font-bold tracking-wide text-[var(--c-soft)]">STEER</h3>
+      {!compact && (
+        <p className="max-w-40 text-center text-xs text-[var(--c-soft)]">
+          Swipe the maze on a tablet, or:
+        </p>
+      )}
+      <div className="grid grid-cols-3 grid-rows-2 gap-1.5">
+        <div />
+        <DirBtn dir="up" onMove={onMove} disabled={!canMove} compact={compact} />
+        <div />
+        <DirBtn dir="left" onMove={onMove} disabled={!canMove} compact={compact} />
+        <DirBtn dir="down" onMove={onMove} disabled={!canMove} compact={compact} />
+        <DirBtn dir="right" onMove={onMove} disabled={!canMove} compact={compact} />
+      </div>
+      <button
+        type="button"
+        onClick={onStay}
+        disabled={!canMove}
+        className="mt-1 rounded-xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] px-4 py-1.5 text-sm font-bold brightness-110 disabled:opacity-40"
+      >
+        Stay here
+      </button>
+    </div>
+  )
+}
+
 function DirBtn({
   dir,
   onMove,
   disabled,
+  compact,
 }: {
   dir: Dir
   onMove: (dir: Dir) => void
   disabled: boolean
+  compact?: boolean
 }) {
   return (
     <button
       type="button"
       disabled={disabled}
       onClick={() => onMove(dir)}
-      className="h-16 w-16 rounded-xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] text-2xl brightness-110 active:brightness-150 disabled:opacity-30"
+      className={[
+        compact ? 'h-14 w-16' : 'h-16 w-16',
+        'rounded-xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] text-2xl brightness-110 active:brightness-150 disabled:opacity-30',
+      ].join(' ')}
     >
       {DIR_ARROWS[dir]}
     </button>

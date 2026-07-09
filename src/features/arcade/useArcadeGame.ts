@@ -34,7 +34,8 @@ export interface GameMessage {
   id: number
 }
 
-const TREASURE_EMOJI = ['🍒', '🍊', '💎', '⭐', '🍇', '🧁', '💖', '🌼']
+const TREASURE_EMOJI = ['🍒', '🍊', '🍌', '🍉', '🫐', '💎', '⭐', '🪙', '🧁', '💖', '🌼']
+const ROCK_EMOJI = '🪨'
 const JAIL_TURNS = 3
 
 export interface GameState {
@@ -56,6 +57,7 @@ export interface GameState {
   afterGhosts: 'retry' | 'next'
   problem: ArcadeProblem
   attempts: number
+  answerTicks: number
   hint: string
   answerValue: number
   message: GameMessage | null
@@ -69,6 +71,7 @@ type Action =
   | { type: 'CHALLENGE' }
   | { type: 'MOVE'; dir: Dir }
   | { type: 'END_MOVE' }
+  | { type: 'AGE_TREASURES' }
   | { type: 'GHOST_TICK' }
   | { type: 'REVEAL_DONE' }
   | { type: 'RESPAWN' }
@@ -83,22 +86,33 @@ const GENTLE_RETRY = [
 ]
 const pickFrom = (arr: string[]) => arr[Math.floor(Math.random() * arr.length)]
 
-function spawnTreasures(maze: MazeDef, enemyCount: number) {
+function shuffle<T>(items: T[]) {
+  const out = [...items]
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    const tmp = out[i]
+    out[i] = out[j]
+    out[j] = tmp
+  }
+  return out
+}
+
+function spawnTreasures(maze: MazeDef, cfg: LevelCfg) {
   const skip = new Set([maze.pacSpawn, ...maze.ghostSpawns].map(posKey))
   const treasures = new Map<string, string>()
   const cells: string[] = []
   for (let r = 0; r < maze.rows; r++)
     for (let c = 0; c < maze.cols; c++) {
       const k = posKey({ r, c })
-      if (!isWall(maze, r, c) && !skip.has(k)) {
-        treasures.set(k, TREASURE_EMOJI[Math.floor(Math.random() * TREASURE_EMOJI.length)])
-        cells.push(k)
-      }
+      if (!isWall(maze, r, c) && !skip.has(k)) cells.push(k)
     }
+  const picks = shuffle(cells).slice(0, Math.min(cfg.treasureCount, cells.length))
+  for (const k of picks) {
+    treasures.set(k, TREASURE_EMOJI[Math.floor(Math.random() * TREASURE_EMOJI.length)])
+  }
   const jailFruits = new Set<string>()
-  if (enemyCount > 0) {
-    for (let i = 0; i < 2 && cells.length; i++) {
-      const k = cells.splice(Math.floor(Math.random() * cells.length), 1)[0]
+  if (cfg.enemy.count > 0) {
+    for (const k of shuffle(picks).slice(0, Math.min(2, picks.length))) {
       treasures.set(k, '🍓')
       jailFruits.add(k)
     }
@@ -130,6 +144,7 @@ function makeReducer(cfgFor: (level: number) => LevelCfg) {
   const freshProblem = (cfg: LevelCfg): Partial<GameState> => ({
     problem: generateFromCfg(cfg.problem),
     attempts: 0,
+    answerTicks: 0,
     hint: '',
     answerValue: 0,
     phase: 'answer',
@@ -196,7 +211,7 @@ function makeReducer(cfgFor: (level: number) => LevelCfg) {
   const levelStart = (state: GameState, level: number): GameState => {
     const cfg = cfgFor(level)
     const maze = mazeForLevel(level)
-    const { treasures, jailFruits } = spawnTreasures(maze, cfg.enemy.count)
+    const { treasures, jailFruits } = spawnTreasures(maze, cfg)
     return {
       ...state,
       level,
@@ -337,6 +352,28 @@ function makeReducer(cfgFor: (level: number) => LevelCfg) {
         return enterGhostPhase(state, state.cfg.enemy.correctSteps, 'next')
       }
 
+      case 'AGE_TREASURES': {
+        if (state.phase !== 'answer') return state
+        const candidates = [...state.treasures.keys()].filter(
+          (k) => state.treasures.get(k) !== ROCK_EMOJI && !state.jailFruits.has(k),
+        )
+        if (!candidates.length) return { ...state, answerTicks: state.answerTicks + 1 }
+        const rocksToAdd = state.cfg.gentle ? 1 : Math.min(2, 1 + Math.floor(state.level / 20))
+        const treasures = new Map(state.treasures)
+        for (const k of shuffle(candidates).slice(0, rocksToAdd)) {
+          treasures.set(k, ROCK_EMOJI)
+        }
+        return {
+          ...state,
+          treasures,
+          answerTicks: state.answerTicks + 1,
+          message:
+            state.answerTicks === 0
+              ? say(state, 'Some treasures turned into rocks — keep counting! 🪨', 'bad')
+              : state.message,
+        }
+      }
+
       case 'GHOST_TICK': {
         if (state.phase !== 'ghosts') return state
         const ghosts = state.ghosts.map((g) =>
@@ -396,7 +433,7 @@ function makeReducer(cfgFor: (level: number) => LevelCfg) {
 function makeInitialState(cfgFor: (level: number) => LevelCfg, startLevel: number): GameState {
   const cfg = cfgFor(startLevel)
   const maze = mazeForLevel(startLevel)
-  const { treasures, jailFruits } = spawnTreasures(maze, cfg.enemy.count)
+  const { treasures, jailFruits } = spawnTreasures(maze, cfg)
   return {
     level: startLevel,
     cfg,
@@ -416,6 +453,7 @@ function makeInitialState(cfgFor: (level: number) => LevelCfg, startLevel: numbe
     afterGhosts: 'next',
     problem: generateFromCfg(cfg.problem),
     attempts: 0,
+    answerTicks: 0,
     hint: '',
     answerValue: 0,
     message: cfg.intro ? { text: cfg.intro, tone: 'good', id: 1 } : null,
@@ -436,6 +474,10 @@ export function useArcadeGame(
   )
 
   useEffect(() => {
+    if (state.phase === 'answer') {
+      const t = setInterval(() => dispatch({ type: 'AGE_TREASURES' }), 7000)
+      return () => clearInterval(t)
+    }
     if (state.phase === 'ghosts') {
       const t = setInterval(() => dispatch({ type: 'GHOST_TICK' }), stepMs + 40)
       return () => clearInterval(t)

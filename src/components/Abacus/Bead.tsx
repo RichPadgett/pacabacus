@@ -36,9 +36,12 @@ export function Bead({ active, onClick, onSwipe, readOnly, tone }: BeadProps) {
         onClick()
       }}
       onTouchStart={(e) => {
+        e.preventDefault()
         touchStartY.current = e.touches[0].clientY
       }}
+      onTouchMove={(e) => e.preventDefault()}
       onTouchEnd={(e) => {
+        e.preventDefault()
         if (touchStartY.current === null || readOnly) return
         const dy = e.changedTouches[0].clientY - touchStartY.current
         touchStartY.current = null

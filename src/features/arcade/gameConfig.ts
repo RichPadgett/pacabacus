@@ -15,6 +15,8 @@ export interface LevelCfg {
   problem: ProblemCfg
   rodCount: number
   enemy: EnemyCfg
+  /** number of treasures needed to finish the maze */
+  treasureCount: number
   /** gentle mode: unlimited kind retries, enemies never punish mistakes */
   gentle: boolean
   /** shown once when the level starts */
@@ -49,6 +51,7 @@ export function adventureCfg(level: number): LevelCfg {
     problem,
     rodCount: 2,
     enemy,
+    treasureCount: Math.min(24, 10 + Math.floor(level / 3)),
     gentle: false,
     allowChallenge: true,
     intro:
@@ -65,13 +68,13 @@ export function countingCfg(level: number): LevelCfg {
   const problem: ProblemCfg =
     level <= 3
       ? { kind: 'early', countChance: 1, countMin: 1, countMax: 2 + level, sumCap: 0 }
-      : level <= 6
-        ? { kind: 'early', countChance: 0.5, countMin: 1, countMax: 5, sumCap: 5 }
-        : level <= 9
-          ? { kind: 'early', countChance: 0.45, countMin: 4, countMax: 9, sumCap: 5 }
-          : level <= 14
-            ? { kind: 'early', countChance: 0.3, countMin: 5, countMax: 9, sumCap: 10 }
-            : { kind: 'early', countChance: 0.15, countMin: 6, countMax: 10, sumCap: 10 }
+      : level <= 8
+        ? { kind: 'early', countChance: 0.55, countMin: 1, countMax: 5, sumCap: 5 }
+        : level <= 12
+          ? { kind: 'early', countChance: 0.4, countMin: 1, countMax: 7, sumCap: 7 }
+          : level <= 16
+            ? { kind: 'early', countChance: 0.3, countMin: 1, countMax: 10, sumCap: 10 }
+            : { kind: 'early', countChance: 0.2, countMin: 1, countMax: 10, sumCap: 10 }
 
   const enemy: EnemyCfg = {
     count: level <= 6 ? 0 : 1,
@@ -84,19 +87,20 @@ export function countingCfg(level: number): LevelCfg {
   return {
     problem,
     // one rod keeps it simple until sums can reach 10
-    rodCount: level <= 9 ? 1 : 2,
+    rodCount: level <= 12 ? 1 : 2,
     enemy,
+    treasureCount: Math.min(12, 4 + Math.ceil(level / 2)),
     gentle: true,
     allowChallenge: false,
     intro:
       level === 1
         ? 'Count the treats — slide one blue bead up for each one! 🍓'
         : level === 4
-          ? 'Now try adding! Count both groups together. ➕'
-          : level === 7
-            ? 'Big numbers! The gold bead at the top counts as 5. ✨'
-            : level === 10
-              ? 'A little baddie is wandering around — keep counting! 👀'
+            ? 'Now try adding! Count both groups together. ➕'
+            : level === 9
+              ? 'Big numbers! The gold bead at the top counts as 5. ✨'
+              : level === 13
+                ? 'A little baddie is wandering around — keep counting! 👀'
               : undefined,
   }
 }
@@ -117,6 +121,7 @@ export function freePlayCfg(s: ArcadeSettings): LevelCfg {
       chaseChance: 0.75,
       spawnChance: 0,
     },
+    treasureCount: 18,
     gentle: false,
     allowChallenge: true,
   }

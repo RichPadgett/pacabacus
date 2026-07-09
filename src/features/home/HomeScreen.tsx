@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Twinkles } from '@/features/arcade/ArcadeGame'
 import { useArcadeSettings } from '@/features/arcade/settingsStore'
-import { HEROES, PixelSprite } from '@/features/arcade/sprites'
+import { HEROES, PixelSprite, STARTER_HERO_IDS, type HeroId } from '@/features/arcade/sprites'
 import { THEMES } from '@/features/arcade/themes'
 import {
   earnedBadges,
@@ -29,6 +29,8 @@ export function HomeScreen({
   const settings = useArcadeSettings()
   const theme = THEMES[settings.theme] ?? THEMES.stars
   const [nameInput, setNameInput] = useState('')
+  const [starterHero, setStarterHero] = useState<HeroId>('kitty')
+  const [showProfiles, setShowProfiles] = useState(false)
 
   const heroDef = HEROES[profile.character] ?? HEROES.kitty
   const total = totalCompleted(profile)
@@ -49,24 +51,13 @@ export function HomeScreen({
       </header>
 
       {!profile.username ? (
-        <div className="flex w-full max-w-sm flex-col items-center gap-4 rounded-3xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] p-6">
-          <h2 className="text-xl font-bold">What's your name?</h2>
-          <input
-            value={nameInput}
-            onChange={(e) => setNameInput(e.target.value)}
-            maxLength={20}
-            placeholder="Type your name…"
-            className="w-full rounded-xl border-2 border-[var(--c-border)] bg-black/30 px-4 py-3 text-center text-xl font-bold text-slate-50 outline-none focus:border-emerald-400"
-          />
-          <button
-            type="button"
-            disabled={!nameInput.trim()}
-            onClick={() => profile.setUsername(nameInput.trim())}
-            className="rounded-2xl border-4 border-emerald-600 bg-emerald-400 px-10 py-3 text-xl font-black text-emerald-950 disabled:opacity-40"
-          >
-            Let's go! ▶
-          </button>
-        </div>
+        <SignupCard
+          nameInput={nameInput}
+          setNameInput={setNameInput}
+          starterHero={starterHero}
+          setStarterHero={setStarterHero}
+          onCreate={() => profile.createProfile(nameInput.trim(), starterHero)}
+        />
       ) : (
         <>
           <div className="flex items-center gap-3 rounded-2xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] px-5 py-3">
@@ -77,7 +68,64 @@ export function HomeScreen({
                 {heroDef.name} · {total} levels done · {badges.length} badges
               </div>
             </div>
+            <button
+              type="button"
+              onClick={() => setShowProfiles((v) => !v)}
+              className="rounded-xl border-2 border-[var(--c-border)] bg-black/20 px-3 py-2 text-sm font-bold hover:brightness-125"
+            >
+              Switch
+            </button>
           </div>
+
+          {showProfiles && (
+            <div className="flex w-full max-w-md flex-col gap-3 rounded-2xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] p-4">
+              <h2 className="text-center text-sm font-bold tracking-wide text-[var(--c-soft)]">
+                WHO'S PLAYING?
+              </h2>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {profile.profiles.map((p) => {
+                  const pHero = HEROES[p.character] ?? HEROES.kitty
+                  const selected = p.id === profile.activeProfileId
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => {
+                        profile.switchProfile(p.id)
+                        setShowProfiles(false)
+                      }}
+                      className={[
+                        'flex items-center gap-3 rounded-2xl border-2 p-3 text-left active:scale-95',
+                        selected
+                          ? 'border-emerald-400 bg-emerald-500/20'
+                          : 'border-[var(--c-border)] bg-black/20 hover:brightness-125',
+                      ].join(' ')}
+                    >
+                      <PixelSprite map={pHero.frames[0]} palette={pHero.palette} size={42} />
+                      <span>
+                        <span className="block font-black">{p.username}</span>
+                        <span className="block text-xs text-[var(--c-soft)]">
+                          {pHero.name} · {totalCompleted(p)} levels
+                        </span>
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+              <SignupCard
+                compact
+                nameInput={nameInput}
+                setNameInput={setNameInput}
+                starterHero={starterHero}
+                setStarterHero={setStarterHero}
+                onCreate={() => {
+                  profile.createProfile(nameInput.trim(), starterHero)
+                  setNameInput('')
+                  setShowProfiles(false)
+                }}
+              />
+            </div>
+          )}
 
           <div className="flex w-full max-w-md flex-col gap-3">
             <MenuButton onClick={onAdventure} big>
@@ -96,7 +144,7 @@ export function HomeScreen({
                 : `Level ${Math.min(profile.countingLevel, COUNTING_MAX)}`}{' '}
               ▶
             </MenuButton>
-            <div className="flex gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <MenuButton onClick={onCharacters}>🎭 Characters</MenuButton>
               <MenuButton onClick={onRewards}>🏆 Rewards</MenuButton>
               <MenuButton onClick={onFreePlay}>🎮 Free Play</MenuButton>
@@ -104,6 +152,79 @@ export function HomeScreen({
           </div>
         </>
       )}
+    </div>
+  )
+}
+
+function SignupCard({
+  compact,
+  nameInput,
+  setNameInput,
+  starterHero,
+  setStarterHero,
+  onCreate,
+}: {
+  compact?: boolean
+  nameInput: string
+  setNameInput: (name: string) => void
+  starterHero: HeroId
+  setStarterHero: (id: HeroId) => void
+  onCreate: () => void
+}) {
+  return (
+    <div
+      className={[
+        'flex w-full max-w-md flex-col items-center gap-4 rounded-3xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] p-6',
+        compact ? 'max-w-none border-dashed bg-black/15 p-4' : '',
+      ].join(' ')}
+    >
+      <h2 className="text-xl font-bold">{compact ? 'Add a player' : "What's your name?"}</h2>
+      <input
+        value={nameInput}
+        onChange={(e) => setNameInput(e.target.value)}
+        maxLength={20}
+        placeholder="Type your name..."
+        className="w-full rounded-xl border-2 border-[var(--c-border)] bg-black/30 px-4 py-3 text-center text-xl font-bold text-slate-50 outline-none focus:border-emerald-400"
+      />
+      <div className="w-full">
+        <h3 className="mb-3 text-center text-sm font-bold tracking-wide text-[var(--c-soft)]">
+          PICK YOUR FIRST FRIEND
+        </h3>
+        <div className="grid grid-cols-3 gap-2">
+          {STARTER_HERO_IDS.map((id) => {
+            const hero = HEROES[id]
+            const selected = starterHero === id
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setStarterHero(id)}
+                className={[
+                  'flex min-h-32 flex-col items-center justify-center gap-2 rounded-2xl border-2 p-2 transition active:scale-95',
+                  compact ? 'min-h-24' : '',
+                  selected
+                    ? 'border-emerald-400 bg-emerald-500/20 text-emerald-100'
+                    : 'border-[var(--c-border)] bg-black/20 hover:brightness-125',
+                ].join(' ')}
+              >
+                <PixelSprite map={hero.frames[0]} palette={hero.palette} size={compact ? 44 : 58} />
+                <span className="text-center text-sm font-black">{hero.name}</span>
+                <span className="min-h-4 text-xs text-[var(--c-soft)]">
+                  {selected ? 'Playing!' : 'Tap'}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+      <button
+        type="button"
+        disabled={!nameInput.trim()}
+        onClick={onCreate}
+        className="rounded-2xl border-4 border-emerald-600 bg-emerald-400 px-10 py-3 text-xl font-black text-emerald-950 disabled:opacity-40"
+      >
+        Let's go! ▶
+      </button>
     </div>
   )
 }

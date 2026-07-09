@@ -28,7 +28,7 @@ export function Abacus({
   })
 
   return (
-    <div className="inline-flex gap-2 rounded-2xl border-2 border-indigo-500 bg-indigo-950 p-4">
+    <div className="inline-flex touch-none gap-2 rounded-2xl border-2 border-indigo-500 bg-indigo-950 p-4 overscroll-contain">
       {rods.map((rod, i) => (
         <Rod
           key={i}

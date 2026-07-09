@@ -65,8 +65,8 @@ export function SetupScreen({ onStart, onHome }: { onStart: () => void; onHome?:
           PacAbacus
         </h1>
         <p className="mt-2 max-w-md text-[var(--c-soft)]">
-          Solve problems on your abacus to earn moves. Steer through the maze, eat every
-          dot, and stay ahead of the baddies!
+          Solve problems on your abacus to earn moves. Steer through the maze,
+          collect treasures, and stay ahead of the baddies!
         </p>
       </header>
 
@@ -76,7 +76,7 @@ export function SetupScreen({ onStart, onHome }: { onStart: () => void; onHome?:
           current={settings.mode}
           onPick={(mode) => settings.update({ mode })}
           options={[
-            { value: 'maze', label: '👾 Maze Chase', sub: 'eat dots, dodge baddies' },
+            { value: 'maze', label: '👾 Maze Chase', sub: 'collect treasures' },
             { value: 'rain', label: '🧱 Number Rain', sub: 'pop falling math blocks' },
           ]}
         />
