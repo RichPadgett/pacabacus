@@ -185,14 +185,21 @@ function leaveFruitStep(
 
 function randomSafeStep(maze: MazeDef, from: Pos, pac: Pos, avoid?: Pos): Pos {
   const open = openSteps(maze, from)
-  const safest = open.filter(
-    (p) => dist(p, pac) >= CLOAK_SAFE_DISTANCE && (!avoid || !samePos(p, avoid)),
+  const currentDist = dist(from, pac)
+  const away = open.filter(
+    (p) =>
+      dist(p, pac) > currentDist &&
+      dist(p, pac) >= CLOAK_SAFE_DISTANCE &&
+      (!avoid || !samePos(p, avoid)),
   )
-  const safe =
-    safest.length
-      ? safest
-      : open.filter((p) => dist(p, pac) >= 1 && (!avoid || !samePos(p, avoid)))
-  const fallback = safe.length ? safe : open.filter((p) => dist(p, pac) >= 1)
+  const sideways = open.filter(
+    (p) =>
+      dist(p, pac) >= currentDist &&
+      dist(p, pac) >= CLOAK_SAFE_DISTANCE &&
+      (!avoid || !samePos(p, avoid)),
+  )
+  const safe = open.filter((p) => dist(p, pac) >= CLOAK_SAFE_DISTANCE)
+  const fallback = away.length ? away : sideways.length ? sideways : safe.length ? safe : open
   return fallback.length ? fallback[Math.floor(Math.random() * fallback.length)] : from
 }
 
@@ -205,7 +212,7 @@ function wanderWhileSolving(
 ): Pos {
   let current = from
   let avoid = previous
-  const steps = 1 + Math.floor(Math.random() * 2)
+  const steps = 1
   for (let i = 0; i < steps; i++) {
     const next =
       leaveFruitStep(maze, current, treasures, pac, avoid) ??
@@ -615,7 +622,7 @@ export function useArcadeGame(
     if (state.phase !== 'answer' || state.ghosts.length === 0 || state.jailTurns > 0) return
     const t = setInterval(
       () => dispatch({ type: 'GHOST_WANDER' }),
-      Math.max(520, stepMs * 3),
+      Math.max(900, stepMs * 5),
     )
     return () => clearInterval(t)
   }, [state.phase, state.ghosts.length, state.jailTurns, stepMs])
