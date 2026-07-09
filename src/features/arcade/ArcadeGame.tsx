@@ -5,6 +5,7 @@ import { movesForProblem, problemText } from '@/features/drills/problemGenerator
 import type { Dir } from './maze'
 import { MazeBoard } from './MazeBoard'
 import { useArcadeSettings } from './settingsStore'
+import { THEMES } from './themes'
 import { useArcadeGame } from './useArcadeGame'
 
 const KEY_DIRS: Record<string, Dir> = {
@@ -63,6 +64,7 @@ export function ArcadeGame({ onExit }: { onExit: () => void }) {
   const settings = useArcadeSettings()
   const { state, dispatch, stepMs } = useArcadeGame(settings)
   const tile = useTileSize(state.maze.cols)
+  const theme = THEMES[settings.theme] ?? THEMES.stars
 
   // keyboard
   useEffect(() => {
@@ -79,12 +81,12 @@ export function ArcadeGame({ onExit }: { onExit: () => void }) {
     return () => window.removeEventListener('keydown', onKey)
   }, [dispatch])
 
-  // music
+  // music — a different song each level, cycling through the songbook
   useEffect(() => {
-    if (settings.music) chiptune.startMusic()
+    if (settings.music) chiptune.playSong(state.level - 1)
     else chiptune.stopMusic()
     return () => chiptune.stopMusic()
-  }, [settings.music])
+  }, [settings.music, state.level])
 
   // sound effects driven by game events
   const { phase } = state
@@ -119,9 +121,9 @@ export function ArcadeGame({ onExit }: { onExit: () => void }) {
     phase === 'answer'
       ? `Solve it to earn ${payout} moves!`
       : phase === 'move'
-        ? `Steer! ${state.movesLeft} move${state.movesLeft === 1 ? '' : 's'} left`
+        ? `Steer! ${state.movesLeft} move${state.movesLeft === 1 ? '' : 's'} left — swipe the maze or use arrows`
         : phase === 'ghosts'
-          ? 'Ghosts on the move… 👻'
+          ? 'The baddies are moving… 👀'
           : phase === 'reveal'
             ? 'Watch the beads show the answer…'
             : phase === 'caught'
@@ -129,7 +131,11 @@ export function ArcadeGame({ onExit }: { onExit: () => void }) {
               : ''
 
   return (
-    <div className="flex min-h-svh flex-col items-center gap-3 bg-[radial-gradient(circle_at_50%_20%,#2b2070,#1a1440_70%)] p-3 text-indigo-50">
+    <div
+      className="relative flex min-h-svh flex-col items-center gap-3 overflow-hidden bg-[radial-gradient(circle_at_50%_20%,var(--c-bg1),var(--c-bg2)_70%)] p-3 text-slate-50"
+      style={theme.vars as React.CSSProperties}
+    >
+      {theme.id === 'stars' && <Twinkles />}
       {/* HUD */}
       <div className="flex flex-wrap items-stretch justify-center gap-2">
         <Stat label="Level" value={`${state.level} · ${state.maze.name}`} />
@@ -142,7 +148,7 @@ export function ArcadeGame({ onExit }: { onExit: () => void }) {
         <button
           type="button"
           onClick={() => settings.update({ music: !settings.music })}
-          className="rounded-xl border-2 border-indigo-500 bg-indigo-900 px-3 text-lg hover:border-indigo-300"
+          className="rounded-xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] px-3 text-lg hover:brightness-125"
           title="Music on/off"
         >
           {settings.music ? '🔊' : '🔇'}
@@ -150,13 +156,13 @@ export function ArcadeGame({ onExit }: { onExit: () => void }) {
         <button
           type="button"
           onClick={onExit}
-          className="rounded-xl border-2 border-indigo-500 bg-indigo-900 px-4 text-sm font-bold hover:border-indigo-300"
+          className="rounded-xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] px-4 text-sm font-bold hover:brightness-125"
         >
           ⚙️ Setup
         </button>
       </div>
 
-      <div className="rounded-full border-2 border-emerald-400 bg-indigo-950 px-5 py-1 text-base font-bold text-emerald-300">
+      <div className="rounded-full border-2 border-emerald-400 bg-[var(--c-panel)] px-5 py-1 text-base font-bold text-emerald-300">
         {goalText}
       </div>
 
@@ -168,6 +174,8 @@ export function ArcadeGame({ onExit }: { onExit: () => void }) {
         facing={state.facing}
         ghosts={state.ghosts}
         stepMs={stepMs}
+        hero={settings.hero}
+        onSwipe={(dir) => dispatch({ type: 'MOVE', dir })}
       />
 
       {/* problem + abacus + dpad */}
@@ -177,10 +185,10 @@ export function ArcadeGame({ onExit }: { onExit: () => void }) {
             'flex min-w-56 flex-col items-center rounded-2xl border-2 p-4',
             isChallenge
               ? 'border-amber-400 bg-amber-950/50'
-              : 'border-indigo-600 bg-indigo-950/70',
+              : 'border-[var(--c-border)] bg-[var(--c-panel)]',
           ].join(' ')}
         >
-          <h3 className="text-xs font-bold tracking-wide text-indigo-300">
+          <h3 className="text-xs font-bold tracking-wide text-[var(--c-soft)]">
             {isChallenge ? '⚡ CHALLENGE — ONE TRY! ⚡' : 'SOLVE ME!'}
           </h3>
           <div className="my-2 text-4xl font-black text-amber-300">
@@ -189,7 +197,7 @@ export function ArcadeGame({ onExit }: { onExit: () => void }) {
           <div className="mb-1 rounded-full border border-emerald-500 bg-emerald-500/15 px-3 py-0.5 text-xs font-bold text-emerald-300">
             worth +{payout} moves
           </div>
-          <p className="min-h-10 max-w-60 text-center text-sm text-indigo-300">
+          <p className="min-h-10 max-w-60 text-center text-sm text-[var(--c-soft)]">
             {state.hint}
           </p>
           <div className="mt-2 flex gap-3">
@@ -197,7 +205,7 @@ export function ArcadeGame({ onExit }: { onExit: () => void }) {
               type="button"
               onClick={() => dispatch({ type: 'SET_ANSWER', value: 0 })}
               disabled={phase !== 'answer'}
-              className="rounded-xl border-2 border-indigo-500 bg-indigo-900 px-4 py-2 font-bold disabled:opacity-40"
+              className="rounded-xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] px-4 py-2 font-bold brightness-110 disabled:opacity-40"
             >
               Clear
             </button>
@@ -222,8 +230,8 @@ export function ArcadeGame({ onExit }: { onExit: () => void }) {
           )}
         </div>
 
-        <div className="flex flex-col items-center rounded-2xl border-2 border-indigo-600 bg-indigo-950/70 p-4">
-          <h3 className="mb-2 text-xs font-bold tracking-wide text-indigo-300">
+        <div className="flex flex-col items-center rounded-2xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] p-4">
+          <h3 className="mb-2 text-xs font-bold tracking-wide text-[var(--c-soft)]">
             YOUR ABACUS — TAP THE BEADS
           </h3>
           <Abacus
@@ -238,8 +246,11 @@ export function ArcadeGame({ onExit }: { onExit: () => void }) {
           </div>
         </div>
 
-        <div className="flex flex-col items-center gap-2 rounded-2xl border-2 border-indigo-600 bg-indigo-950/70 p-4">
-          <h3 className="text-xs font-bold tracking-wide text-indigo-300">STEER</h3>
+        <div className="flex flex-col items-center gap-2 rounded-2xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] p-4">
+          <h3 className="text-xs font-bold tracking-wide text-[var(--c-soft)]">STEER</h3>
+          <p className="max-w-40 text-center text-xs text-[var(--c-soft)]">
+            Swipe the maze on a tablet, or:
+          </p>
           <div className="grid grid-cols-3 grid-rows-2 gap-1.5">
             <div />
             <DirBtn dir="up" onMove={(dir) => dispatch({ type: 'MOVE', dir })} disabled={phase !== 'move'} />
@@ -252,7 +263,7 @@ export function ArcadeGame({ onExit }: { onExit: () => void }) {
             type="button"
             onClick={() => dispatch({ type: 'END_MOVE' })}
             disabled={phase !== 'move'}
-            className="mt-1 rounded-xl border-2 border-indigo-500 bg-indigo-900 px-4 py-1.5 text-sm font-bold disabled:opacity-40"
+            className="mt-1 rounded-xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] px-4 py-1.5 text-sm font-bold brightness-110 disabled:opacity-40"
           >
             Stay here
           </button>
@@ -287,7 +298,7 @@ export function ArcadeGame({ onExit }: { onExit: () => void }) {
         </Overlay>
       )}
       {phase === 'gameOver' && (
-        <Overlay title="The ghosts win this time! 👻">
+        <Overlay title="The baddies win this time! 👻">
           <p className="text-lg">
             You solved <b>{state.stars}</b> problems — great practice!
           </p>
@@ -298,7 +309,7 @@ export function ArcadeGame({ onExit }: { onExit: () => void }) {
             <button
               type="button"
               onClick={onExit}
-              className="rounded-xl border-2 border-indigo-400 bg-indigo-800 px-6 py-2 text-lg font-bold"
+              className="rounded-xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] px-6 py-2 text-lg font-bold"
             >
               Change setup
             </button>
@@ -309,10 +320,20 @@ export function ArcadeGame({ onExit }: { onExit: () => void }) {
   )
 }
 
+export function Twinkles() {
+  return (
+    <>
+      <span className="twinkle text-xl" style={{ top: '8%', left: '12%' }}>✦</span>
+      <span className="twinkle text-2xl" style={{ top: '16%', right: '10%', animationDelay: '0.5s' }}>✦</span>
+      <span className="twinkle text-lg" style={{ bottom: '14%', left: '7%', animationDelay: '1s' }}>✦</span>
+    </>
+  )
+}
+
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="min-w-20 rounded-xl border-2 border-indigo-500 bg-indigo-950 px-4 py-1 text-center">
-      <div className="text-[11px] text-indigo-300">{label}</div>
+    <div className="min-w-20 rounded-xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] px-4 py-1 text-center">
+      <div className="text-[11px] text-[var(--c-soft)]">{label}</div>
       <div className="text-lg font-bold">{value}</div>
     </div>
   )
@@ -334,7 +355,7 @@ function DirBtn({
       type="button"
       disabled={disabled}
       onClick={() => onMove(dir)}
-      className="h-14 w-14 rounded-xl border-2 border-indigo-500 bg-indigo-900 text-2xl active:bg-indigo-600 disabled:opacity-30"
+      className="h-16 w-16 rounded-xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] text-2xl brightness-110 active:brightness-150 disabled:opacity-30"
     >
       {DIR_ARROWS[dir]}
     </button>
@@ -343,8 +364,8 @@ function DirBtn({
 
 function Overlay({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-indigo-950/80 p-4">
-      <div className="w-full max-w-md rounded-3xl border-4 border-indigo-500 bg-indigo-900 p-7 text-center">
+    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 p-4">
+      <div className="w-full max-w-md rounded-3xl border-4 border-[var(--c-border)] bg-[var(--c-panel)] p-7 text-center">
         <h2 className="mb-3 text-2xl font-black text-amber-300">{title}</h2>
         <div className="flex flex-col gap-4">{children}</div>
       </div>

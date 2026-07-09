@@ -1,14 +1,17 @@
 import type { MathLevel, OpsChoice } from '@/features/drills/problemGenerator'
+import { Twinkles } from './ArcadeGame'
 import {
   useArcadeSettings,
   type GameSpeed,
   type GhostDifficulty,
   type MaxAnswer,
 } from './settingsStore'
+import { HEROES, PixelSprite, type HeroId } from './sprites'
+import { THEMES, type ThemeId } from './themes'
 
 interface OptionProps<T extends string | number> {
   title: string
-  options: { value: T; label: string; sub?: string }[]
+  options: { value: T; label: string; sub?: string; icon?: React.ReactNode }[]
   current: T
   onPick: (value: T) => void
 }
@@ -21,7 +24,7 @@ function OptionGroup<T extends string | number>({
 }: OptionProps<T>) {
   return (
     <div>
-      <h3 className="mb-2 text-sm font-bold tracking-wide text-indigo-300">{title}</h3>
+      <h3 className="mb-2 text-sm font-bold tracking-wide text-[var(--c-soft)]">{title}</h3>
       <div className="flex flex-wrap gap-2">
         {options.map((opt) => (
           <button
@@ -29,14 +32,17 @@ function OptionGroup<T extends string | number>({
             type="button"
             onClick={() => onPick(opt.value)}
             className={[
-              'rounded-2xl border-2 px-4 py-2 text-left transition',
+              'flex items-center gap-2 rounded-2xl border-2 px-4 py-2 text-left transition',
               current === opt.value
                 ? 'border-emerald-400 bg-emerald-500/20 text-emerald-200'
-                : 'border-indigo-600 bg-indigo-900/60 text-indigo-100 hover:border-indigo-400',
+                : 'border-[var(--c-border)] bg-[var(--c-panel)] text-slate-100 hover:brightness-125',
             ].join(' ')}
           >
-            <span className="block font-bold">{opt.label}</span>
-            {opt.sub && <span className="block text-xs opacity-75">{opt.sub}</span>}
+            {opt.icon}
+            <span>
+              <span className="block font-bold">{opt.label}</span>
+              {opt.sub && <span className="block text-xs opacity-75">{opt.sub}</span>}
+            </span>
           </button>
         ))}
       </div>
@@ -46,20 +52,53 @@ function OptionGroup<T extends string | number>({
 
 export function SetupScreen({ onStart }: { onStart: () => void }) {
   const settings = useArcadeSettings()
+  const theme = THEMES[settings.theme] ?? THEMES.stars
 
   return (
-    <div className="flex min-h-svh flex-col items-center gap-6 bg-[radial-gradient(circle_at_50%_20%,#2b2070,#1a1440_70%)] p-6 text-indigo-50">
+    <div
+      className="relative flex min-h-svh flex-col items-center gap-6 overflow-hidden bg-[radial-gradient(circle_at_50%_20%,var(--c-bg1),var(--c-bg2)_70%)] p-6 text-slate-50"
+      style={theme.vars as React.CSSProperties}
+    >
+      {theme.id === 'stars' && <Twinkles />}
       <header className="text-center">
         <h1 className="text-4xl font-black tracking-wide text-amber-300 [text-shadow:0_2px_0_#7a5a00]">
           PacAbacus
         </h1>
-        <p className="mt-2 max-w-md text-indigo-200">
+        <p className="mt-2 max-w-md text-[var(--c-soft)]">
           Solve problems on your abacus to earn moves. Steer through the maze, eat every
-          dot, and stay ahead of the ghosts!
+          dot, and stay ahead of the baddies!
         </p>
       </header>
 
-      <div className="flex w-full max-w-xl flex-col gap-5 rounded-3xl border-2 border-indigo-600 bg-indigo-950/60 p-6">
+      <div className="flex w-full max-w-xl flex-col gap-5 rounded-3xl border-2 border-[var(--c-border)] bg-black/20 p-6">
+        <OptionGroup<ThemeId>
+          title="YOUR COLORS"
+          current={settings.theme}
+          onPick={(t) => settings.update({ theme: t })}
+          options={Object.values(THEMES).map((t) => ({
+            value: t.id,
+            label: `${t.emoji} ${t.name}`,
+            icon: (
+              <span
+                className="inline-block h-6 w-6 rounded-full border-2"
+                style={{
+                  background: t.vars['--c-wall'],
+                  borderColor: t.vars['--c-border'],
+                }}
+              />
+            ),
+          }))}
+        />
+        <OptionGroup<HeroId>
+          title="YOUR HERO"
+          current={settings.hero}
+          onPick={(hero) => settings.update({ hero })}
+          options={Object.values(HEROES).map((h) => ({
+            value: h.id,
+            label: h.name,
+            icon: <PixelSprite map={h.frames[0]} palette={h.palette} size={36} />,
+          }))}
+        />
         <OptionGroup<MathLevel>
           title="MATH LEVEL"
           current={settings.mathLevel}
@@ -93,7 +132,7 @@ export function SetupScreen({ onStart }: { onStart: () => void }) {
           ]}
         />
         <OptionGroup<GhostDifficulty>
-          title="GHOSTS"
+          title="BADDIES"
           current={settings.ghosts}
           onPick={(ghosts) => settings.update({ ghosts })}
           options={[

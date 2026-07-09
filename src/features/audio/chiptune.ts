@@ -21,44 +21,216 @@ function noteFreq(note: string): number {
 /** '.' = rest, '-' = hold previous note. One token per 8th-note step. */
 const parse = (pattern: string) => pattern.trim().split(/\s+/)
 
-// ---- the tune: 8 bars, 8 eighth-note steps per bar, loops forever ----
-// bright 2/4 march in C: I vi IV V | IV I V I
-const MELODY = parse(`
-  E5 .  G5 .  C6 .  G5 E5  A5 .  G5 .  E5 .  C5 .
-  D5 .  E5 .  F5 .  A5 F5  G5 -  -  .  E5 .  C5 .
-  F5 .  A5 .  C6 .  A5 F5  E5 .  G5 .  C6 -  -  .
-  D6 .  C6 .  B5 .  G5 B5  C6 -  -  .  .  .  G4 .
-`)
-const HARMONY = parse(`
-  C5 .  E5 .  E5 .  E5 C5  E5 .  E5 .  C5 .  A4 .
-  B4 .  C5 .  D5 .  F5 D5  D5 -  -  .  C5 .  A4 .
-  D5 .  F5 .  A5 .  F5 D5  C5 .  E5 .  G5 -  -  .
-  B5 .  A5 .  G5 .  F5 G5  E5 -  -  .  .  .  E4 .
-`)
-const BASS = parse(`
-  C3 .  G3 .  C3 .  G3 .  A2 .  E3 .  A2 .  E3 .
-  F2 .  C3 .  F2 .  C3 .  G2 .  D3 .  G2 .  B2 .
-  F2 .  C3 .  F2 .  C3 .  C3 .  G3 .  C3 .  G3 .
-  G2 .  D3 .  G2 .  D3 .  C3 .  G3 .  E3 .  C3 .
-`)
-// k = kick, s = snare, h = hat
-const DRUMS = parse(`
-  k h s h k h s h  k h s h k h s h  k h s h k h s h  k h s h k h s h
-  k h s h k h s h  k h s h k h s h  k h s h k h s h  k h s h k s s s
-`)
+// =====================================================================
+// THE SCORE — 32 bars in C major, real song form that develops:
+//   A  (8 bars)  main theme: bouncy rising arpeggios, call & answer
+//   A' (8 bars)  theme again, but the back half climbs to a high peak
+//   B  (8 bars)  lyrical minor-key section, long singing notes,
+//                with a D7 secondary dominant for that classic lift
+//   Br (4 bars)  quiet breakdown — sparse echoes, then a rising run
+//   O  (4 bars)  fanfare turnaround that resolves back into A
+// One token per 8th note, 8 tokens per bar.
+// =====================================================================
 
-const STEP_SEC = 60 / 168 / 2 // 168 bpm, 8th notes
+const MEL_A = `
+  C5 -  E5 -  G5 -  E5 C5   A5 -  G5 -  E5 -  C5 .
+  F5 -  A5 -  C6 -  A5 F5   G5 -  B5 -  D6 -  B5 G5
+  E5 -  G5 -  C6 -  G5 E5   A5 G5 A5 C6  A5 -  E5 .
+  D5 -  F5 -  A5 -  F5 D5   G5 F5 E5 D5  G4 -  -  .
+`
+const MEL_A2 = `
+  C5 -  E5 -  G5 -  E5 C5   A5 -  G5 -  E5 -  C5 .
+  F5 -  A5 -  C6 -  A5 F5   G5 -  B5 -  D6 -  B5 G5
+  E5 -  G5 -  C6 -  E6 -    D6 C6 B5 A5  G5 -  E5 .
+  F5 A5 C6 A5  D6 -  B5 .   C6 -  -  .   G5 .  E5 .
+`
+const MEL_B = `
+  E5 -  -  A5  -  -  C6 -   B5 -  -  G5  -  -  E5 -
+  A5 -  -  C6  -  -  F6 -   E6 -  D6 -   C6 -  G5 -
+  F5 -  A5 -   D6 -  C6 A5  E5 -  A5 -   C6 -  B5 A5
+  F#5 - A5 -   D6 -  C6 -   B5 A5 G5 -   D5 -  B4 -
+`
+const MEL_BR = `
+  C5 .  .  G5  .  .  E5 .   D5 .  .  A5  .  .  F5 .
+  E5 .  .  B5  .  .  G5 .   C6 D6 E6 F6  G6 -  -  -
+`
+const MEL_O = `
+  A5 -  F5 -   C6 -  A5 -   B5 -  G5 -   D6 -  B5 -
+  C6 -  G5 E5  A5 -  G5 E5  D5 E5 F5 G5  B5 -  -  .
+`
+
+// off-beat "oom-pah" comping in A/outro, long held thirds in B
+const HAR_A = `
+  .  E4 .  G4  .  E4 .  G4  .  E4 .  A4  .  E4 .  A4
+  .  F4 .  A4  .  F4 .  A4  .  G4 .  B4  .  G4 .  B4
+  .  E4 .  G4  .  E4 .  G4  .  E4 .  A4  .  E4 .  A4
+  .  F4 .  A4  .  F4 .  A4  .  G4 .  B4  .  D4 .  G4
+`
+const HAR_A2 = `
+  .  E4 .  G4  .  E4 .  G4  .  E4 .  A4  .  E4 .  A4
+  .  F4 .  A4  .  F4 .  A4  .  G4 .  B4  .  G4 .  B4
+  .  E4 .  G4  .  E4 .  G4  .  G4 .  B4  .  G4 .  B4
+  .  F4 .  A4  .  G4 .  B4  .  E4 .  G4  .  E4 .  G4
+`
+const HAR_B = `
+  C5 -  -  -   -  -  -  -   G4 -  -  -   -  -  -  -
+  A4 -  -  -   -  -  -  -   G4 -  -  -   -  -  -  -
+  F4 -  -  -   -  -  -  -   C5 -  -  -   -  -  -  -
+  F#4 - -  -   -  -  -  -   B4 -  -  -   -  -  -  -
+`
+const HAR_BR = `
+  .  .  .  .   .  .  .  .   .  .  .  .   .  .  .  .
+  .  .  .  .   .  .  .  .   E5 F5 G5 A5  B5 -  -  -
+`
+const HAR_O = `
+  .  F4 .  A4  .  F4 .  A4  .  G4 .  B4  .  G4 .  B4
+  .  E4 .  G4  .  E4 .  A4  .  F4 .  G4  .  B4 .  .
+`
+
+// root–fifth march bass with walkups; half-note feel under B
+const BASS_A = `
+  C3 .  G3 .   C3 .  G3 .   A2 .  E3 .   A2 .  E3 .
+  F2 .  C3 .   F2 .  C3 .   G2 .  D3 .   G2 .  D3 .
+  C3 .  G3 .   C3 .  G3 .   A2 .  E3 .   A2 .  E3 .
+  D3 .  A3 .   D3 .  A3 .   G2 .  D3 .   G2 A2 B2 .
+`
+const BASS_A2 = `
+  C3 .  G3 .   C3 .  G3 .   A2 .  E3 .   A2 .  E3 .
+  F2 .  C3 .   F2 .  C3 .   G2 .  D3 .   G2 .  D3 .
+  C3 .  G3 .   C3 .  G3 .   G2 .  D3 .   G2 .  D3 .
+  F2 .  C3 .   G2 .  D3 .   C3 .  G3 .   C3 .  E3 .
+`
+const BASS_B = `
+  A2 -  -  -   E3 -  -  -   E2 -  -  -   B2 -  -  -
+  F2 -  -  -   C3 -  -  -   C3 -  -  -   G3 -  -  -
+  D3 -  -  -   A3 -  -  -   A2 -  -  -   E3 -  -  -
+  D3 -  -  -   F#3 - -  -   G2 -  A2 -   B2 -  D3 -
+`
+const BASS_BR = `
+  C3 .  .  C3  .  .  C3 .   D3 .  .  D3  .  .  D3 .
+  E3 .  .  E3  .  .  E3 .   F3 .  G3 .   A3 .  B3 .
+`
+const BASS_O = `
+  F2 .  C3 .   F2 .  C3 .   G2 .  D3 .   G2 .  D3 .
+  C3 .  G3 .   A2 .  E3 .   G2 .  G2 .   B2 .  D3 .
+`
+
+// k = kick, s = snare, h = hat, c = crash; fills close each phrase
+const DR_A = `
+  k h s h k h s h   k h s h k h s h   k h s h k h s h   k h s h k s s s
+  k h s h k h s h   k h s h k h s h   k h s h k h s h   k h s h s s s s
+`
+const DR_A2 = DR_A
+const DR_B = `
+  k h h h s h h h   k h h h s h h h   k h h h s h h h   k h h h s h h h
+  k h h h s h h h   k h h h s h h h   k h h h s h h h   k h s h s h s s
+`
+const DR_BR = `
+  h . h . h . h .   h . h . h . h .   h . h . h . h .   s s s s s s s s
+`
+const DR_O = `
+  c h s h k h s h   k h s h k h s h   k h s h k h s h   k h s h s s s s
+`
+
+interface Song {
+  name: string
+  bpm: number
+  melody: string[]
+  harmony: string[]
+  bass: string[]
+  drums: string[]
+}
+
+const SONG_MARCH: Song = {
+  name: 'March of the Beads',
+  bpm: 168,
+  melody: parse(MEL_A + MEL_A2 + MEL_B + MEL_BR + MEL_O),
+  harmony: parse(HAR_A + HAR_A2 + HAR_B + HAR_BR + HAR_O),
+  bass: parse(BASS_A + BASS_A2 + BASS_B + BASS_BR + BASS_O),
+  drums: parse(DR_A + DR_A2 + DR_B + DR_BR + DR_O),
+}
+
+// ---- Song 2: a gentle waltz in G (oom-pah-pah, 6 steps per bar) ----
+// G Em C D | G Em Am D | G G7 C Cm | G D G —
+// the borrowed C-minor bar is the wistful moment that makes it stick
+const SONG_WALTZ: Song = {
+  name: 'Waltz of Little Stars',
+  bpm: 152,
+  melody: parse(`
+    B4 -  D5 -  G5 -    E5 -  -  D5 B4 -    C5 -  E5 -  G5 -    F#5 -  -  E5 D5 -
+    B4 -  D5 -  G5 -    E5 -  G5 -  B5 -    A5 -  -  G5 E5 -    F#5 -  A5 -  D5 -
+    G5 -  B5 -  D6 -    F5 -  -  D5 B4 -    E5 -  G5 -  C6 -    D#5 -  -  C5 G4 -
+    D5 -  B4 -  G4 -    A4 -  C5 -  F#5 -   G5 -  D5 -  B4 -    G4 -  -  -  .  .
+  `),
+  harmony: parse(`
+    .  .  B3 .  D4 .    .  .  G3 .  B3 .    .  .  E4 .  G4 .    .  .  F#4 .  A4 .
+    .  .  B3 .  D4 .    .  .  G3 .  B3 .    .  .  C4 .  E4 .    .  .  F#4 .  A4 .
+    .  .  B3 .  D4 .    .  .  B3 .  F4 .    .  .  E4 .  G4 .    .  .  D#4 .  G4 .
+    .  .  B3 .  D4 .    .  .  F#4 .  A4 .   .  .  B3 .  D4 .    .  .  B3 .  D4 .
+  `),
+  bass: parse(`
+    G2 -  .  .  .  .    E2 -  .  .  .  .    C3 -  .  .  .  .    D3 -  .  .  .  .
+    G2 -  .  .  .  .    E2 -  .  .  .  .    A2 -  .  .  .  .    D3 -  .  .  .  .
+    G2 -  .  .  .  .    G2 -  .  .  .  .    C3 -  .  .  .  .    C3 -  .  .  .  .
+    G2 -  .  .  .  .    D3 -  .  .  .  .    G2 -  .  .  .  .    G2 -  D3 -  G2 -
+  `),
+  drums: parse(`
+    k . h . h .    k . h . h .    k . h . h .    k . h . h .
+    k . h . h .    k . h . h .    k . h . h .    k . s . s .
+    k . h . h .    k . h . h .    k . h . h .    k . h . h .
+    k . h . h .    k . h . h .    k . h . h .    k . s . s .
+  `),
+}
+
+// ---- Song 3: a playful minor-key chase in Am (harmonic-minor sparkle) ----
+const SONG_CHASE: Song = {
+  name: 'Baddie Boogie',
+  bpm: 176,
+  melody: parse(`
+    A4 A4 .  A4 C5 .  A4 .    E5 .  D5 .  C5 .  B4 .    F5 .  E5 .  D5 .  C5 .    E5 .  B4 .  E5 .  G#5 .
+    A5 A5 .  A5 G5 .  E5 .    A4 C5 E5 A5 G5 .  E5 .    D5 .  F5 .  A5 .  F5 .    E5 .  G#5 .  B5 .  E5 .
+    A5 .  G5 .  F5 .  E5 .    G5 .  F5 .  E5 .  D5 .    F5 .  E5 .  D5 .  C5 .    E5 -  -  .  G#4 .  B4 .
+    A4 .  E5 .  A4 .  E5 .    G#4 .  E5 .  G#4 .  B4 .   A4 C5 E5 G5 A5 .  E5 .    A4 .  .  .  E4 .  .  .
+  `),
+  harmony: parse(`
+    .  E4 .  A4 .  E4 .  A4   .  E4 .  A4 .  E4 .  A4   .  F4 .  A4 .  F4 .  A4   .  E4 .  G#4 .  E4 .  G#4
+    .  E4 .  A4 .  E4 .  A4   .  E4 .  A4 .  E4 .  A4   .  F4 .  A4 .  F4 .  A4   .  E4 .  G#4 .  E4 .  G#4
+    .  E4 .  A4 .  E4 .  A4   .  G4 .  B4 .  G4 .  B4   .  F4 .  A4 .  F4 .  A4   .  E4 .  G#4 .  E4 .  G#4
+    .  E4 .  A4 .  E4 .  A4   .  E4 .  G#4 .  E4 .  G#4  .  E4 .  A4 .  E4 .  A4   .  E4 .  A4 .  .  .  .
+  `),
+  bass: parse(`
+    A2 .  A2 .  E3 .  A2 .    A2 .  A2 .  E3 .  A2 .    F2 .  F2 .  C3 .  F2 .    E2 .  E2 .  B2 .  E2 .
+    A2 .  A2 .  E3 .  A2 .    A2 .  A2 .  E3 .  A2 .    D3 .  D3 .  A3 .  D3 .    E2 .  E2 .  B2 .  E2 .
+    A2 .  A2 .  E3 .  A2 .    G2 .  G2 .  D3 .  G2 .    F2 .  F2 .  C3 .  F2 .    E2 .  E2 .  B2 .  E2 .
+    A2 .  A2 .  E3 .  A2 .    E2 .  E2 .  B2 .  E2 .    A2 .  A2 .  E3 .  A2 .    A2 .  E2 .  A2 .  .  .
+  `),
+  drums: parse(`
+    k h s h k h s h    k h s h k h s h    k h s h k h s h    k h s h k s s s
+    k h s h k h s h    k h s h k h s h    k h s h k h s h    k h s h k s s s
+    k h s h k h s h    k h s h k h s h    k h s h k h s h    k h s h k s s s
+    k h s h k h s h    k h s h k h s h    k h s h k h s h    k h s h s s s s
+  `),
+}
+
+export const SONGS: Song[] = [SONG_MARCH, SONG_WALTZ, SONG_CHASE]
+
 const LOOKAHEAD_SEC = 0.12
 const TICK_MS = 30
 
 class Chiptune {
   private ctx: AudioContext | null = null
   private musicGain: GainNode | null = null
+  private echo: DelayNode | null = null
   private sfxGain: GainNode | null = null
   private timer: number | null = null
   private step = 0
   private nextTime = 0
+  private song: Song = SONGS[0]
   playing = false
+
+  private get stepSec(): number {
+    return 60 / this.song.bpm / 2 // 8th notes
+  }
 
   private ensureCtx(): AudioContext {
     if (!this.ctx) {
@@ -69,6 +241,14 @@ class Chiptune {
       this.musicGain = this.ctx.createGain()
       this.musicGain.gain.value = 0.32
       this.musicGain.connect(master)
+      // a touch of echo makes the little square waves feel orchestral
+      this.echo = this.ctx.createDelay()
+      this.echo.delayTime.value = 0.22
+      const echoGain = this.ctx.createGain()
+      echoGain.gain.value = 0.22
+      this.musicGain.connect(this.echo)
+      this.echo.connect(echoGain)
+      echoGain.connect(master)
       this.sfxGain = this.ctx.createGain()
       this.sfxGain.gain.value = 0.8
       this.sfxGain.connect(master)
@@ -126,24 +306,37 @@ class Chiptune {
 
   private scheduleStep(step: number, time: number) {
     const music = this.musicGain!
-    const mel = MELODY[step % MELODY.length]
+    const { melody, harmony, bass, drums } = this.song
+    const stepSec = this.stepSec
+    const mel = melody[step % melody.length]
     if (mel !== '.' && mel !== '-') {
-      const len = this.holdLength(MELODY, step % MELODY.length)
-      this.tone(music, noteFreq(mel), time, STEP_SEC * len * 0.9, 'square', 0.5)
+      const len = this.holdLength(melody, step % melody.length)
+      this.tone(music, noteFreq(mel), time, stepSec * len * 0.9, 'square', 0.5)
     }
-    const har = HARMONY[step % HARMONY.length]
+    const har = harmony[step % harmony.length]
     if (har !== '.' && har !== '-') {
-      const len = this.holdLength(HARMONY, step % HARMONY.length)
-      this.tone(music, noteFreq(har), time, STEP_SEC * len * 0.85, 'square', 0.22)
+      const len = this.holdLength(harmony, step % harmony.length)
+      this.tone(music, noteFreq(har), time, stepSec * len * 0.85, 'square', 0.22)
     }
-    const bass = BASS[step % BASS.length]
-    if (bass !== '.' && bass !== '-') {
-      this.tone(music, noteFreq(bass), time, STEP_SEC * 0.9, 'triangle', 0.75)
+    const bs = bass[step % bass.length]
+    if (bs !== '.' && bs !== '-') {
+      const len = this.holdLength(bass, step % bass.length)
+      this.tone(music, noteFreq(bs), time, stepSec * len * 0.9, 'triangle', 0.75)
     }
-    const drum = DRUMS[step % DRUMS.length]
+    const drum = drums[step % drums.length]
     if (drum === 'k') this.tone(music, 70, time, 0.09, 'square', 0.5)
     if (drum === 's') this.noise(music, time, 0.08, 0.45)
     if (drum === 'h') this.noise(music, time, 0.03, 0.15, true)
+    if (drum === 'c') this.noise(music, time, 0.35, 0.4)
+  }
+
+  /** Play the song for a given level (songs cycle). Restarts if it changed. */
+  playSong(index: number) {
+    const next = SONGS[((index % SONGS.length) + SONGS.length) % SONGS.length]
+    if (this.playing && next === this.song) return
+    this.stopMusic()
+    this.song = next
+    this.startMusic()
   }
 
   startMusic() {
@@ -157,7 +350,7 @@ class Chiptune {
       while (this.nextTime < ctx.currentTime + LOOKAHEAD_SEC) {
         this.scheduleStep(this.step, this.nextTime)
         this.step++
-        this.nextTime += STEP_SEC
+        this.nextTime += this.stepSec
       }
     }, TICK_MS)
   }

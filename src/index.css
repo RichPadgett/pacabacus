@@ -90,6 +90,26 @@ body {
   right: 14%;
 }
 
+.twinkle {
+  position: absolute;
+  color: #ffe9a8;
+  text-shadow: 0 0 8px #ffd23f;
+  pointer-events: none;
+  animation: twinkle 1.6s ease-in-out infinite;
+  z-index: 1;
+}
+@keyframes twinkle {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+}
+
 .toast-pop {
   animation: toastPop 2.4s forwards;
 }

@@ -1,6 +1,8 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { MathLevel, OpsChoice } from '@/features/drills/problemGenerator'
+import type { HeroId } from './sprites'
+import type { ThemeId } from './themes'
 
 export type GhostDifficulty = 'off' | 'chill' | 'spooky' | 'scary'
 export type GameSpeed = 'relaxed' | 'normal' | 'speedy'
@@ -13,6 +15,8 @@ export interface ArcadeSettings {
   ghosts: GhostDifficulty
   speed: GameSpeed
   music: boolean
+  theme: ThemeId
+  hero: HeroId
 }
 
 interface SettingsStore extends ArcadeSettings {
@@ -45,6 +49,8 @@ export const useArcadeSettings = create<SettingsStore>()(
       ghosts: 'chill',
       speed: 'relaxed',
       music: true,
+      theme: 'stars',
+      hero: 'chomper',
       update: (patch) => set(patch),
     }),
     { name: 'pacabacus-arcade-settings' },
