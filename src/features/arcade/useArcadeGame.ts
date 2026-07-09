@@ -34,7 +34,20 @@ export interface GameMessage {
   id: number
 }
 
-const TREASURE_EMOJI = ['🍓', '🍒', '🍊', '🍌', '🍉', '🫐', '🍇', '🍎', '🍐', '🍑', '🍍', '🥝']
+const TREASURE_EMOJI = [
+  '🍓',
+  '🍒',
+  '🍊',
+  '🍌',
+  '🍉',
+  '🫐',
+  '🍇',
+  '🍎',
+  '🍐',
+  '🍑',
+  '🍍',
+  '🥝',
+]
 const ROCK_EMOJI = '🪨'
 const JAIL_TURNS = 3
 const ROCK_DELAY_MIN_MS = 10_000
@@ -75,6 +88,7 @@ type Action =
   | { type: 'MOVE'; dir: Dir }
   | { type: 'END_MOVE' }
   | { type: 'AGE_TREASURES'; count: number }
+  | { type: 'GHOST_WANDER' }
   | { type: 'GHOST_TICK' }
   | { type: 'REVEAL_DONE' }
   | { type: 'RESPAWN' }
@@ -90,6 +104,10 @@ const GENTLE_RETRY = [
 const pickFrom = (arr: string[]) => arr[Math.floor(Math.random() * arr.length)]
 const randomRockDelay = () =>
   ROCK_DELAY_MIN_MS + Math.floor(Math.random() * (ROCK_DELAY_MAX_MS - ROCK_DELAY_MIN_MS + 1))
+
+export function collectibleTreasureCount(treasures: Map<string, string>) {
+  return [...treasures.values()].filter((item) => item !== ROCK_EMOJI).length
+}
 
 function shuffle<T>(items: T[]) {
   const out = [...items]
@@ -125,10 +143,37 @@ function spawnTreasures(maze: MazeDef, cfg: LevelCfg) {
   return { treasures, jailFruits }
 }
 
-function randomStep(maze: MazeDef, from: Pos): Pos {
-  const open = Object.values(DIR_VECTORS)
+function hasCollectibleTreasure(treasures: Map<string, string>, pos: Pos) {
+  const item = treasures.get(posKey(pos))
+  return item != null && item !== ROCK_EMOJI
+}
+
+function openSteps(maze: MazeDef, from: Pos): Pos[] {
+  return Object.values(DIR_VECTORS)
     .map((v) => ({ r: from.r + v.r, c: from.c + v.c }))
     .filter((p) => !isWall(maze, p.r, p.c))
+}
+
+function randomStep(maze: MazeDef, from: Pos): Pos {
+  const open = openSteps(maze, from)
+  return open.length ? open[Math.floor(Math.random() * open.length)] : from
+}
+
+function leaveFruitStep(maze: MazeDef, from: Pos, treasures: Map<string, string>): Pos | null {
+  if (!hasCollectibleTreasure(treasures, from)) return null
+  const clear = openSteps(maze, from).filter((p) => !hasCollectibleTreasure(treasures, p))
+  return clear.length ? clear[Math.floor(Math.random() * clear.length)] : null
+}
+
+function wanderWhileSolving(
+  maze: MazeDef,
+  from: Pos,
+  treasures: Map<string, string>,
+  pac: Pos,
+): Pos {
+  const leaveFruit = leaveFruitStep(maze, from, treasures)
+  if (leaveFruit && !samePos(leaveFruit, pac)) return leaveFruit
+  const open = openSteps(maze, from).filter((p) => !samePos(p, pac))
   return open.length ? open[Math.floor(Math.random() * open.length)] : from
 }
 
@@ -320,8 +365,9 @@ function makeReducer(cfgFor: (level: number) => LevelCfg) {
           return { ...state, facing: action.dir }
         }
         const key = posKey(target)
+        const treasure = state.treasures.get(key)
         const treasures = new Map(state.treasures)
-        treasures.delete(key)
+        if (treasure && treasure !== ROCK_EMOJI) treasures.delete(key)
         let moved: GameState = {
           ...state,
           pac: target,
@@ -345,7 +391,7 @@ function makeReducer(cfgFor: (level: number) => LevelCfg) {
         if (state.jailTurns === 0 && state.ghosts.some((g) => samePos(g, target))) {
           return caughtState(moved)
         }
-        if (treasures.size === 0) {
+        if (collectibleTreasureCount(treasures) === 0) {
           return { ...moved, phase: 'levelClear', clearStars: Math.max(1, moved.lives) }
         }
         if (moved.movesLeft <= 0) {
@@ -380,13 +426,25 @@ function makeReducer(cfgFor: (level: number) => LevelCfg) {
         }
       }
 
+      case 'GHOST_WANDER': {
+        if (state.phase !== 'answer' || state.jailTurns > 0) return state
+        return {
+          ...state,
+          ghosts: state.ghosts.map((g) =>
+            wanderWhileSolving(state.maze, g, state.treasures, state.pac),
+          ),
+        }
+      }
+
       case 'GHOST_TICK': {
         if (state.phase !== 'ghosts') return state
-        const ghosts = state.ghosts.map((g) =>
-          Math.random() < state.cfg.enemy.chaseChance
+        const ghosts = state.ghosts.map((g) => {
+          const leaveFruit = leaveFruitStep(state.maze, g, state.treasures)
+          if (leaveFruit) return leaveFruit
+          return Math.random() < state.cfg.enemy.chaseChance
             ? nextStepToward(state.maze, g, state.pac)
-            : randomStep(state.maze, g),
-        )
+            : randomStep(state.maze, g)
+        })
         const stepped = { ...state, ghosts, ghostStepsLeft: state.ghostStepsLeft - 1 }
         if (ghosts.some((g) => samePos(g, state.pac))) {
           return caughtState(stepped)
@@ -503,6 +561,15 @@ export function useArcadeGame(
       return () => clearTimeout(t)
     }
   }, [state.phase, state.answerTicks, stepMs, rockAgingEnabled])
+
+  useEffect(() => {
+    if (state.phase !== 'answer' || state.ghosts.length === 0 || state.jailTurns > 0) return
+    const t = setInterval(
+      () => dispatch({ type: 'GHOST_WANDER' }),
+      Math.max(650, stepMs * 4),
+    )
+    return () => clearInterval(t)
+  }, [state.phase, state.ghosts.length, state.jailTurns, stepMs])
 
   return { state, dispatch }
 }

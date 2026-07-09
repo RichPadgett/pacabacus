@@ -13,7 +13,7 @@ import { MazeBoard } from './MazeBoard'
 import { HEROES } from './sprites'
 import { SPEED_MS, useArcadeSettings } from './settingsStore'
 import { THEMES } from './themes'
-import { useArcadeGame } from './useArcadeGame'
+import { collectibleTreasureCount, useArcadeGame } from './useArcadeGame'
 import { worldForAdventureLevel } from './worlds'
 
 export type PlayMode = 'adventure' | 'counting' | 'free'
@@ -213,7 +213,7 @@ export function ArcadeGame({ mode, onExit }: { mode: PlayMode; onExit: () => voi
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [msgId])
 
-  const treasuresLeft = state.treasures.size
+  const treasuresLeft = collectibleTreasureCount(state.treasures)
   const prevTreasures = useRef(treasuresLeft)
   useEffect(() => {
     if (treasuresLeft < prevTreasures.current) chiptune.sfx('eat')
@@ -308,6 +308,7 @@ export function ArcadeGame({ mode, onExit }: { mode: PlayMode; onExit: () => voi
         hero={hero}
         buddy={state.buddy}
         buddyId={buddy}
+        cloaked={phase === 'answer' && state.ghosts.length > 0}
         onSwipe={(dir) => dispatch({ type: 'MOVE', dir })}
       />
 

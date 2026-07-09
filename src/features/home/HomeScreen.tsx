@@ -40,7 +40,7 @@ export function HomeScreen({
 
   return (
     <div
-      className="relative flex min-h-svh flex-col items-center justify-center gap-6 overflow-hidden bg-[radial-gradient(circle_at_50%_20%,var(--c-bg1),var(--c-bg2)_70%)] p-6 text-slate-50"
+      className="relative flex min-h-svh flex-col items-center gap-6 overflow-x-hidden overflow-y-auto bg-[radial-gradient(circle_at_50%_20%,var(--c-bg1),var(--c-bg2)_70%)] p-6 py-8 text-slate-50"
       style={theme.vars as React.CSSProperties}
     >
       {theme.id === 'stars' && <Twinkles />}
@@ -62,9 +62,9 @@ export function HomeScreen({
         />
       ) : (
         <>
-          <div className="flex items-center gap-3 rounded-2xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] px-5 py-3">
+          <div className="flex w-full max-w-md flex-wrap items-center gap-3 rounded-2xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] px-5 py-3">
             <PixelSprite map={heroDef.frames[0]} palette={heroDef.palette} size={48} />
-            <div>
+            <div className="min-w-0 flex-1">
               <div className="text-xl font-black">Hi, {profile.username}! 👋</div>
               <div className="text-sm text-[var(--c-soft)]">
                 {heroDef.name}
@@ -78,6 +78,13 @@ export function HomeScreen({
               className="rounded-xl border-2 border-[var(--c-border)] bg-black/20 px-3 py-2 text-sm font-bold hover:brightness-125"
             >
               Switch
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowTools((v) => !v)}
+              className="rounded-xl border-2 border-amber-300 bg-amber-500/15 px-3 py-2 text-sm font-black text-amber-100 hover:bg-amber-500/25"
+            >
+              Tools {showTools ? '▲' : '▼'}
             </button>
           </div>
 
@@ -174,15 +181,11 @@ export function HomeScreen({
               <MenuButton onClick={onRewards}>🏆 Rewards</MenuButton>
               <MenuButton onClick={onFreePlay}>🎮 Free Play</MenuButton>
             </div>
-            <button
-              type="button"
-              onClick={() => setShowTools((v) => !v)}
-              className="rounded-2xl border-2 border-[var(--c-border)] bg-black/20 px-4 py-2 text-xs font-bold text-[var(--c-soft)] transition hover:brightness-125 active:scale-95"
-            >
-              Grown-up tools {showTools ? '▲' : '▼'}
-            </button>
             {showTools && (
               <div className="flex flex-col gap-2 rounded-2xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] p-4">
+                <h2 className="text-center text-sm font-black tracking-wide text-amber-200">
+                  GROWN-UP TOOLS
+                </h2>
                 <button
                   type="button"
                   onClick={() => {

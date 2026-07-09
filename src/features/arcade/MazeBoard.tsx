@@ -24,6 +24,7 @@ interface MazeBoardProps {
   stepMs: number
   hero: HeroId
   buddyId: HeroId | null
+  cloaked?: boolean
   onSwipe?: (dir: Dir) => void
 }
 
@@ -40,6 +41,7 @@ export function MazeBoard({
   stepMs,
   hero,
   buddyId,
+  cloaked,
   onSwipe,
 }: MazeBoardProps) {
   const touchStart = useRef<{ x: number; y: number } | null>(null)
@@ -170,6 +172,23 @@ export function MazeBoard({
             palette={HEROES[buddyId].palette}
             size={tile * 0.58}
           />
+        </div>
+      )}
+
+      {cloaked && (
+        <div
+          className="absolute top-1 left-1 z-4 flex items-center justify-center"
+          style={spriteStyle(pac)}
+        >
+          <span
+            className="animate-pulse leading-none opacity-85"
+            style={{
+              fontSize: tile * 1.1,
+              filter: 'drop-shadow(0 0 8px rgba(255,255,255,0.75))',
+            }}
+          >
+            ☁️
+          </span>
         </div>
       )}
 

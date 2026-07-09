@@ -15,7 +15,7 @@ export interface LevelCfg {
   problem: ProblemCfg
   rodCount: number
   enemy: EnemyCfg
-  /** number of treasures needed to finish the maze */
+  /** number of fruit placed on the maze */
   treasureCount: number
   /** gentle mode: unlimited kind retries, enemies never punish mistakes */
   gentle: boolean
@@ -51,7 +51,7 @@ export function adventureCfg(level: number): LevelCfg {
     problem,
     rodCount: 2,
     enemy,
-    treasureCount: Math.min(28, 15 + Math.floor(level / 2)),
+    treasureCount: Math.min(36, 22 + Math.floor(level / 2)),
     gentle: false,
     allowChallenge: true,
     intro:
@@ -89,12 +89,12 @@ export function countingCfg(level: number): LevelCfg {
     // one rod keeps it simple until sums can reach 10
     rodCount: level <= 12 ? 1 : 2,
     enemy,
-    treasureCount: Math.min(16, 8 + Math.ceil(level / 2)),
+    treasureCount: Math.min(22, 12 + Math.ceil(level / 2)),
     gentle: true,
     allowChallenge: false,
     intro:
       level === 1
-        ? 'Count the treats — slide one blue bead up for each one! 🍓'
+        ? 'Count the fruit — slide one blue bead up for each one! 🍓'
         : level === 4
             ? 'Now try adding! Count both groups together. ➕'
             : level === 9
@@ -121,7 +121,7 @@ export function freePlayCfg(s: ArcadeSettings): LevelCfg {
       chaseChance: 0.75,
       spawnChance: 0,
     },
-    treasureCount: 24,
+    treasureCount: 30,
     gentle: false,
     allowChallenge: true,
   }
