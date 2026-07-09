@@ -1,4 +1,4 @@
-import { COLS, ROWS, isWall, posKey, type Dir, type Pos } from './maze'
+import { isWall, posKey, type Dir, type MazeDef, type Pos } from './maze'
 
 const GHOST_COLORS = [
   'linear-gradient(#ff8ba0, #ff5f7a)',
@@ -14,6 +14,7 @@ const FACE_TRANSFORM: Record<Dir, string> = {
 }
 
 interface MazeBoardProps {
+  maze: MazeDef
   tile: number
   dots: Set<string>
   pac: Pos
@@ -22,11 +23,11 @@ interface MazeBoardProps {
   stepMs: number
 }
 
-export function MazeBoard({ tile, dots, pac, facing, ghosts, stepMs }: MazeBoardProps) {
+export function MazeBoard({ maze, tile, dots, pac, facing, ghosts, stepMs }: MazeBoardProps) {
   const cells = []
-  for (let r = 0; r < ROWS; r++) {
-    for (let c = 0; c < COLS; c++) {
-      const wall = isWall(r, c)
+  for (let r = 0; r < maze.rows; r++) {
+    for (let c = 0; c < maze.cols; c++) {
+      const wall = isWall(maze, r, c)
       cells.push(
         <div
           key={`${r},${c}`}
@@ -56,8 +57,8 @@ export function MazeBoard({ tile, dots, pac, facing, ghosts, stepMs }: MazeBoard
       <div
         className="grid overflow-hidden rounded-xl border-4 border-[#6a58e8]"
         style={{
-          gridTemplateColumns: `repeat(${COLS}, ${tile}px)`,
-          gridTemplateRows: `repeat(${ROWS}, ${tile}px)`,
+          gridTemplateColumns: `repeat(${maze.cols}, ${tile}px)`,
+          gridTemplateRows: `repeat(${maze.rows}, ${tile}px)`,
           background: 'var(--maze-floor)',
         }}
       >

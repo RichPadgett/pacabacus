@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Abacus } from '@/components/Abacus'
-import { COLS, type Dir } from './maze'
+import { chiptune } from '@/features/audio/chiptune'
+import { movesForProblem, problemText } from '@/features/drills/problemGenerator'
+import type { Dir } from './maze'
 import { MazeBoard } from './MazeBoard'
 import { useArcadeSettings } from './settingsStore'
-import { MOVES_PER_CORRECT, useArcadeGame } from './useArcadeGame'
+import { useArcadeGame } from './useArcadeGame'
 
 const KEY_DIRS: Record<string, Dir> = {
   ArrowUp: 'up',
@@ -16,16 +18,15 @@ const KEY_DIRS: Record<string, Dir> = {
   d: 'right',
 }
 
-function useTileSize() {
-  const [tile, setTile] = useState(() =>
-    Math.max(26, Math.min(46, Math.floor((window.innerWidth - 40) / COLS))),
-  )
+function useTileSize(cols: number) {
+  const calc = () => Math.max(26, Math.min(46, Math.floor((window.innerWidth - 40) / cols)))
+  const [tile, setTile] = useState(calc)
   useEffect(() => {
-    const onResize = () =>
-      setTile(Math.max(26, Math.min(46, Math.floor((window.innerWidth - 40) / COLS))))
+    const onResize = () => setTile(calc())
     window.addEventListener('resize', onResize)
     return () => window.removeEventListener('resize', onResize)
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cols])
   return tile
 }
 
@@ -61,8 +62,9 @@ function Confetti() {
 export function ArcadeGame({ onExit }: { onExit: () => void }) {
   const settings = useArcadeSettings()
   const { state, dispatch, stepMs } = useArcadeGame(settings)
-  const tile = useTileSize()
+  const tile = useTileSize(state.maze.cols)
 
+  // keyboard
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const dir = KEY_DIRS[e.key] ?? KEY_DIRS[e.key.toLowerCase()]
@@ -77,12 +79,45 @@ export function ArcadeGame({ onExit }: { onExit: () => void }) {
     return () => window.removeEventListener('keydown', onKey)
   }, [dispatch])
 
-  const { phase, problem } = state
+  // music
+  useEffect(() => {
+    if (settings.music) chiptune.startMusic()
+    else chiptune.stopMusic()
+    return () => chiptune.stopMusic()
+  }, [settings.music])
+
+  // sound effects driven by game events
+  const { phase } = state
+  useEffect(() => {
+    if (phase === 'levelClear') chiptune.sfx('fanfare')
+    if (phase === 'caught' || phase === 'gameOver') chiptune.sfx('caught')
+  }, [phase])
+
+  const msgId = state.message?.id
+  useEffect(() => {
+    if (!state.message || msgId === undefined) return
+    if (state.message.tone === 'good') {
+      chiptune.sfx(state.message.text.includes('SMASHED') ? 'challenge' : 'correct')
+    } else if (phase === 'answer' || phase === 'reveal' || phase === 'ghosts') {
+      chiptune.sfx('wrong')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [msgId])
+
   const dotsLeft = state.dots.size
+  const prevDots = useRef(dotsLeft)
+  useEffect(() => {
+    if (dotsLeft < prevDots.current) chiptune.sfx('eat')
+    prevDots.current = dotsLeft
+  }, [dotsLeft])
+
+  const { problem } = state
+  const isChallenge = problem.technique === 'challenge'
+  const payout = movesForProblem(problem)
 
   const goalText =
     phase === 'answer'
-      ? `Solve it to earn ${MOVES_PER_CORRECT} moves!`
+      ? `Solve it to earn ${payout} moves!`
       : phase === 'move'
         ? `Steer! ${state.movesLeft} move${state.movesLeft === 1 ? '' : 's'} left`
         : phase === 'ghosts'
@@ -97,13 +132,21 @@ export function ArcadeGame({ onExit }: { onExit: () => void }) {
     <div className="flex min-h-svh flex-col items-center gap-3 bg-[radial-gradient(circle_at_50%_20%,#2b2070,#1a1440_70%)] p-3 text-indigo-50">
       {/* HUD */}
       <div className="flex flex-wrap items-stretch justify-center gap-2">
-        <Stat label="Level" value={String(state.level)} />
+        <Stat label="Level" value={`${state.level} · ${state.maze.name}`} />
         <Stat
           label="Stars"
           value={`⭐ ${state.stars}${state.streak >= 2 ? ` 🔥${state.streak}` : ''}`}
         />
         <Stat label="Lives" value={'❤️'.repeat(state.lives) || '💔'} />
         <Stat label="Dots" value={String(dotsLeft)} />
+        <button
+          type="button"
+          onClick={() => settings.update({ music: !settings.music })}
+          className="rounded-xl border-2 border-indigo-500 bg-indigo-900 px-3 text-lg hover:border-indigo-300"
+          title="Music on/off"
+        >
+          {settings.music ? '🔊' : '🔇'}
+        </button>
         <button
           type="button"
           onClick={onExit}
@@ -118,6 +161,7 @@ export function ArcadeGame({ onExit }: { onExit: () => void }) {
       </div>
 
       <MazeBoard
+        maze={state.maze}
         tile={tile}
         dots={state.dots}
         pac={state.pac}
@@ -128,10 +172,22 @@ export function ArcadeGame({ onExit }: { onExit: () => void }) {
 
       {/* problem + abacus + dpad */}
       <div className="flex flex-wrap items-start justify-center gap-4">
-        <div className="flex min-w-56 flex-col items-center rounded-2xl border-2 border-indigo-600 bg-indigo-950/70 p-4">
-          <h3 className="text-xs font-bold tracking-wide text-indigo-300">SOLVE ME!</h3>
+        <div
+          className={[
+            'flex min-w-56 flex-col items-center rounded-2xl border-2 p-4',
+            isChallenge
+              ? 'border-amber-400 bg-amber-950/50'
+              : 'border-indigo-600 bg-indigo-950/70',
+          ].join(' ')}
+        >
+          <h3 className="text-xs font-bold tracking-wide text-indigo-300">
+            {isChallenge ? '⚡ CHALLENGE — ONE TRY! ⚡' : 'SOLVE ME!'}
+          </h3>
           <div className="my-2 text-4xl font-black text-amber-300">
-            {problem.a} {problem.op === 'add' ? '+' : '−'} {problem.b} = ?
+            {problemText(problem)} = ?
+          </div>
+          <div className="mb-1 rounded-full border border-emerald-500 bg-emerald-500/15 px-3 py-0.5 text-xs font-bold text-emerald-300">
+            worth +{payout} moves
           </div>
           <p className="min-h-10 max-w-60 text-center text-sm text-indigo-300">
             {state.hint}
@@ -154,6 +210,16 @@ export function ArcadeGame({ onExit }: { onExit: () => void }) {
               Go! ▶
             </button>
           </div>
+          {!isChallenge && (
+            <button
+              type="button"
+              onClick={() => dispatch({ type: 'CHALLENGE' })}
+              disabled={phase !== 'answer'}
+              className="mt-3 rounded-xl border-2 border-amber-500 bg-amber-500/20 px-4 py-1.5 text-sm font-bold text-amber-300 hover:bg-amber-500/30 disabled:opacity-40"
+            >
+              ⚡ Hard one for 10 moves!
+            </button>
+          )}
         </div>
 
         <div className="flex flex-col items-center rounded-2xl border-2 border-indigo-600 bg-indigo-950/70 p-4">

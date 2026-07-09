@@ -1,24 +1,24 @@
 import { useEffect, useMemo, useReducer } from 'react'
 import {
-  generateProblem,
   beadHint,
+  generateChallenge,
+  generateProblem,
+  movesForProblem,
   type ArcadeProblem,
 } from '@/features/drills/problemGenerator'
 import {
   DIR_VECTORS,
-  GHOST_SPAWNS,
-  PAC_SPAWN,
   initialDots,
   isWall,
+  mazeForLevel,
   nextStepToward,
   posKey,
   samePos,
   type Dir,
+  type MazeDef,
   type Pos,
 } from './maze'
 import { GHOST_CONFIG, SPEED_MS, type ArcadeSettings } from './settingsStore'
-
-export const MOVES_PER_CORRECT = 4
 
 export type Phase =
   | 'answer'
@@ -37,6 +37,7 @@ export interface GameMessage {
 
 export interface GameState {
   level: number
+  maze: MazeDef
   lives: number
   stars: number
   streak: number
@@ -58,6 +59,7 @@ export interface GameState {
 type Action =
   | { type: 'SET_ANSWER'; value: number }
   | { type: 'SUBMIT' }
+  | { type: 'CHALLENGE' }
   | { type: 'MOVE'; dir: Dir }
   | { type: 'END_MOVE' }
   | { type: 'GHOST_TICK' }
@@ -123,6 +125,20 @@ function makeReducer(settings: ArcadeSettings) {
     }
   }
 
+  const revealState = (state: GameState, attempts: number): GameState => ({
+    ...state,
+    attempts,
+    streak: 0,
+    hint: `The answer is ${state.problem.answer} — look at the beads!`,
+    answerValue: state.problem.answer,
+    phase: 'reveal',
+    message: say(
+      state,
+      `It was ${state.problem.answer}. You'll get the next one! 💪`,
+      'bad',
+    ),
+  })
+
   return function reducer(state: GameState, action: Action): GameState {
     switch (action.type) {
       case 'SET_ANSWER': {
@@ -130,19 +146,41 @@ function makeReducer(settings: ArcadeSettings) {
         return { ...state, answerValue: action.value }
       }
 
+      case 'CHALLENGE': {
+        if (state.phase !== 'answer' || state.problem.technique === 'challenge')
+          return state
+        return {
+          ...state,
+          problem: generateChallenge(genOpts),
+          attempts: 0,
+          hint: '',
+          answerValue: 0,
+          message: say(state, '⚡ CHALLENGE! One try for 10 moves!', 'good'),
+        }
+      }
+
       case 'SUBMIT': {
         if (state.phase !== 'answer') return state
         const p = state.problem
         if (state.answerValue === p.answer) {
+          const isChallenge = p.technique === 'challenge'
           return {
             ...state,
-            stars: state.stars + 1,
+            stars: state.stars + (isChallenge ? 3 : 1),
             streak: state.streak + 1,
-            movesLeft: MOVES_PER_CORRECT,
+            movesLeft: movesForProblem(p),
             phase: 'move',
             hint: '',
-            message: say(state, pickPraise(), 'good'),
+            message: say(
+              state,
+              isChallenge ? '⚡ CHALLENGE SMASHED! 10 moves! ⚡' : pickPraise(),
+              'good',
+            ),
           }
+        }
+        // challenges are one try only — that's the gamble
+        if (p.technique === 'challenge') {
+          return revealState(state, state.attempts + 1)
         }
         const attempts = state.attempts + 1
         if (attempts === 1) {
@@ -158,22 +196,14 @@ function makeReducer(settings: ArcadeSettings) {
             'retry',
           )
         }
-        return {
-          ...state,
-          attempts,
-          streak: 0,
-          hint: `The answer is ${p.answer} — look at the beads!`,
-          answerValue: p.answer,
-          phase: 'reveal',
-          message: say(state, `It was ${p.answer}. You'll get the next one! 💪`, 'bad'),
-        }
+        return revealState(state, attempts)
       }
 
       case 'MOVE': {
         if (state.phase !== 'move') return state
         const v = DIR_VECTORS[action.dir]
         const target = { r: state.pac.r + v.r, c: state.pac.c + v.c }
-        if (isWall(target.r, target.c)) {
+        if (isWall(state.maze, target.r, target.c)) {
           return { ...state, facing: action.dir }
         }
         const dots = new Set(state.dots)
@@ -204,7 +234,7 @@ function makeReducer(settings: ArcadeSettings) {
 
       case 'GHOST_TICK': {
         if (state.phase !== 'ghosts') return state
-        const ghosts = state.ghosts.map((g) => nextStepToward(g, state.pac))
+        const ghosts = state.ghosts.map((g) => nextStepToward(state.maze, g, state.pac))
         const stepped = { ...state, ghosts, ghostStepsLeft: state.ghostStepsLeft - 1 }
         if (ghosts.some((g) => samePos(g, state.pac))) {
           return caughtState(stepped)
@@ -226,22 +256,25 @@ function makeReducer(settings: ArcadeSettings) {
         if (state.phase !== 'caught') return state
         return {
           ...state,
-          pac: PAC_SPAWN,
+          pac: state.maze.pacSpawn,
           facing: 'right',
-          ghosts: GHOST_SPAWNS.slice(0, ghostCfg.count),
+          ghosts: state.maze.ghostSpawns.slice(0, ghostCfg.count),
           ...freshProblem(),
         }
       }
 
       case 'NEXT_LEVEL': {
         if (state.phase !== 'levelClear') return state
+        const level = state.level + 1
+        const maze = mazeForLevel(level)
         return {
           ...state,
-          level: state.level + 1,
-          pac: PAC_SPAWN,
+          level,
+          maze,
+          pac: maze.pacSpawn,
           facing: 'right',
-          ghosts: GHOST_SPAWNS.slice(0, ghostCfg.count),
-          dots: initialDots(),
+          ghosts: maze.ghostSpawns.slice(0, ghostCfg.count),
+          dots: initialDots(maze),
           ...freshProblem(),
         }
       }
@@ -252,9 +285,9 @@ function makeReducer(settings: ArcadeSettings) {
           ...state,
           lives: 3,
           streak: 0,
-          pac: PAC_SPAWN,
+          pac: state.maze.pacSpawn,
           facing: 'right',
-          ghosts: GHOST_SPAWNS.slice(0, ghostCfg.count),
+          ghosts: state.maze.ghostSpawns.slice(0, ghostCfg.count),
           ...freshProblem(),
         }
       }
@@ -266,15 +299,17 @@ function makeReducer(settings: ArcadeSettings) {
 }
 
 function makeInitialState(settings: ArcadeSettings): GameState {
+  const maze = mazeForLevel(1)
   return {
     level: 1,
+    maze,
     lives: 3,
     stars: 0,
     streak: 0,
-    pac: PAC_SPAWN,
+    pac: maze.pacSpawn,
     facing: 'right',
-    ghosts: GHOST_SPAWNS.slice(0, GHOST_CONFIG[settings.ghosts].count),
-    dots: initialDots(),
+    ghosts: maze.ghostSpawns.slice(0, GHOST_CONFIG[settings.ghosts].count),
+    dots: initialDots(maze),
     phase: 'answer',
     movesLeft: 0,
     ghostStepsLeft: 0,

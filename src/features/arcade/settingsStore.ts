@@ -12,6 +12,7 @@ export interface ArcadeSettings {
   maxAnswer: MaxAnswer
   ghosts: GhostDifficulty
   speed: GameSpeed
+  music: boolean
 }
 
 interface SettingsStore extends ArcadeSettings {
@@ -43,6 +44,7 @@ export const useArcadeSettings = create<SettingsStore>()(
       maxAnswer: 20,
       ghosts: 'chill',
       speed: 'relaxed',
+      music: true,
       update: (patch) => set(patch),
     }),
     { name: 'pacabacus-arcade-settings' },

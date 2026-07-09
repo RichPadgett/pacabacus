@@ -9,7 +9,7 @@ import type { Operation } from '@/types/drill'
  *  - twodigit: two-digit ± one-digit with carries/borrows
  *  - plain:    regular mental-math mix-ins for higher levels
  */
-export type Technique = 'direct' | 'five' | 'ten' | 'twodigit' | 'plain'
+export type Technique = 'direct' | 'five' | 'ten' | 'twodigit' | 'plain' | 'challenge'
 export type MathLevel = 1 | 2 | 3 | 4 | 5
 export type OpsChoice = 'add' | 'sub' | 'mixed'
 
@@ -17,8 +17,31 @@ export interface ArcadeProblem {
   a: number
   b: number
   op: Operation
+  /** challenge problems chain a second step: a op b op2 c */
+  c?: number
+  op2?: Operation
   answer: number
   technique: Technique
+}
+
+/** harder techniques pay out more maze moves */
+export const MOVES_FOR_TECHNIQUE: Record<Technique, number> = {
+  direct: 4,
+  five: 5,
+  ten: 6,
+  twodigit: 6,
+  plain: 5,
+  challenge: 10,
+}
+
+export function movesForProblem(p: ArcadeProblem): number {
+  return MOVES_FOR_TECHNIQUE[p.technique]
+}
+
+export function problemText(p: ArcadeProblem): string {
+  const sym = (op: Operation) => (op === 'add' ? '+' : '−')
+  const tail = p.c != null && p.op2 ? ` ${sym(p.op2)} ${p.c}` : ''
+  return `${p.a} ${sym(p.op)} ${p.b}${tail}`
 }
 
 export interface GeneratorOptions {
@@ -135,8 +158,45 @@ export function generateProblem(opts: GeneratorOptions): ArcadeProblem {
   return { a, b, op, answer, technique }
 }
 
+/**
+ * Extra-hard optional problem: a three-step chain (a ± b ± c) the player can
+ * take on for a big move payout. One try only — that's the gamble.
+ */
+export function generateChallenge(opts: GeneratorOptions): ArcadeProblem {
+  const max = opts.maxAnswer
+  let a: number, b: number, c: number, op: Operation, op2: Operation
+  do {
+    a = rand(3, max)
+    op = pickOp(opts.ops)
+    b = rand(2, 9)
+    op2 = pickOp(opts.ops)
+    c = rand(2, 9)
+  } while (!challengeFits(a, b, c, op, op2, max))
+  const mid = op === 'add' ? a + b : a - b
+  const answer = op2 === 'add' ? mid + c : mid - c
+  return { a, b, c, op, op2, answer, technique: 'challenge' }
+}
+
+function challengeFits(
+  a: number,
+  b: number,
+  c: number,
+  op: Operation,
+  op2: Operation,
+  max: number,
+): boolean {
+  const mid = op === 'add' ? a + b : a - b
+  if (mid < 0 || mid > max) return false
+  const answer = op2 === 'add' ? mid + c : mid - c
+  return answer >= 0 && answer <= max
+}
+
 export function beadHint(p: ArcadeProblem, techniqueHints = true): string {
   const sym = p.op === 'add' ? '+' : '−'
+  if (p.technique === 'challenge' && p.c != null && p.op2) {
+    const mid = p.op === 'add' ? p.a + p.b : p.a - p.b
+    return `Two steps! First ${p.a} ${sym} ${p.b} = ${mid}, then ${mid} ${p.op2 === 'add' ? '+' : '−'} ${p.c}.`
+  }
   const generic =
     p.op === 'add'
       ? `${p.a} ${sym} ${p.b} means start at ${p.a} and add ${p.b} more.`
