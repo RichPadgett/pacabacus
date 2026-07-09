@@ -14,6 +14,7 @@ import {
   nextStepToward,
   posKey,
   samePos,
+  travelMazeForLevel,
   type Dir,
   type MazeDef,
   type Pos,
@@ -25,6 +26,8 @@ export type Phase =
   | 'ghosts'
   | 'reveal'
   | 'caught'
+  | 'doorOpen'
+  | 'travel'
   | 'levelClear'
   | 'gameOver'
 
@@ -53,6 +56,11 @@ const JAIL_TURNS = 3
 const ROCK_DELAY_MIN_MS = 10_000
 const ROCK_DELAY_MAX_MS = 20_000
 const CLOAK_SAFE_DISTANCE = 4
+const QUICK_SOLVE_MS = 6_000
+const QUICK_METER_GAIN = 25
+const QUICK_BONUS_MOVES = 2
+const POWER_TICKS = 16
+const TRAVEL_EXIT_DOOR: Pos = { r: 1, c: 5 }
 
 export interface GameState {
   level: number
@@ -80,6 +88,13 @@ export interface GameState {
   hint: string
   answerValue: number
   message: GameMessage | null
+  answerStartedAt: number
+  quickMeter: number
+  starReady: boolean
+  powerBuddy: Pos | null
+  powerTicksLeft: number
+  exitDoor: Pos | null
+  travelExitDoor: Pos | null
   /** stars earned when the last level was cleared (1-3, from lives) */
   clearStars: number
 }
@@ -91,8 +106,11 @@ type Action =
   | { type: 'MOVE'; dir: Dir }
   | { type: 'END_MOVE' }
   | { type: 'AGE_TREASURES'; count: number }
+  | { type: 'START_POWER' }
+  | { type: 'BUDDY_POWER_TICK' }
   | { type: 'GHOST_WANDER' }
   | { type: 'GHOST_TICK' }
+  | { type: 'TRAVEL_GHOST_TICK' }
   | { type: 'REVEAL_DONE' }
   | { type: 'RESPAWN' }
   | { type: 'NEXT_LEVEL' }
@@ -225,6 +243,30 @@ function wanderWhileSolving(
   return current
 }
 
+function nearestTreasureStep(maze: MazeDef, from: Pos, treasures: Map<string, string>): Pos {
+  const targets = [...treasures.keys()].filter((k) => treasures.get(k) !== ROCK_EMOJI)
+  if (!targets.length) return from
+  const [targetKey] = targets.sort((a, b) => {
+    const [ar, ac] = a.split(',').map(Number)
+    const [br, bc] = b.split(',').map(Number)
+    return dist(from, { r: ar, c: ac }) - dist(from, { r: br, c: bc })
+  })
+  const [r, c] = targetKey.split(',').map(Number)
+  return nextStepToward(maze, from, { r, c })
+}
+
+function exitDoorForMaze(maze: MazeDef): Pos {
+  const topCorridors: Pos[] = []
+  for (let c = 1; c < maze.cols - 1; c++) {
+    if (!isWall(maze, 1, c)) topCorridors.push({ r: 1, c })
+  }
+  return topCorridors.sort(
+    (a, b) =>
+      Math.abs(a.c - Math.floor(maze.cols / 2)) -
+      Math.abs(b.c - Math.floor(maze.cols / 2)),
+  )[0] ?? maze.pacSpawn
+}
+
 function farthestSpawn(maze: MazeDef, pac: Pos): Pos {
   return [...maze.ghostSpawns].sort(
     (a, b) =>
@@ -232,7 +274,11 @@ function farthestSpawn(maze: MazeDef, pac: Pos): Pos {
   )[0]
 }
 
-function makeReducer(cfgFor: (level: number) => LevelCfg) {
+function makeReducer(
+  cfgFor: (level: number) => LevelCfg,
+  travelEnabled: boolean,
+  travelMaxLevel: number,
+) {
   const say = (state: GameState, text: string, tone: 'good' | 'bad'): GameMessage => ({
     text,
     tone,
@@ -245,6 +291,7 @@ function makeReducer(cfgFor: (level: number) => LevelCfg) {
     answerTicks: 0,
     hint: '',
     answerValue: 0,
+    answerStartedAt: Date.now(),
     phase: 'answer',
   })
 
@@ -297,6 +344,31 @@ function makeReducer(cfgFor: (level: number) => LevelCfg) {
     }
   }
 
+  const enterTravel = (state: GameState): GameState => {
+    const maze = travelMazeForLevel(state.level)
+    const ghostCount = Math.max(1, Math.min(2, state.cfg.enemy.count))
+    return {
+      ...state,
+      maze,
+      pac: maze.pacSpawn,
+      buddy: maze.pacSpawn,
+      buddyTrail: [maze.pacSpawn, maze.pacSpawn, maze.pacSpawn],
+      facing: 'up',
+      ghosts: maze.ghostSpawns.slice(0, ghostCount),
+      ghostPrev: maze.ghostSpawns.slice(0, ghostCount),
+      treasures: new Map(),
+      jailFruits: new Set(),
+      jailTurns: 0,
+      movesLeft: 0,
+      powerBuddy: null,
+      powerTicksLeft: 0,
+      exitDoor: null,
+      travelExitDoor: TRAVEL_EXIT_DOOR,
+      phase: 'travel',
+      message: say(state, 'Find the next door! Watch the path baddies. 🚪', 'good'),
+    }
+  }
+
   const revealState = (state: GameState): GameState => ({
     ...state,
     streak: 0,
@@ -324,6 +396,10 @@ function makeReducer(cfgFor: (level: number) => LevelCfg) {
       treasures,
       jailFruits,
       jailTurns: 0,
+      powerBuddy: null,
+      powerTicksLeft: 0,
+      exitDoor: null,
+      travelExitDoor: null,
       ...freshProblem(cfg),
       message: cfg.intro ? say(state, cfg.intro, 'good') : state.message,
     }
@@ -363,16 +439,28 @@ function makeReducer(cfgFor: (level: number) => LevelCfg) {
         const p = state.problem
         if (state.answerValue === p.answer) {
           const isChallenge = p.technique === 'challenge'
+          const quickSolve = !isChallenge && Date.now() - state.answerStartedAt <= QUICK_SOLVE_MS
+          const quickMeter = quickSolve
+            ? Math.min(100, state.quickMeter + QUICK_METER_GAIN)
+            : state.quickMeter
+          const starReady = state.starReady || quickMeter >= 100
+          const moves = movesForProblem(p) + (quickSolve ? QUICK_BONUS_MOVES : 0)
           return {
             ...state,
             stars: state.stars + (isChallenge ? 3 : 1),
             streak: state.streak + 1,
-            movesLeft: movesForProblem(p),
+            movesLeft: moves,
+            quickMeter,
+            starReady,
             phase: 'move',
             hint: '',
             message: say(
               state,
-              isChallenge ? '⚡ CHALLENGE SMASHED! 10 moves! ⚡' : pickFrom(PRAISE),
+              isChallenge
+                ? '⚡ CHALLENGE SMASHED! 10 moves! ⚡'
+                : quickSolve
+                  ? `Quick solve! +${QUICK_BONUS_MOVES} moves! ⭐`
+                  : pickFrom(PRAISE),
               'good',
             ),
           }
@@ -408,11 +496,54 @@ function makeReducer(cfgFor: (level: number) => LevelCfg) {
       }
 
       case 'MOVE': {
-        if (state.phase !== 'move') return state
+        if (!['move', 'doorOpen', 'travel'].includes(state.phase)) return state
+        if (
+          state.phase === 'doorOpen' &&
+          state.exitDoor &&
+          samePos(state.pac, state.exitDoor) &&
+          action.dir === 'up'
+        ) {
+          return enterTravel(state)
+        }
         const v = DIR_VECTORS[action.dir]
         const target = { r: state.pac.r + v.r, c: state.pac.c + v.c }
         if (isWall(state.maze, target.r, target.c)) {
           return { ...state, facing: action.dir }
+        }
+        if (state.phase === 'travel') {
+          const moved: GameState = {
+            ...state,
+            pac: target,
+            buddy: state.pac,
+            buddyTrail: [state.pac, ...state.buddyTrail].slice(0, 3),
+            facing: action.dir,
+          }
+          if (state.travelExitDoor && samePos(target, state.travelExitDoor)) {
+            return levelStart(moved, state.level + 1)
+          }
+          if (state.ghosts.some((g) => samePos(g, target))) {
+            return {
+              ...moved,
+              pac: state.maze.pacSpawn,
+              buddy: state.maze.pacSpawn,
+              buddyTrail: [state.maze.pacSpawn, state.maze.pacSpawn, state.maze.pacSpawn],
+              message: say(state, 'A path baddie bumped you back to the door! Try again. 👀', 'bad'),
+            }
+          }
+          return moved
+        }
+        if (state.phase === 'doorOpen') {
+          return {
+            ...state,
+            pac: target,
+            buddy: state.pac,
+            buddyTrail: [state.pac, ...state.buddyTrail].slice(0, 3),
+            facing: action.dir,
+            message:
+              state.exitDoor && samePos(target, state.exitDoor)
+                ? say(state, 'Press up at the door to enter the path! 🚪', 'good')
+                : state.message,
+          }
         }
         const key = posKey(target)
         const treasure = state.treasures.get(key)
@@ -444,6 +575,15 @@ function makeReducer(cfgFor: (level: number) => LevelCfg) {
           return caughtState(moved)
         }
         if (collectibleTreasureCount(treasures) === 0) {
+          if (travelEnabled && state.level < travelMaxLevel) {
+            return {
+              ...moved,
+              phase: 'doorOpen',
+              exitDoor: exitDoorForMaze(state.maze),
+              clearStars: Math.max(1, moved.lives),
+              message: say(state, 'The exit door opened! Head to the top door. 🚪', 'good'),
+            }
+          }
           return { ...moved, phase: 'levelClear', clearStars: Math.max(1, moved.lives) }
         }
         if (moved.movesLeft <= 0) {
@@ -474,6 +614,49 @@ function makeReducer(cfgFor: (level: number) => LevelCfg) {
           message:
             state.answerTicks === 0
               ? say(state, 'Some treasures turned into rocks — keep counting! 🪨', 'bad')
+              : state.message,
+        }
+      }
+
+      case 'START_POWER': {
+        if (!state.starReady || state.powerTicksLeft > 0) return state
+        return {
+          ...state,
+          starReady: false,
+          quickMeter: 0,
+          powerBuddy: state.pac,
+          powerTicksLeft: POWER_TICKS,
+          message: say(state, 'Star buddy power! Grab that fruit! ⭐', 'good'),
+        }
+      }
+
+      case 'BUDDY_POWER_TICK': {
+        if (!state.powerBuddy || state.powerTicksLeft <= 0) return state
+        const next = nearestTreasureStep(state.maze, state.powerBuddy, state.treasures)
+        const key = posKey(next)
+        const treasure = state.treasures.get(key)
+        const treasures = new Map(state.treasures)
+        if (treasure && treasure !== ROCK_EMOJI) treasures.delete(key)
+        const done = state.powerTicksLeft <= 1 || collectibleTreasureCount(treasures) === 0
+        const cleared = done && collectibleTreasureCount(treasures) === 0
+        return {
+          ...state,
+          treasures,
+          powerBuddy: done ? null : next,
+          powerTicksLeft: done ? 0 : state.powerTicksLeft - 1,
+          phase: cleared
+            ? travelEnabled && state.level < travelMaxLevel
+              ? 'doorOpen'
+              : 'levelClear'
+            : state.phase,
+          exitDoor:
+            cleared && travelEnabled && state.level < travelMaxLevel
+              ? exitDoorForMaze(state.maze)
+              : state.exitDoor,
+          clearStars: cleared ? Math.max(1, state.lives) : state.clearStars,
+          message:
+            cleared && travelEnabled && state.level < travelMaxLevel
+              ? say(state, 'The exit door opened! Head to the top door. 🚪', 'good')
               : state.message,
         }
       }
@@ -513,6 +696,25 @@ function makeReducer(cfgFor: (level: number) => LevelCfg) {
             : { ...stepped, phase: 'answer' }
         }
         return stepped
+      }
+
+      case 'TRAVEL_GHOST_TICK': {
+        if (state.phase !== 'travel') return state
+        const ghosts = state.ghosts.map((g) => randomStep(state.maze, g))
+        const bumped = ghosts.some((g) => samePos(g, state.pac))
+        return {
+          ...state,
+          ghosts,
+          ghostPrev: state.ghosts,
+          ...(bumped
+            ? {
+                pac: state.maze.pacSpawn,
+                buddy: state.maze.pacSpawn,
+                buddyTrail: [state.maze.pacSpawn, state.maze.pacSpawn, state.maze.pacSpawn],
+                message: say(state, 'A path baddie bumped you back to the door! Try again. 👀', 'bad'),
+              }
+            : {}),
+        }
       }
 
       case 'REVEAL_DONE': {
@@ -585,6 +787,13 @@ function makeInitialState(cfgFor: (level: number) => LevelCfg, startLevel: numbe
     hint: '',
     answerValue: 0,
     message: cfg.intro ? { text: cfg.intro, tone: 'good', id: 1 } : null,
+    answerStartedAt: Date.now(),
+    quickMeter: 0,
+    starReady: false,
+    powerBuddy: null,
+    powerTicksLeft: 0,
+    exitDoor: null,
+    travelExitDoor: null,
     clearStars: 0,
   }
 }
@@ -594,8 +803,13 @@ export function useArcadeGame(
   startLevel: number,
   stepMs: number,
   rockAgingEnabled: boolean,
+  travelEnabled = false,
+  travelMaxLevel = Infinity,
 ) {
-  const reducer = useMemo(() => makeReducer(cfgFor), [cfgFor])
+  const reducer = useMemo(
+    () => makeReducer(cfgFor, travelEnabled, travelMaxLevel),
+    [cfgFor, travelEnabled, travelMaxLevel],
+  )
   const [state, dispatch] = useReducer(
     reducer,
     null,
@@ -603,6 +817,10 @@ export function useArcadeGame(
   )
 
   useEffect(() => {
+    if (state.powerTicksLeft > 0) {
+      const t = setInterval(() => dispatch({ type: 'BUDDY_POWER_TICK' }), 300)
+      return () => clearInterval(t)
+    }
     if (state.phase === 'answer' && rockAgingEnabled) {
       const t = setTimeout(
         () => dispatch({ type: 'AGE_TREASURES', count: 1 }),
@@ -614,6 +832,10 @@ export function useArcadeGame(
       const t = setInterval(() => dispatch({ type: 'GHOST_TICK' }), stepMs + 40)
       return () => clearInterval(t)
     }
+    if (state.phase === 'travel') {
+      const t = setInterval(() => dispatch({ type: 'TRAVEL_GHOST_TICK' }), Math.max(700, stepMs * 3))
+      return () => clearInterval(t)
+    }
     if (state.phase === 'caught') {
       const t = setTimeout(() => dispatch({ type: 'RESPAWN' }), 1100)
       return () => clearTimeout(t)
@@ -622,7 +844,7 @@ export function useArcadeGame(
       const t = setTimeout(() => dispatch({ type: 'REVEAL_DONE' }), 1900)
       return () => clearTimeout(t)
     }
-  }, [state.phase, state.answerTicks, stepMs, rockAgingEnabled])
+  }, [state.phase, state.answerTicks, state.powerTicksLeft, stepMs, rockAgingEnabled])
 
   useEffect(() => {
     if (state.phase !== 'answer' || state.ghosts.length === 0 || state.jailTurns > 0) return

@@ -10,7 +10,7 @@ import { useProfile, type CompleteResult } from '@/features/profile/profileStore
 import { ADVENTURE_MAX, COUNTING_MAX, adventureCfg, countingCfg, freePlayCfg } from './gameConfig'
 import type { Dir } from './maze'
 import { MazeBoard } from './MazeBoard'
-import { HEROES } from './sprites'
+import { HEROES, type HeroId } from './sprites'
 import { SPEED_MS, useArcadeSettings } from './settingsStore'
 import { THEMES } from './themes'
 import { collectibleTreasureCount, useArcadeGame } from './useArcadeGame'
@@ -31,10 +31,12 @@ const KEY_DIRS: Record<string, Dir> = {
 
 function useTileSize(cols: number, rows: number) {
   const calc = () => {
-    const widthFit = Math.floor((window.innerWidth - 40) / cols)
-    const reservedHeight = window.innerWidth > window.innerHeight ? 220 : 300
+    const isLandscape = window.innerWidth > window.innerHeight
+    const boardWidth = isLandscape ? window.innerWidth * 0.56 - 28 : window.innerWidth - 40
+    const widthFit = Math.floor(boardWidth / cols)
+    const reservedHeight = isLandscape ? 126 : 300
     const heightFit = Math.floor((window.innerHeight - reservedHeight) / rows)
-    return Math.max(22, Math.min(46, widthFit, heightFit))
+    return Math.max(20, Math.min(46, widthFit, heightFit))
   }
   const [tile, setTile] = useState(calc)
   useEffect(() => {
@@ -139,6 +141,8 @@ export function ArcadeGame({ mode, onExit }: { mode: PlayMode; onExit: () => voi
     startLevel,
     stepMs,
     mode !== 'counting' && settings.rockTimer,
+    mode === 'adventure',
+    ADVENTURE_MAX,
   )
   const tile = useTileSize(state.maze.cols, state.maze.rows)
   const world = mode === 'adventure' ? worldForAdventureLevel(state.level) : null
@@ -152,11 +156,12 @@ export function ArcadeGame({ mode, onExit }: { mode: PlayMode; onExit: () => voi
 
   const maxLevel = mode === 'adventure' ? ADVENTURE_MAX : mode === 'counting' ? COUNTING_MAX : Infinity
   const [rewards, setRewards] = useState<CompleteResult | null>(null)
+  const [powerBuddyId, setPowerBuddyId] = useState<HeroId | null>(null)
   const completedLevelRef = useRef(0)
 
   // record progress + unlocks the moment a level is cleared
   useEffect(() => {
-    if (state.phase !== 'levelClear' || mode === 'free') return
+    if (!['levelClear', 'doorOpen'].includes(state.phase) || mode === 'free') return
     if (completedLevelRef.current === state.level) return
     completedLevelRef.current = state.level
     setRewards(profile.completeLevel(mode, state.level, state.clearStars))
@@ -225,6 +230,7 @@ export function ArcadeGame({ mode, onExit }: { mode: PlayMode; onExit: () => voi
   const isChallenge = problem.technique === 'challenge'
   const isVisual = problem.kind === 'count' || (problem.emoji != null && problem.kind === 'equation')
   const payout = movesForProblem(problem)
+  const canSteer = phase === 'move' || phase === 'doorOpen' || phase === 'travel'
 
   const setAnswer = useCallback(
     (value: number) => {
@@ -241,6 +247,10 @@ export function ArcadeGame({ mode, onExit }: { mode: PlayMode; onExit: () => voi
         : `Solve it to earn ${payout} moves!`
       : phase === 'move'
         ? `Steer! ${state.movesLeft} move${state.movesLeft === 1 ? '' : 's'} left — grab the fruit!`
+        : phase === 'doorOpen'
+          ? 'The door is open! Steer to the top door, then press up.'
+          : phase === 'travel'
+            ? `Follow the path to the next door: ${nextWorld?.emoji ?? '🚪'} ${nextWorld?.name ?? 'next level'}`
         : phase === 'ghosts'
           ? state.jailTurns > 0
             ? 'The baddies are stuck in jail! 🔒'
@@ -253,7 +263,7 @@ export function ArcadeGame({ mode, onExit }: { mode: PlayMode; onExit: () => voi
 
   return (
     <div
-      className="relative flex min-h-svh flex-col items-center gap-3 overflow-x-hidden overflow-y-auto bg-[radial-gradient(circle_at_50%_20%,var(--c-bg1),var(--c-bg2)_70%)] p-3 text-slate-50"
+      className="relative flex h-svh flex-col items-center gap-2 overflow-hidden bg-[radial-gradient(circle_at_50%_20%,var(--c-bg1),var(--c-bg2)_70%)] p-2 text-slate-50"
       style={theme.vars as React.CSSProperties}
     >
       {theme.id === 'stars' && <Twinkles />}
@@ -276,6 +286,15 @@ export function ArcadeGame({ mode, onExit }: { mode: PlayMode; onExit: () => voi
         />
         <Stat label="Lives" value={'❤️'.repeat(state.lives) || '💔'} />
         <Stat label="Fruit" value={String(treasuresLeft)} />
+        <div className="min-w-24 rounded-xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] px-3 py-1 text-center">
+          <div className="text-[11px] text-[var(--c-soft)]">Quick</div>
+          <div className="mt-1 h-2 overflow-hidden rounded-full bg-black/30">
+            <div
+              className="h-full rounded-full bg-amber-300 transition-all"
+              style={{ width: `${state.starReady ? 100 : state.quickMeter}%` }}
+            />
+          </div>
+        </div>
         <button
           type="button"
           onClick={() => settings.update({ music: !settings.music })}
@@ -292,107 +311,137 @@ export function ArcadeGame({ mode, onExit }: { mode: PlayMode; onExit: () => voi
         </button>
       </div>
 
-      <div className="rounded-full border-2 border-emerald-400 bg-[var(--c-panel)] px-5 py-1 text-base font-bold text-emerald-300">
+      <div className="max-w-[96vw] rounded-full border-2 border-emerald-400 bg-[var(--c-panel)] px-4 py-1 text-center text-sm font-bold text-emerald-300">
         {goalText}
       </div>
 
-      <MazeBoard
-        maze={state.maze}
-        tile={tile}
-        treasures={state.treasures}
-        jailFruits={state.jailFruits}
-        jailTurns={state.jailTurns}
-        pac={state.pac}
-        facing={state.facing}
-        ghosts={state.ghosts}
-        stepMs={stepMs}
-        hero={hero}
-        buddy={state.buddy}
-        buddyTrail={state.buddyTrail}
-        buddyId={buddy}
-        buddyIds={buddies}
-        cloaked={phase === 'answer' && state.ghosts.length > 0}
-        onSwipe={(dir) => dispatch({ type: 'MOVE', dir })}
-      />
-
-      {/* problem + input panel */}
-      <div className="flex flex-wrap items-start justify-center gap-4">
-        <div
-          className={[
-            'flex min-w-56 max-w-80 flex-col items-center rounded-2xl border-2 p-4',
-            isChallenge
-              ? 'border-amber-400 bg-amber-950/50'
-              : 'border-[var(--c-border)] bg-[var(--c-panel)]',
-          ].join(' ')}
-        >
-          <h3 className="text-xs font-bold tracking-wide text-[var(--c-soft)]">
-            {isChallenge ? '⚡ CHALLENGE — ONE TRY! ⚡' : problem.kind === 'count' ? 'HOW MANY?' : 'SOLVE ME!'}
-          </h3>
-          {isVisual ? (
-            <VisualProblem problem={problem} />
-          ) : (
-            <div className="my-2 text-4xl font-black text-amber-300">
-              {problemText(problem)} = ?
-            </div>
-          )}
-          <div className="mb-1 rounded-full border border-emerald-500 bg-emerald-500/15 px-3 py-0.5 text-xs font-bold text-emerald-300">
-            worth +{payout} moves
-          </div>
-          <p className="min-h-10 max-w-64 text-center text-sm text-[var(--c-soft)]">
-            {state.hint}
-          </p>
-          <div className="mt-2 flex gap-3">
-            <button
-              type="button"
-              onClick={() => dispatch({ type: 'SET_ANSWER', value: 0 })}
-              disabled={phase !== 'answer'}
-              className="rounded-xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] px-4 py-2 font-bold brightness-110 disabled:opacity-40"
-            >
-              Clear
-            </button>
-            <button
-              type="button"
-              onClick={() => dispatch({ type: 'SUBMIT' })}
-              disabled={phase !== 'answer'}
-              className="rounded-xl border-4 border-emerald-600 bg-emerald-400 px-8 py-2 text-xl font-black text-emerald-950 disabled:opacity-40"
-            >
-              Go! ▶
-            </button>
-          </div>
-          {state.cfg.allowChallenge && !isChallenge && (
-            <button
-              type="button"
-              onClick={() => dispatch({ type: 'CHALLENGE' })}
-              disabled={phase !== 'answer'}
-              className="mt-3 rounded-xl border-2 border-amber-500 bg-amber-500/20 px-4 py-1.5 text-sm font-bold text-amber-300 hover:bg-amber-500/30 disabled:opacity-40"
-            >
-              ⚡ Hard one for 10 moves!
-            </button>
-          )}
+      <div className="flex min-h-0 w-full flex-1 flex-col items-center justify-center gap-2 landscape:flex-row landscape:items-center landscape:justify-center">
+        <div className="flex min-h-0 flex-1 items-center justify-center">
+          <MazeBoard
+            maze={state.maze}
+            tile={tile}
+            treasures={state.treasures}
+            jailFruits={state.jailFruits}
+            jailTurns={state.jailTurns}
+            pac={state.pac}
+            facing={state.facing}
+            ghosts={state.ghosts}
+            stepMs={stepMs}
+            hero={hero}
+            buddy={state.buddy}
+            buddyTrail={state.buddyTrail}
+            buddyId={buddy}
+            buddyIds={buddies}
+            powerBuddy={state.powerBuddy}
+            powerBuddyId={powerBuddyId ?? buddies[0] ?? null}
+            exitDoor={state.exitDoor}
+            travelExitDoor={state.travelExitDoor}
+            themeId={theme.id}
+            cloaked={phase === 'answer' && state.ghosts.length > 0}
+            onSwipe={(dir) => dispatch({ type: 'MOVE', dir })}
+          />
         </div>
 
-        <div className="flex min-w-72 flex-col items-center rounded-2xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] p-4">
-          {phase === 'move' ? (
-            <SteeringControls
-              embedded
-              canMove
-              onMove={(dir) => dispatch({ type: 'MOVE', dir })}
-              onStay={() => dispatch({ type: 'END_MOVE' })}
-            />
+        <div className="flex w-full max-w-[30rem] shrink-0 flex-col items-center gap-2 landscape:w-[24rem]">
+          {canSteer ? (
+            <div className="flex w-full flex-col items-center rounded-2xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] p-3">
+              <SteeringControls
+                embedded
+                canMove
+                onMove={(dir) => dispatch({ type: 'MOVE', dir })}
+                onStay={() => dispatch({ type: 'END_MOVE' })}
+              />
+            </div>
           ) : (
             <>
-              <h3 className="mb-2 text-xs font-bold tracking-wide text-[var(--c-soft)]">
-                YOUR ABACUS — TAP OR FLICK THE BEADS
-              </h3>
-              <Abacus
-                rodCount={state.cfg.rodCount}
-                value={state.answerValue}
-                onChange={setAnswer}
-                readOnly={phase !== 'answer'}
-                showLabels={state.cfg.rodCount > 1}
-              />
-              <div className="mt-2 text-lg">
-                Your beads say: <b className="text-2xl text-amber-300">{state.answerValue}</b>
+              <div
+                className={[
+                  'flex w-full flex-col items-center rounded-2xl border-2 p-2',
+                  isChallenge
+                    ? 'border-amber-400 bg-amber-950/50'
+                    : 'border-[var(--c-border)] bg-[var(--c-panel)]',
+                ].join(' ')}
+              >
+                <h3 className="text-xs font-bold tracking-wide text-[var(--c-soft)]">
+                  {isChallenge ? '⚡ CHALLENGE — ONE TRY! ⚡' : problem.kind === 'count' ? 'HOW MANY?' : 'SOLVE ME!'}
+                </h3>
+                {isVisual ? (
+                  <VisualProblem problem={problem} />
+                ) : (
+                  <div className="my-1 text-3xl font-black text-amber-300">
+                    {problemText(problem)} = ?
+                  </div>
+                )}
+                <div className="mb-1 rounded-full border border-emerald-500 bg-emerald-500/15 px-3 py-0.5 text-xs font-bold text-emerald-300">
+                  worth +{payout} moves
+                </div>
+                <p className="min-h-8 max-w-64 text-center text-xs text-[var(--c-soft)]">
+                  {state.hint}
+                </p>
+                <div className="mt-2 flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => dispatch({ type: 'SET_ANSWER', value: 0 })}
+                    disabled={phase !== 'answer'}
+                    className="rounded-xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] px-4 py-2 font-bold brightness-110 disabled:opacity-40"
+                  >
+                    Clear
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => dispatch({ type: 'SUBMIT' })}
+                    disabled={phase !== 'answer'}
+                    className="rounded-xl border-4 border-emerald-600 bg-emerald-400 px-8 py-2 text-xl font-black text-emerald-950 disabled:opacity-40"
+                  >
+                    Go! ▶
+                  </button>
+                </div>
+                {state.cfg.allowChallenge && !isChallenge && (
+                  <button
+                    type="button"
+                    onClick={() => dispatch({ type: 'CHALLENGE' })}
+                    disabled={phase !== 'answer'}
+                    className="mt-3 rounded-xl border-2 border-amber-500 bg-amber-500/20 px-4 py-1.5 text-sm font-bold text-amber-300 hover:bg-amber-500/30 disabled:opacity-40"
+                  >
+                    ⚡ Hard one for 10 moves!
+                  </button>
+                )}
+                {state.starReady && state.powerTicksLeft === 0 && buddies.length > 0 && (
+                  <div className="mt-3 flex max-w-64 flex-wrap justify-center gap-2 rounded-xl border border-amber-300 bg-amber-500/15 p-2">
+                    <div className="w-full text-center text-xs font-black text-amber-200">
+                      ⭐ Buddy power ready!
+                    </div>
+                    {buddies.map((id) => (
+                      <button
+                        key={id}
+                        type="button"
+                        onClick={() => {
+                          setPowerBuddyId(id)
+                          dispatch({ type: 'START_POWER' })
+                        }}
+                        className="rounded-lg border border-amber-200 bg-amber-300 px-2 py-1 text-xs font-black text-amber-950"
+                      >
+                        {HEROES[id].name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex w-full flex-col items-center rounded-2xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] p-2">
+                <h3 className="mb-2 text-xs font-bold tracking-wide text-[var(--c-soft)]">
+                  YOUR ABACUS — TAP OR FLICK THE BEADS
+                </h3>
+                <Abacus
+                  rodCount={state.cfg.rodCount}
+                  value={state.answerValue}
+                  onChange={setAnswer}
+                  readOnly={phase !== 'answer'}
+                  showLabels={state.cfg.rodCount > 1}
+                />
+                <div className="mt-2 text-lg">
+                  Your beads say: <b className="text-2xl text-amber-300">{state.answerValue}</b>
+                </div>
               </div>
             </>
           )}

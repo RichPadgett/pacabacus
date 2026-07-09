@@ -203,6 +203,32 @@ export function mazeForLevel(level: number): MazeDef {
   return buildMaze(`Maze ${level}`, generateGrid(level))
 }
 
+export function travelMazeForLevel(level: number): MazeDef {
+  const grid = [
+    '#############',
+    '#.....#.....#',
+    '#.###.#.###.#',
+    '#...........#',
+    '#.###...###.#',
+    '#...........#',
+    '#.###.#.###.#',
+    '#.....#.....#',
+    '#############',
+  ]
+  return {
+    name: `Path to Level ${level + 1}`,
+    grid,
+    rows: grid.length,
+    cols: grid[0].length,
+    pacSpawn: { r: 7, c: 5 },
+    ghostSpawns: [
+      { r: 3, c: 10 },
+      { r: 5, c: 2 },
+      { r: 1, c: 1 },
+    ],
+  }
+}
+
 export const isWall = (maze: MazeDef, r: number, c: number) => wallAt(maze.grid, r, c)
 
 export const posKey = (p: Pos) => `${p.r},${p.c}`
