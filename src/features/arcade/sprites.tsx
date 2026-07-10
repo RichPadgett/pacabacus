@@ -55,6 +55,16 @@ export type HeroId =
   | 'lion'
   | 'strawbat'
   | 'orca'
+  | 'penguin'
+  | 'unicorn'
+  | 'panda'
+  | 'frog'
+  | 'bee'
+  | 'crab'
+  | 'seal'
+  | 'dragon'
+  | 'koala'
+  | 'bunny'
   | 'robo'
   | 'elephant'
   | 'chomper'
@@ -564,6 +574,296 @@ const DINO_B = [
   '.GG....GG...',
 ]
 
+const PENGUIN_A = [
+  '....KKKK....',
+  '...KKKKKK...',
+  '..KKWWKKKK..',
+  '..KWBWKBKK..',
+  '.KKKWWKKKK..',
+  '.KKWWWWKKK..',
+  '.KKWWWWKKK..',
+  '..KKOOO...K.',
+  '..KKKKKK....',
+  '...K..K.....',
+  '..OO..OO....',
+  '............',
+]
+const PENGUIN_B = [
+  '....KKKK....',
+  '...KKKKKK...',
+  '..KKWWKKKK..',
+  '..KWBWKBKK..',
+  '.KKKWWKKKK..',
+  '.KKWWWWKKK..',
+  '.KKWWWWKKK..',
+  'K...OOOKK...',
+  '...KKKKKK...',
+  '....K..K....',
+  '...OO..OO...',
+  '............',
+]
+
+const UNICORN_A = [
+  '.....Y......',
+  '....YYY.....',
+  '..WWWWWWW...',
+  '.WWPWWWWWW..',
+  '.WWBWWWWBW..',
+  '.WWWWWWWWW..',
+  '..WWRRRWW...',
+  '..VVVVVWW...',
+  '.WWWWWWWW...',
+  '...W..W.....',
+  '..WW..WW....',
+  '............',
+]
+const UNICORN_B = [
+  '.....Y......',
+  '....YYY.....',
+  '..WWWWWWW...',
+  '.WWPWWWWWW..',
+  '.WWBWWWWBW..',
+  '.WWWWWWWWW..',
+  '..WWRRRWW...',
+  '..VVVVVWW...',
+  '.WWWWWWWW...',
+  '..W....W....',
+  '..WW..WW....',
+  '............',
+]
+
+const PANDA_A = [
+  '..KK....KK..',
+  '.KKKWWWWKKK.',
+  '.KKWWWWWWKK.',
+  'KKWWKWWKWWKK',
+  'KWWWBWWBWWWK',
+  'KWWWWWWWWWWK',
+  '.KWWKKKKWWK.',
+  '..KKWWWWKK..',
+  '..KWWWWWWK..',
+  '...K....K...',
+  '..KK....KK..',
+  '............',
+]
+const PANDA_B = [
+  '..KK....KK..',
+  '.KKKWWWWKKK.',
+  '.KKWWWWWWKK.',
+  'KKWWKWWKWWKK',
+  'KWWWBWWBWWWK',
+  'KWWWWWWWWWWK',
+  '.KWWKKKKWWK.',
+  '..KKWWWWKK..',
+  '..KWWWWWWK..',
+  '..K......K..',
+  '..KK....KK..',
+  '............',
+]
+
+const FROG_A = [
+  '..GG....GG..',
+  '.GGBG..GBGG.',
+  '.GGGGGGGGGG.',
+  'GGGGGGGGGGGG',
+  'GGWGGGGGGWGG',
+  'GGGGGRRGGGGG',
+  '.GGGGGGGGGG.',
+  '..GGGGGGGG..',
+  '..GGGGGGGG..',
+  '.GG......GG.',
+  '.GG......GG.',
+  '............',
+]
+const FROG_B = [
+  '..GG....GG..',
+  '.GGBG..GBGG.',
+  '.GGGGGGGGGG.',
+  'GGGGGGGGGGGG',
+  'GGWGGGGGGWGG',
+  'GGGGGRRGGGGG',
+  '.GGGGGGGGGG.',
+  '..GGGGGGGG..',
+  '..GGGGGGGG..',
+  'GG........GG',
+  '.GG......GG.',
+  '............',
+]
+
+const BEE_A = [
+  '....WWWW....',
+  '..WW....WW..',
+  '....YYYY....',
+  '...YKKKKY...',
+  '..YKYKYKYK..',
+  '..YKKKKKKY..',
+  '..YKYKYKYK..',
+  '...YKKKKY...',
+  '....YYYY....',
+  '.....KK.....',
+  '....K..K....',
+  '............',
+]
+const BEE_B = [
+  '..WW....WW..',
+  '....WWWW....',
+  '....YYYY....',
+  '...YKKKKY...',
+  '..YKYKYKYK..',
+  '..YKKKKKKY..',
+  '..YKYKYKYK..',
+  '...YKKKKY...',
+  '....YYYY....',
+  '.....KK.....',
+  '...K....K...',
+  '............',
+]
+
+const CRAB_A = [
+  'RR........RR',
+  '.RR......RR.',
+  '..RRRRRRRR..',
+  '.RROORROORR.',
+  'RRRRRRRRRRRR',
+  'RRRRRRRRRRRR',
+  '.RRRRRRRRRR.',
+  '..RRRRRRRR..',
+  '.RR.RR.RR.R.',
+  'RR..RR..RR..',
+  '............',
+  '............',
+]
+const CRAB_B = [
+  '.RR......RR.',
+  'RR........RR',
+  '..RRRRRRRR..',
+  '.RROORROORR.',
+  'RRRRRRRRRRRR',
+  'RRRRRRRRRRRR',
+  '.RRRRRRRRRR.',
+  '..RRRRRRRR..',
+  'R.RR.RR.RR..',
+  '..RR..RR..RR',
+  '............',
+  '............',
+]
+
+const SEAL_A = [
+  '....SSSS....',
+  '...SSSSSS...',
+  '..SSSSSSSS..',
+  '.SSBSSSSBSS.',
+  '.SSSSNNSSSS.',
+  '..SSSSSSSS..',
+  '..SSSSSSS...',
+  '.SSSSSS.....',
+  'SSSSSSSSS...',
+  '..SS..SS....',
+  '.SS....SS...',
+  '............',
+]
+const SEAL_B = [
+  '....SSSS....',
+  '...SSSSSS...',
+  '..SSSSSSSS..',
+  '.SSBSSSSBSS.',
+  '.SSSSNNSSSS.',
+  '..SSSSSSSS..',
+  '...SSSSSSS..',
+  '.....SSSSSS.',
+  '...SSSSSSSSS',
+  '....SS..SS..',
+  '...SS....SS.',
+  '............',
+]
+
+const DRAGON_A = [
+  '...GGGGG....',
+  '..GGGGGGG...',
+  '..GBGGGGB...',
+  '..GGGGGGG...',
+  '.GGGGRRRR...',
+  'GGGGGGG..GG.',
+  'GGGGGGGGGG..',
+  '.GGGGGGGG...',
+  '..GGGGGG....',
+  '..GG..GG....',
+  '.GG....GG...',
+  '............',
+]
+const DRAGON_B = [
+  '...GGGGG....',
+  '..GGGGGGG...',
+  '..GBGGGGB...',
+  '..GGGGGGG...',
+  '.GGGGRRRR...',
+  '.GG..GGGGGGG',
+  '..GGGGGGGGGG',
+  '...GGGGGGG..',
+  '....GGGGGG..',
+  '....GG..GG..',
+  '...GG....GG.',
+  '............',
+]
+
+const KOALA_A = [
+  '.TT......TT.',
+  'TTT..SS..TTT',
+  'TTSSSSSSSSTT',
+  '.SSBSSSSBSS.',
+  '.SSSSNNSSSS.',
+  '..SSSSSSSS..',
+  '..SSPPPPSS..',
+  '...SSSSSS...',
+  '...SSSSSS...',
+  '....S..S....',
+  '...SS..SS...',
+  '............',
+]
+const KOALA_B = [
+  '.TT......TT.',
+  'TTT..SS..TTT',
+  'TTSSSSSSSSTT',
+  '.SSBSSSSBSS.',
+  '.SSSSNNSSSS.',
+  '..SSSSSSSS..',
+  '..SSPPPPSS..',
+  '...SSSSSS...',
+  '...SSSSSS...',
+  '...S....S...',
+  '...SS..SS...',
+  '............',
+]
+
+const BUNNY_A = [
+  '..WW....WW..',
+  '..WW....WW..',
+  '..WWWWWWWW..',
+  '.WWWWWWWWWW.',
+  '.WWBWWWWBWW.',
+  '.WWWWPPWWWW.',
+  '..WWWWWWWW..',
+  '..WWWWWWWW..',
+  '...WWWWWW...',
+  '...W....W...',
+  '..WW....WW..',
+  '............',
+]
+const BUNNY_B = [
+  '..WW....WW..',
+  '..WW....WW..',
+  '..WWWWWWWW..',
+  '.WWWWWWWWWW.',
+  '.WWBWWWWBWW.',
+  '.WWWWPPWWWW.',
+  '..WWWWWWWW..',
+  '..WWWWWWWW..',
+  '...WWWWWW...',
+  '..W......W..',
+  '..WW....WW..',
+  '............',
+]
+
 export const HEROES: Record<HeroId, HeroDef> = {
   kitty: {
     id: 'kitty',
@@ -677,6 +977,86 @@ export const HEROES: Record<HeroId, HeroDef> = {
     palette: { K: '#2c3a52', W: '#f5fbff', B: '#0c1420' },
     rotates: false,
   },
+  penguin: {
+    id: 'penguin',
+    name: 'Penguin',
+    unlockLevel: 4,
+    frames: [PENGUIN_A, PENGUIN_B],
+    palette: { K: '#1f2937', W: '#f8fafc', B: '#0f172a', O: '#f97316' },
+    rotates: false,
+  },
+  unicorn: {
+    id: 'unicorn',
+    name: 'Unicorn',
+    unlockLevel: 7,
+    frames: [UNICORN_A, UNICORN_B],
+    palette: { W: '#fff7ed', P: '#ff9ec6', B: '#3a205a', R: '#a78bfa', V: '#c084fc', Y: '#fde047' },
+    rotates: false,
+  },
+  panda: {
+    id: 'panda',
+    name: 'Panda',
+    unlockLevel: 9,
+    frames: [PANDA_A, PANDA_B],
+    palette: { K: '#1f2937', W: '#f8fafc', B: '#0f172a' },
+    rotates: false,
+  },
+  frog: {
+    id: 'frog',
+    name: 'Frog',
+    unlockLevel: 12,
+    frames: [FROG_A, FROG_B],
+    palette: { G: '#4ade80', B: '#0f3b1d', W: '#f7fee7', R: '#fb7185' },
+    rotates: false,
+  },
+  bee: {
+    id: 'bee',
+    name: 'Bee',
+    unlockLevel: 17,
+    frames: [BEE_A, BEE_B],
+    palette: { Y: '#facc15', K: '#1f2937', W: '#e0f2fe' },
+    rotates: false,
+  },
+  crab: {
+    id: 'crab',
+    name: 'Crab',
+    unlockLevel: 21,
+    frames: [CRAB_A, CRAB_B],
+    palette: { R: '#ef4444', O: '#fed7aa' },
+    rotates: false,
+  },
+  seal: {
+    id: 'seal',
+    name: 'Seal',
+    unlockLevel: 24,
+    frames: [SEAL_A, SEAL_B],
+    palette: { S: '#94a3b8', B: '#1e293b', N: '#334155' },
+    rotates: false,
+  },
+  dragon: {
+    id: 'dragon',
+    name: 'Dragon',
+    unlockLevel: 32,
+    frames: [DRAGON_A, DRAGON_B],
+    palette: { G: '#22c55e', B: '#123a16', R: '#fb7185' },
+    rotates: false,
+  },
+  koala: {
+    id: 'koala',
+    name: 'Koala',
+    unlockLevel: 38,
+    frames: [KOALA_A, KOALA_B],
+    palette: { S: '#9ca3af', T: '#6b7280', B: '#111827', N: '#374151', P: '#f9a8d4' },
+    rotates: false,
+  },
+  bunny: {
+    id: 'bunny',
+    name: 'Bunny',
+    unlockLevel: 48,
+    frames: [BUNNY_A, BUNNY_B],
+    palette: { W: '#fff7ed', B: '#3a2410', P: '#f9a8d4' },
+    rotates: false,
+  },
   robo: {
     id: 'robo',
     name: 'Robo',
@@ -708,19 +1088,29 @@ export const CHARACTER_ORDER: HeroId[] = [
   'kitty',
   'orca',
   'fox',
+  'penguin',
   'monkey',
-  'dino',
+  'unicorn',
   'snake',
+  'panda',
+  'dino',
   'turtle',
+  'frog',
   'chick',
   'axolotl',
+  'bee',
   'rooster',
+  'crab',
   'lamby',
+  'seal',
   'lion',
   'strawbat',
+  'dragon',
   'robo',
+  'koala',
   'elephant',
   'chomper',
+  'bunny',
 ]
 
 export const STARTER_HERO_IDS: HeroId[] = ['dog', 'kitty', 'orca', 'fox']
@@ -729,16 +1119,26 @@ export const BUDDY_ORDER: HeroId[] = CHARACTER_ORDER.filter(
 )
 export const BUDDY_COSTS: Partial<Record<HeroId, number>> = {
   chick: 30,
+  penguin: 35,
   snake: 45,
   turtle: 55,
   axolotl: 60,
+  unicorn: 65,
   rooster: 70,
+  panda: 75,
   lamby: 80,
+  frog: 85,
   lion: 90,
+  bee: 95,
   strawbat: 100,
+  crab: 105,
+  seal: 115,
   robo: 120,
+  dragon: 130,
   elephant: 140,
+  koala: 150,
   chomper: 160,
+  bunny: 170,
 }
 
 // ============================== BADDIES ==============================

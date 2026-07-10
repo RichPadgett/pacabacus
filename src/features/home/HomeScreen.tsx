@@ -88,6 +88,8 @@ export function HomeScreen({
             </button>
           </div>
 
+          <LearningWorlds />
+
           {showProfiles && (
             <div className="flex w-full max-w-md flex-col gap-3 rounded-2xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] p-4">
               <h2 className="text-center text-sm font-bold tracking-wide text-[var(--c-soft)]">
@@ -226,6 +228,87 @@ export function HomeScreen({
         </>
       )}
     </div>
+  )
+}
+
+const ADD_ON_WORLDS = [
+  {
+    id: 'pacabacus',
+    name: 'PacAbacus',
+    icon: '🧮',
+    status: 'Active',
+    detail: 'Soroban and counting adventure',
+    enabled: true,
+  },
+  {
+    id: 'pacwords',
+    name: 'PacWords',
+    icon: '🔤',
+    status: 'Add-on',
+    detail: 'Letters, spelling, and sight words',
+    enabled: false,
+  },
+  {
+    id: 'pactables',
+    name: 'PacTables',
+    icon: '✖️',
+    status: 'Add-on',
+    detail: 'Times tables and skip counting',
+    enabled: false,
+  },
+  {
+    id: 'pacmath',
+    name: 'PacMath',
+    icon: '➕',
+    status: 'Add-on',
+    detail: 'Standard math without abacus controls',
+    enabled: false,
+  },
+]
+
+function LearningWorlds() {
+  return (
+    <section className="w-full max-w-md rounded-2xl border-2 border-[var(--c-border)] bg-black/20 p-3">
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <h2 className="text-sm font-black tracking-wide text-amber-200">LEARNING WORLDS</h2>
+        <span className="rounded-full border border-amber-300 bg-amber-500/15 px-2 py-0.5 text-[11px] font-black text-amber-100">
+          Family add-ons
+        </span>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        {ADD_ON_WORLDS.map((world) => (
+          <button
+            key={world.id}
+            type="button"
+            disabled={!world.enabled}
+            className={[
+              'min-h-28 rounded-xl border-2 p-3 text-left transition active:scale-95',
+              world.enabled
+                ? 'border-emerald-400 bg-emerald-500/20 hover:brightness-125'
+                : 'border-[var(--c-border)] bg-[var(--c-panel)] opacity-85',
+            ].join(' ')}
+          >
+            <span className="flex items-center justify-between gap-2">
+              <span className="text-2xl">{world.icon}</span>
+              <span
+                className={[
+                  'rounded-full px-2 py-0.5 text-[10px] font-black',
+                  world.enabled
+                    ? 'bg-emerald-300 text-emerald-950'
+                    : 'bg-amber-300 text-amber-950',
+                ].join(' ')}
+              >
+                {world.status}
+              </span>
+            </span>
+            <span className="mt-1 block text-sm font-black">{world.name}</span>
+            <span className="mt-0.5 block text-[11px] leading-snug text-[var(--c-soft)]">
+              {world.detail}
+            </span>
+          </button>
+        ))}
+      </div>
+    </section>
   )
 }
 

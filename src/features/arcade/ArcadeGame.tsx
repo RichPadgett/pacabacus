@@ -32,7 +32,7 @@ const KEY_DIRS: Record<string, Dir> = {
 function useTileSize(cols: number, rows: number) {
   const calc = () => {
     const isLandscape = window.innerWidth > window.innerHeight
-    const boardWidth = isLandscape ? window.innerWidth * 0.56 - 28 : window.innerWidth - 40
+    const boardWidth = isLandscape ? window.innerWidth * 0.62 - 28 : window.innerWidth - 40
     const widthFit = Math.floor(boardWidth / cols)
     const reservedHeight = isLandscape ? 126 : 300
     const heightFit = Math.floor((window.innerHeight - reservedHeight) / rows)
@@ -342,7 +342,7 @@ export function ArcadeGame({ mode, onExit }: { mode: PlayMode; onExit: () => voi
           />
         </div>
 
-        <div className="flex w-full max-w-[30rem] shrink-0 flex-col items-center gap-2 landscape:w-[24rem]">
+        <div className="flex w-full max-w-[30rem] shrink-0 flex-col items-center gap-2 landscape:w-[22rem]">
           {canSteer ? (
             <div className="flex w-full flex-col items-center rounded-2xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] p-3">
               <SteeringControls

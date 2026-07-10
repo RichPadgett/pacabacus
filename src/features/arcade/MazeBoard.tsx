@@ -82,15 +82,23 @@ export function MazeBoard({
           style={wall ? wallTexture(themeId, r, c) : floorTexture(themeId, r, c)}
         >
           {hasDoor && (
-            <span
-              className="absolute inset-0 z-[1] flex items-center justify-center leading-none"
+            <div
+              className="door-burst absolute inset-0 z-[1] flex items-center justify-center"
               style={{
-                fontSize: tile * 0.72,
-                filter: 'drop-shadow(0 0 7px rgba(253,224,71,0.9))',
-              }}
+                '--door-glow':
+                  themeId === 'ocean'
+                    ? '#7dd3fc'
+                    : themeId === 'forest'
+                      ? '#86efac'
+                      : '#fde047',
+              } as CSSProperties}
+              aria-label="Open doorway"
             >
-              🚪
-            </span>
+              <span className="door-burst__light" style={{ width: tile * 0.82, height: tile * 0.82 }} />
+              <span className="door-burst__left" style={{ width: tile * 0.28, height: tile * 0.72 }} />
+              <span className="door-burst__right" style={{ width: tile * 0.28, height: tile * 0.72 }} />
+              <span className="door-burst__spark" style={{ fontSize: tile * 0.42 }}>✦</span>
+            </div>
           )}
           {!wall && treasure === 'gold-coin' && (
             <span

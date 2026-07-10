@@ -343,6 +343,8 @@ export function generateDelta(opts: DeltaOptions): DeltaStep {
 
 export function beadHint(p: ArcadeProblem, techniqueHints = true): string {
   const sym = p.op === 'add' ? '+' : '−'
+  const friendOfFive = 5 - p.b
+  const friendOfTen = 10 - p.b
   if (p.kind === 'count') {
     return `Count them one by one — slide one blue bead up for each ${p.emoji ?? 'one'}!${p.answer > 5 ? ' The gold bead counts as 5!' : ''}`
   }
@@ -361,13 +363,13 @@ export function beadHint(p: ArcadeProblem, techniqueHints = true): string {
 
   if (p.technique === 'five') {
     return p.op === 'add'
-      ? `Not enough ones beads? Use the 5 bead! Push 5 down, then take away ${5 - p.b}.`
-      : `Not enough ones beads? Lift the 5 bead up, then give back ${5 - p.b}.`
+      ? `${friendOfFive} is ${p.b}'s 5's friend. Push 5 down, then take away ${friendOfFive}.`
+      : `${friendOfFive} is ${p.b}'s 5's friend. Lift the 5 bead up, then give back ${friendOfFive}.`
   }
   if (p.technique === 'ten') {
     return p.op === 'add'
-      ? `Make 10! Add 10 on the tens rod, then take away ${10 - p.b}.`
-      : `Break a 10! Take 10 away, then add back ${10 - p.b}.`
+      ? `${friendOfTen} is ${p.b}'s 10's friend. Add 10, then take away ${friendOfTen}.`
+      : `${friendOfTen} is ${p.b}'s 10's friend. Take away 10, then add back ${friendOfTen}.`
   }
   if (p.technique === 'direct') {
     return p.op === 'add'
