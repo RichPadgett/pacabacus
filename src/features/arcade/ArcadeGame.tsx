@@ -3,21 +3,21 @@ import { Abacus } from '@/components/Abacus'
 import { chiptune } from '@/features/audio/chiptune'
 import {
   movesForProblem,
-  problemText,
   type ArcadeProblem,
 } from '@/features/drills/problemGenerator'
 import { useProfile, type CompleteResult } from '@/features/profile/profileStore'
 import {
   ADD_ON_MAX,
   ADVENTURE_MAX,
-  COUNTING_MAX,
-  adventureCfg,
-  countingCfg,
   freePlayCfg,
-  pacMathCfg,
-  pacTablesCfg,
-  pacWordsCfg,
+  learningWorldCfg,
 } from './gameConfig'
+import {
+  DEFAULT_WORLD_LEVELS,
+  LEARNING_WORLDS,
+  chapterForLevel,
+  type LearningWorldId,
+} from '@/features/learning/learningWorlds'
 import type { Dir } from './maze'
 import { MazeBoard } from './MazeBoard'
 import { HEROES, type HeroId } from './sprites'
@@ -42,11 +42,12 @@ const KEY_DIRS: Record<string, Dir> = {
 function useTileSize(cols: number, rows: number) {
   const calc = () => {
     const isLandscape = window.innerWidth > window.innerHeight
-    const boardWidth = isLandscape ? window.innerWidth * 0.62 - 28 : window.innerWidth - 40
+    const shortScreen = Math.min(window.innerWidth, window.innerHeight) < 430
+    const boardWidth = isLandscape ? window.innerWidth * 0.64 - 20 : window.innerWidth - 24
     const widthFit = Math.floor(boardWidth / cols)
-    const reservedHeight = isLandscape ? 126 : 300
+    const reservedHeight = isLandscape ? 92 : shortScreen ? 246 : 270
     const heightFit = Math.floor((window.innerHeight - reservedHeight) / rows)
-    return Math.max(20, Math.min(46, widthFit, heightFit))
+    return Math.max(18, Math.min(46, widthFit, heightFit))
   }
   const [tile, setTile] = useState(calc)
   useEffect(() => {
@@ -100,9 +101,9 @@ export function Twinkles() {
 /** big countable emoji groups for the littlest players */
 function VisualProblem({ problem }: { problem: ArcadeProblem }) {
   const group = (n: number) => (
-    <span className="inline-flex max-w-44 flex-wrap justify-center gap-1">
+    <span className="inline-flex max-w-36 flex-wrap justify-center gap-0.5 sm:max-w-44 sm:gap-1">
       {Array.from({ length: n }, (_, i) => (
-        <span key={i} className="text-2xl">
+        <span key={i} className="text-xl sm:text-2xl">
           {problem.emoji}
         </span>
       ))}
@@ -110,18 +111,44 @@ function VisualProblem({ problem }: { problem: ArcadeProblem }) {
   )
   if (problem.kind === 'count') {
     return (
-      <div className="my-2 flex flex-wrap items-center justify-center gap-2">
+      <div className="my-1 flex flex-wrap items-center justify-center gap-1 sm:my-2 sm:gap-2">
         {group(problem.a)}
-        <span className="text-3xl font-black text-amber-300">= ?</span>
+        <span className="text-2xl font-black text-amber-300 sm:text-3xl">= ?</span>
       </div>
     )
   }
   return (
-    <div className="my-2 flex flex-wrap items-center justify-center gap-2">
+    <div className="my-1 flex flex-wrap items-center justify-center gap-1 sm:my-2 sm:gap-2">
       {group(problem.a)}
-      <span className="text-3xl font-black text-amber-300">+</span>
+      <span className="text-2xl font-black text-amber-300 sm:text-3xl">+</span>
       {group(problem.b)}
-      <span className="text-3xl font-black text-amber-300">= ?</span>
+      <span className="text-2xl font-black text-amber-300 sm:text-3xl">= ?</span>
+    </div>
+  )
+}
+
+function opSymbol(op: ArcadeProblem['op']) {
+  return op === 'add' ? '+' : '−'
+}
+
+function VerticalProblem({ problem }: { problem: ArcadeProblem }) {
+  const rows = [{ op: '', value: problem.a }]
+  rows.push({ op: problem.kind === 'tables' ? '×' : opSymbol(problem.op), value: problem.b })
+  if (problem.c != null && problem.op2) rows.push({ op: opSymbol(problem.op2), value: problem.c })
+
+  return (
+    <div className="my-1 inline-grid min-w-24 grid-cols-[1.4rem_auto] items-end rounded-xl bg-black/20 px-4 py-2 font-black text-amber-300">
+      {rows.map((row, index) => (
+        <div key={`${row.op}-${row.value}-${index}`} className="contents">
+          <span className="text-right text-xl leading-none sm:text-2xl">{row.op}</span>
+          <span className="min-w-12 text-right text-3xl leading-none tabular-nums sm:text-4xl">
+            {row.value}
+          </span>
+        </div>
+      ))}
+      <div className="col-span-2 mt-1 border-t-4 border-amber-300 pt-1 text-right text-3xl leading-none sm:text-4xl">
+        ?
+      </div>
     </div>
   )
 }
@@ -129,62 +156,62 @@ function VisualProblem({ problem }: { problem: ArcadeProblem }) {
 function ProblemPrompt({ problem }: { problem: ArcadeProblem }) {
   if (problem.kind === 'word') {
     return (
-      <div className="my-1 rounded-xl bg-black/20 px-5 py-3 text-4xl font-black tracking-[0.18em] text-amber-300">
+      <div className="my-1 rounded-xl bg-black/20 px-4 py-2 text-3xl font-black tracking-[0.18em] text-amber-300 sm:px-5 sm:py-3 sm:text-4xl">
         {problem.prompt}
       </div>
     )
   }
-  if (problem.kind === 'tables') {
-    return (
-      <div className="my-1 text-4xl font-black text-amber-300">
-        {problem.prompt} = ?
-      </div>
-    )
-  }
+  if (problem.kind === 'tables') return <VerticalProblem problem={problem} />
   if (problem.kind === 'count' || (problem.emoji != null && problem.kind === 'equation')) {
     return <VisualProblem problem={problem} />
   }
-  return (
-    <div className="my-1 text-3xl font-black text-amber-300">
-      {problemText(problem)} = ?
-    </div>
-  )
+  return <VerticalProblem problem={problem} />
 }
 
-export function ArcadeGame({ mode, onExit }: { mode: PlayMode; onExit: () => void }) {
+export function ArcadeGame({
+  mode,
+  learningWorld,
+  onExit,
+}: {
+  mode: PlayMode
+  learningWorld?: LearningWorldId
+  onExit: () => void
+}) {
   const settings = useArcadeSettings()
   const profile = useProfile()
+  const activeWorld: LearningWorldId =
+    learningWorld ??
+    (['pacwords', 'pactables', 'pacmath'].includes(mode)
+      ? (mode as LearningWorldId)
+      : profile.learningWorld)
+  const isFreePlay = mode === 'free'
+  const worldLevels = { ...DEFAULT_WORLD_LEVELS, ...profile.worldLevels }
 
   const cfgFor = useMemo(() => {
-    if (mode === 'adventure') return (level: number) => adventureCfg(level, settings)
-    if (mode === 'counting') return countingCfg
-    if (mode === 'pacwords') return pacWordsCfg
-    if (mode === 'pactables') return pacTablesCfg
-    if (mode === 'pacmath') return pacMathCfg
+    if (!isFreePlay) {
+      return (level: number) => learningWorldCfg(activeWorld, level, profile.ageBand, settings)
+    }
     const snapshot = freePlayCfg(settings)
     return () => snapshot
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, settings])
+  }, [activeWorld, isFreePlay, profile.ageBand, settings])
 
-  const startLevel =
-    mode === 'adventure'
-      ? Math.min(profile.adventureLevel, ADVENTURE_MAX)
-      : mode === 'counting'
-        ? Math.min(profile.countingLevel, COUNTING_MAX)
-        : 1
+  const maxLevel = activeWorld === 'pacabacus' ? ADVENTURE_MAX : ADD_ON_MAX
+  const startLevel = isFreePlay ? 1 : Math.min(worldLevels[activeWorld], maxLevel)
 
   const stepMs = SPEED_MS[settings.speed]
   const { state, dispatch } = useArcadeGame(
     cfgFor,
     startLevel,
     stepMs,
-    mode !== 'counting' && settings.rockTimer,
-    mode === 'adventure',
-    ADVENTURE_MAX,
+    profile.ageBand !== 'little' && settings.rockTimer,
+    !isFreePlay,
+    maxLevel,
   )
   const tile = useTileSize(state.maze.cols, state.maze.rows)
-  const world = mode === 'adventure' ? worldForAdventureLevel(state.level) : null
-  const nextWorld = world && state.level < ADVENTURE_MAX ? worldForAdventureLevel(state.level + 1) : null
+  const world = !isFreePlay ? worldForAdventureLevel(state.level) : null
+  const chapter = !isFreePlay ? chapterForLevel(activeWorld, state.level) : null
+  const nextWorld = world && state.level < maxLevel ? worldForAdventureLevel(state.level + 1) : null
   const songIndex = world ? world.musicIndex + ((state.level - world.levelStart) % 2) : state.level - 1
   const theme = world ? THEMES[world.theme] : (THEMES[settings.theme] ?? THEMES.stars)
   const hero = HEROES[profile.character] ? profile.character : 'kitty'
@@ -192,19 +219,18 @@ export function ArcadeGame({ mode, onExit }: { mode: PlayMode; onExit: () => voi
   const buddy = buddies[0] ?? (profile.buddy && HEROES[profile.buddy] ? profile.buddy : null)
   const touched = useRef(false)
 
-  const maxLevel = mode === 'adventure' ? ADVENTURE_MAX : mode === 'counting' ? COUNTING_MAX : ADD_ON_MAX
   const [rewards, setRewards] = useState<CompleteResult | null>(null)
   const [powerBuddyId, setPowerBuddyId] = useState<HeroId | null>(null)
   const completedLevelRef = useRef(0)
 
   // record progress + unlocks the moment a level is cleared
   useEffect(() => {
-    if (!['levelClear', 'doorOpen'].includes(state.phase) || !['adventure', 'counting'].includes(mode)) return
+    if (!['levelClear', 'doorOpen'].includes(state.phase) || isFreePlay) return
     if (completedLevelRef.current === state.level) return
     completedLevelRef.current = state.level
-    setRewards(profile.completeLevel(mode as 'adventure' | 'counting', state.level, state.clearStars))
+    setRewards(profile.completeWorldLevel(activeWorld, state.level, state.clearStars))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.phase, state.level, mode])
+  }, [state.phase, state.level, isFreePlay, activeWorld])
 
   // hands-free: right beads auto-submit after a short settle
   useEffect(() => {
@@ -272,21 +298,12 @@ export function ArcadeGame({ mode, onExit }: { mode: PlayMode; onExit: () => voi
   const answerMode =
     problem.kind === 'word'
       ? 'word'
-      : mode === 'pacmath' || mode === 'pactables'
+      : activeWorld === 'pacmath' || activeWorld === 'pactables'
         ? 'keypad'
         : 'abacus'
-  const modeLabel =
-    mode === 'counting'
-      ? 'Little Counters'
-      : mode === 'adventure'
-        ? 'Adventure'
-        : mode === 'pacwords'
-          ? 'PacWords'
-          : mode === 'pactables'
-            ? 'PacTables'
-            : mode === 'pacmath'
-              ? 'PacMath'
-              : 'Free Play'
+  const modeLabel = isFreePlay
+    ? 'Free Play'
+    : LEARNING_WORLDS.find((learning) => learning.id === activeWorld)?.name ?? 'Adventure'
 
   const setAnswer = useCallback(
     (value: number) => {
@@ -306,7 +323,7 @@ export function ArcadeGame({ mode, onExit }: { mode: PlayMode; onExit: () => voi
         ? `Count the ${problem.emoji}s and make the beads match!`
         : `Solve it to earn ${payout} moves!`
       : phase === 'move'
-        ? `Steer! ${state.movesLeft} move${state.movesLeft === 1 ? '' : 's'} left — grab the fruit!`
+        ? `Steer! ${state.movesLeft} move${state.movesLeft === 1 ? '' : 's'} left — ${state.goalLabel}.`
         : phase === 'doorOpen'
           ? 'The door is open! Steer to the top door, then press up.'
           : phase === 'travel'
@@ -323,59 +340,67 @@ export function ArcadeGame({ mode, onExit }: { mode: PlayMode; onExit: () => voi
 
   return (
     <div
-      className="relative flex h-svh flex-col items-center gap-2 overflow-hidden bg-[radial-gradient(circle_at_50%_20%,var(--c-bg1),var(--c-bg2)_70%)] p-2 text-slate-50"
+      className="relative flex h-svh flex-col items-center gap-1.5 overflow-hidden bg-[radial-gradient(circle_at_50%_20%,var(--c-bg1),var(--c-bg2)_70%)] p-1.5 text-slate-50 sm:gap-2 sm:p-2"
       style={theme.vars as React.CSSProperties}
     >
       {theme.id === 'stars' && <Twinkles />}
 
       {/* HUD */}
-      <div className="flex flex-wrap items-stretch justify-center gap-2">
-        <Stat
-          label={modeLabel}
-          value={`Level ${state.level}`}
-        />
-        {world && (
-          <Stat
-            label="World"
-            value={`${world.emoji} ${world.name}`}
-          />
-        )}
-        <Stat
-          label="Stars"
-          value={`⭐ ${state.stars}${state.streak >= 2 ? ` 🔥${state.streak}` : ''}`}
-        />
-        <Stat label="Lives" value={'❤️'.repeat(state.lives) || '💔'} />
-        <Stat label="Fruit" value={String(treasuresLeft)} />
-        <div className="min-w-24 rounded-xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] px-3 py-1 text-center">
-          <div className="text-[11px] text-[var(--c-soft)]">Quick</div>
-          <div className="mt-1 h-2 overflow-hidden rounded-full bg-black/30">
-            <div
-              className="h-full rounded-full bg-amber-300 transition-all"
-              style={{ width: `${state.starReady ? 100 : state.quickMeter}%` }}
-            />
+      <div className="z-10 grid w-full grid-cols-[1fr_auto_auto] items-center gap-1 rounded-xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] px-2 py-1 shadow-lg shadow-black/20 sm:flex sm:w-auto sm:flex-wrap sm:justify-center sm:gap-2 sm:rounded-2xl sm:px-3">
+        <div className="min-w-0">
+          <div className="truncate text-xs font-black text-amber-200 sm:text-sm">
+            {modeLabel} · Level {state.level}
+          </div>
+          <div className="truncate text-[11px] font-bold text-[var(--c-soft)]">
+            {chapter ? `${chapter.emoji} ${chapter.name}` : world ? `${world.emoji} ${world.name}` : 'Practice room'}
           </div>
         </div>
-        <button
-          type="button"
-          onClick={() => settings.update({ music: !settings.music })}
-          className="rounded-xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] px-3 text-lg hover:brightness-125"
-        >
-          {settings.music ? '🔊' : '🔇'}
-        </button>
-        <button
-          type="button"
-          onClick={onExit}
-          className="rounded-xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] px-4 text-sm font-bold hover:brightness-125"
-        >
-          🏠 Home
-        </button>
+        <div className="flex items-center gap-1.5 text-xs font-black sm:text-sm">
+          <span>{'❤️'.repeat(state.lives) || '💔'}</span>
+          <span className="rounded-full bg-black/25 px-2 py-0.5 text-amber-200">
+            {Math.min(state.goalProgress, state.goalTarget)}/{state.goalTarget}
+          </span>
+          <span className="hidden sm:inline">⭐ {state.stars}</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <div className="hidden min-w-20 text-center sm:block">
+            <div className="text-[10px] text-[var(--c-soft)]">Quick</div>
+            <div className="mt-1 h-2 overflow-hidden rounded-full bg-black/30">
+              <div
+                className="h-full rounded-full bg-amber-300 transition-all"
+                style={{ width: `${state.starReady ? 100 : state.quickMeter}%` }}
+              />
+            </div>
+          </div>
+          <div className="h-8 w-2 overflow-hidden rounded-full bg-black/30 sm:hidden">
+            <div
+              className="w-full rounded-full bg-amber-300 transition-all"
+              style={{ height: `${state.starReady ? 100 : state.quickMeter}%`, marginTop: `${100 - (state.starReady ? 100 : state.quickMeter)}%` }}
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => settings.update({ music: !settings.music })}
+            className="h-8 w-8 rounded-lg border-2 border-[var(--c-border)] bg-black/20 text-base hover:brightness-125"
+            aria-label={settings.music ? 'Mute music' : 'Play music'}
+          >
+            {settings.music ? '🔊' : '🔇'}
+          </button>
+          <button
+            type="button"
+            onClick={onExit}
+            className="h-8 rounded-lg border-2 border-[var(--c-border)] bg-black/20 px-2 text-xs font-bold hover:brightness-125"
+          >
+            🏠
+          </button>
+        </div>
       </div>
 
-      <div className="max-w-[96vw] rounded-full border-2 border-emerald-400 bg-[var(--c-panel)] px-4 py-1 text-center text-sm font-bold text-emerald-300">
+      <div className="z-10 max-w-[98vw] rounded-full border border-emerald-400 bg-[var(--c-panel)] px-3 py-0.5 text-center text-xs font-bold text-emerald-300 sm:border-2 sm:px-4 sm:py-1 sm:text-sm">
         {goalText}
       </div>
 
-      <div className="flex min-h-0 w-full flex-1 flex-col items-center justify-center gap-2 landscape:flex-row landscape:items-center landscape:justify-center">
+      <div className="flex min-h-0 w-full flex-1 flex-col items-center justify-center gap-1.5 landscape:flex-row landscape:items-center landscape:justify-center landscape:gap-2">
         <div className="flex min-h-0 flex-1 items-center justify-center">
           <MazeBoard
             maze={state.maze}
@@ -402,130 +427,134 @@ export function ArcadeGame({ mode, onExit }: { mode: PlayMode; onExit: () => voi
           />
         </div>
 
-        <div className="flex w-full max-w-[30rem] shrink-0 flex-col items-center gap-2 landscape:w-[22rem]">
-          {canSteer ? (
-            <div className="flex w-full flex-col items-center rounded-2xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] p-3">
+        <div className="z-10 flex w-full max-w-[29rem] shrink-0 flex-col items-center gap-1.5 landscape:w-[23rem]">
+          <div className="flex w-full flex-col items-center rounded-2xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] p-2 shadow-lg shadow-black/20 sm:p-3 landscape:flex-row landscape:justify-center landscape:gap-2">
+            {canSteer ? (
               <SteeringControls
                 embedded
                 canMove
                 onMove={(dir) => dispatch({ type: 'MOVE', dir })}
                 onStay={() => dispatch({ type: 'END_MOVE' })}
               />
-            </div>
-          ) : (
-            <>
-              <div
-                className={[
-                  'flex w-full flex-col items-center rounded-2xl border-2 p-2',
-                  isChallenge
-                    ? 'border-amber-400 bg-amber-950/50'
-                    : 'border-[var(--c-border)] bg-[var(--c-panel)]',
-                ].join(' ')}
-              >
-                <h3 className="text-xs font-bold tracking-wide text-[var(--c-soft)]">
-                  {isChallenge
-                    ? '⚡ CHALLENGE — ONE TRY! ⚡'
-                    : problem.kind === 'count'
-                      ? 'HOW MANY?'
-                      : problem.kind === 'word'
-                        ? 'MISSING LETTER'
-                        : 'SOLVE ME!'}
-                </h3>
-                <ProblemPrompt problem={problem} />
-                <div className="mb-1 rounded-full border border-emerald-500 bg-emerald-500/15 px-3 py-0.5 text-xs font-bold text-emerald-300">
-                  worth +{payout} moves
-                </div>
-                <p className="min-h-8 max-w-64 text-center text-xs text-[var(--c-soft)]">
-                  {state.hint}
-                </p>
-                <div className="mt-2 flex gap-3">
-                  <button
-                    type="button"
-                    onClick={() => dispatch({ type: 'SET_ANSWER', value: 0 })}
-                    disabled={phase !== 'answer'}
-                    className="rounded-xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] px-4 py-2 font-bold brightness-110 disabled:opacity-40"
-                  >
-                    Clear
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => dispatch({ type: 'SUBMIT' })}
-                    disabled={phase !== 'answer'}
-                    className="rounded-xl border-4 border-emerald-600 bg-emerald-400 px-8 py-2 text-xl font-black text-emerald-950 disabled:opacity-40"
-                  >
-                    Go! ▶
-                  </button>
-                </div>
-                {state.cfg.allowChallenge && !isChallenge && (
-                  <button
-                    type="button"
-                    onClick={() => dispatch({ type: 'CHALLENGE' })}
-                    disabled={phase !== 'answer'}
-                    className="mt-3 rounded-xl border-2 border-amber-500 bg-amber-500/20 px-4 py-1.5 text-sm font-bold text-amber-300 hover:bg-amber-500/30 disabled:opacity-40"
-                  >
-                    ⚡ Hard one for 10 moves!
-                  </button>
-                )}
-                {state.starReady && state.powerTicksLeft === 0 && buddies.length > 0 && (
-                  <div className="mt-3 flex max-w-64 flex-wrap justify-center gap-2 rounded-xl border border-amber-300 bg-amber-500/15 p-2">
-                    <div className="w-full text-center text-xs font-black text-amber-200">
-                      ⭐ Buddy power ready!
-                    </div>
-                    {buddies.map((id) => (
-                      <button
-                        key={id}
-                        type="button"
-                        onClick={() => {
-                          setPowerBuddyId(id)
-                          dispatch({ type: 'START_POWER' })
-                        }}
-                        className="rounded-lg border border-amber-200 bg-amber-300 px-2 py-1 text-xs font-black text-amber-950"
-                      >
-                        {HEROES[id].name}
-                      </button>
-                    ))}
+            ) : (
+              <>
+                <div
+                  className={[
+                    'flex w-full flex-col items-center rounded-xl border p-1.5 sm:p-2 landscape:w-[12rem] landscape:shrink-0',
+                    isChallenge
+                      ? 'border-amber-400 bg-amber-950/50'
+                      : 'border-white/10 bg-black/10',
+                  ].join(' ')}
+                >
+                  <h3 className="text-[11px] font-bold tracking-wide text-[var(--c-soft)] sm:text-xs">
+                    {isChallenge
+                      ? '⚡ CHALLENGE — ONE TRY! ⚡'
+                      : problem.kind === 'count'
+                        ? 'HOW MANY?'
+                        : problem.kind === 'word'
+                          ? 'MISSING LETTER'
+                          : 'SOLVE ME!'}
+                  </h3>
+                  <ProblemPrompt problem={problem} />
+                  <div className="mb-0.5 rounded-full border border-emerald-500 bg-emerald-500/15 px-2.5 py-0 text-[10px] font-bold text-emerald-300 sm:text-xs">
+                    worth +{payout} moves
                   </div>
-                )}
-              </div>
-
-              <div className="flex w-full flex-col items-center rounded-2xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] p-2">
-                {answerMode === 'word' ? (
-                  <WordChoices
-                    choices={problem.choices ?? []}
-                    selected={state.answerText}
-                    disabled={phase !== 'answer'}
-                    onPick={(value) => {
-                      dispatch({ type: 'SET_TEXT_ANSWER', value })
-                      dispatch({ type: 'SUBMIT' })
-                    }}
-                  />
-                ) : answerMode === 'keypad' ? (
-                  <NumberPad
-                    value={state.answerValue}
-                    disabled={phase !== 'answer'}
-                    onChange={setAnswer}
-                    onSubmit={() => dispatch({ type: 'SUBMIT' })}
-                  />
-                ) : (
-                  <>
-                    <h3 className="mb-2 text-xs font-bold tracking-wide text-[var(--c-soft)]">
-                      YOUR ABACUS — TAP OR FLICK THE BEADS
-                    </h3>
-                    <Abacus
-                      rodCount={state.cfg.rodCount}
-                      value={state.answerValue}
-                      onChange={setAnswer}
-                      readOnly={phase !== 'answer'}
-                      showLabels={state.cfg.rodCount > 1}
+                  <p className="min-h-4 max-w-64 text-center text-[10px] text-[var(--c-soft)] sm:min-h-6 sm:text-xs">
+                    {state.hint}
+                  </p>
+                  <div className="mt-0.5 grid w-full max-w-64 grid-cols-[0.9fr_1.35fr_auto] items-center gap-1.5 landscape:max-w-44 landscape:grid-cols-[0.75fr_1fr]">
+                    <button
+                      type="button"
+                      onClick={() => dispatch({ type: 'SET_ANSWER', value: 0 })}
+                      disabled={phase !== 'answer'}
+                      className="rounded-lg border-2 border-[var(--c-border)] bg-[var(--c-panel)] px-2 py-1.5 text-xs font-bold brightness-110 disabled:opacity-40"
+                    >
+                      Clear
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => dispatch({ type: 'SUBMIT' })}
+                      disabled={phase !== 'answer'}
+                      className="rounded-lg border-2 border-emerald-600 bg-emerald-400 px-3 py-1.5 text-sm font-black text-emerald-950 disabled:opacity-40"
+                    >
+                      Go ▶
+                    </button>
+                    <MiniSteer
+                      canMove={false}
+                      onMove={(dir) => dispatch({ type: 'MOVE', dir })}
                     />
-                    <div className="mt-2 text-lg">
-                      Your beads say: <b className="text-2xl text-amber-300">{state.answerValue}</b>
+                  </div>
+                  {state.cfg.allowChallenge && !isChallenge && (
+                    <button
+                      type="button"
+                      onClick={() => dispatch({ type: 'CHALLENGE' })}
+                      disabled={phase !== 'answer'}
+                      className="mt-1 rounded-lg border border-amber-500 bg-amber-500/20 px-2.5 py-0.5 text-[10px] font-bold text-amber-300 hover:bg-amber-500/30 disabled:opacity-40 sm:text-xs"
+                    >
+                      ⚡ 10-move challenge
+                    </button>
+                  )}
+                  {state.starReady && state.powerTicksLeft === 0 && buddies.length > 0 && (
+                    <div className="mt-2 flex max-w-64 flex-wrap justify-center gap-2 rounded-xl border border-amber-300 bg-amber-500/15 p-2">
+                      <div className="w-full text-center text-xs font-black text-amber-200">
+                        ⭐ Buddy power ready!
+                      </div>
+                      {buddies.map((id) => (
+                        <button
+                          key={id}
+                          type="button"
+                          onClick={() => {
+                            setPowerBuddyId(id)
+                            dispatch({ type: 'START_POWER' })
+                          }}
+                          className="rounded-lg border border-amber-200 bg-amber-300 px-2 py-1 text-xs font-black text-amber-950"
+                        >
+                          {HEROES[id].name}
+                        </button>
+                      ))}
                     </div>
-                  </>
-                )}
-              </div>
-            </>
-          )}
+                  )}
+                </div>
+
+                <div className="flex w-full flex-col items-center p-0.5 landscape:w-auto landscape:shrink-0">
+                  {answerMode === 'word' ? (
+                    <WordChoices
+                      choices={problem.choices ?? []}
+                      selected={state.answerText}
+                      disabled={phase !== 'answer'}
+                      onPick={(value) => {
+                        dispatch({ type: 'SET_TEXT_ANSWER', value })
+                        dispatch({ type: 'SUBMIT' })
+                      }}
+                    />
+                  ) : answerMode === 'keypad' ? (
+                    <NumberPad
+                      value={state.answerValue}
+                      disabled={phase !== 'answer'}
+                      onChange={setAnswer}
+                      onSubmit={() => dispatch({ type: 'SUBMIT' })}
+                    />
+                  ) : (
+                    <>
+                      <h3 className="mb-1 text-[11px] font-bold tracking-wide text-[var(--c-soft)] sm:mb-2 sm:text-xs">
+                        YOUR ABACUS
+                      </h3>
+                      <Abacus
+                        rodCount={state.cfg.rodCount}
+                        value={state.answerValue}
+                        onChange={setAnswer}
+                        readOnly={phase !== 'answer'}
+                        showLabels={state.cfg.rodCount > 1}
+                      />
+                      <div className="mt-1 text-sm sm:mt-2 sm:text-lg">
+                        Beads: <b className="text-xl text-amber-300 sm:text-2xl">{state.answerValue}</b>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
@@ -549,7 +578,7 @@ export function ArcadeGame({ mode, onExit }: { mode: PlayMode; onExit: () => voi
         <Overlay title="🎉 Level cleared! 🎉">
           <Confetti />
           <p className="text-2xl">{'⭐'.repeat(state.clearStars)}</p>
-          <p className="text-lg">You cleared the whole board!</p>
+          <p className="text-lg">Goal complete: {state.goalLabel}!</p>
           {world && nextWorld && state.level < maxLevel && (
             <p className="font-bold text-emerald-300">
               {world.doorText} Next stop: {nextWorld.emoji} {nextWorld.name}
@@ -573,7 +602,7 @@ export function ArcadeGame({ mode, onExit }: { mode: PlayMode; onExit: () => voi
           {state.level >= maxLevel ? (
             <>
               <p className="text-lg font-bold text-emerald-300">
-                You finished the whole {mode === 'counting' ? 'Little Counters journey' : 'adventure'}! 🏆
+                You finished the whole {modeLabel} journey! 🏆
               </p>
               <OverlayButton onClick={onExit}>Back home 🏠</OverlayButton>
             </>
@@ -603,15 +632,6 @@ export function ArcadeGame({ mode, onExit }: { mode: PlayMode; onExit: () => voi
           </div>
         </Overlay>
       )}
-    </div>
-  )
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="min-w-20 rounded-xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] px-4 py-1 text-center">
-      <div className="text-[11px] text-[var(--c-soft)]">{label}</div>
-      <div className="text-lg font-bold">{value}</div>
     </div>
   )
 }
@@ -712,6 +732,47 @@ function WordChoices({
 }
 
 const DIR_ARROWS: Record<Dir, string> = { up: '⬆️', down: '⬇️', left: '⬅️', right: '➡️' }
+
+function MiniSteer({
+  canMove,
+  onMove,
+}: {
+  canMove: boolean
+  onMove: (dir: Dir) => void
+}) {
+  return (
+    <div className="grid grid-cols-3 grid-rows-2 gap-0.5 opacity-80 landscape:hidden">
+      <span />
+      <MiniDirButton dir="up" canMove={canMove} onMove={onMove} />
+      <span />
+      <MiniDirButton dir="left" canMove={canMove} onMove={onMove} />
+      <MiniDirButton dir="down" canMove={canMove} onMove={onMove} />
+      <MiniDirButton dir="right" canMove={canMove} onMove={onMove} />
+    </div>
+  )
+}
+
+function MiniDirButton({
+  dir,
+  canMove,
+  onMove,
+}: {
+  dir: Dir
+  canMove: boolean
+  onMove: (dir: Dir) => void
+}) {
+  return (
+    <button
+      type="button"
+      disabled={!canMove}
+      onClick={() => onMove(dir)}
+      className="h-6 w-6 rounded-md border border-[var(--c-border)] bg-black/25 text-[11px] disabled:opacity-35"
+      aria-label={`Move ${dir}`}
+    >
+      {DIR_ARROWS[dir]}
+    </button>
+  )
+}
 
 function SteeringControls({
   className,

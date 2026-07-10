@@ -1,4 +1,5 @@
 import type { ProblemCfg } from '@/features/drills/problemGenerator'
+import type { AgeBand, LearningWorldId } from '@/features/learning/learningWorlds'
 import { GHOST_CONFIG, type ArcadeSettings } from './settingsStore'
 
 export interface EnemyCfg {
@@ -11,6 +12,10 @@ export interface EnemyCfg {
   spawnChance: number
 }
 
+export type LevelGoal =
+  | { kind: 'collectAll'; label: string }
+  | { kind: 'collectFruit'; target: number; label: string }
+
 export interface LevelCfg {
   problem: ProblemCfg
   rodCount: number
@@ -22,6 +27,28 @@ export interface LevelCfg {
   /** shown once when the level starts */
   intro?: string
   allowChallenge: boolean
+  goal?: LevelGoal
+}
+
+function goalForLevel(level: number, treasureCount: number, ageBand: AgeBand): LevelGoal {
+  const gentleTarget = Math.max(8, Math.ceil(treasureCount * 0.55))
+  const sprintTarget = Math.max(10, Math.ceil(treasureCount * 0.5))
+  const trailTarget = Math.max(12, Math.ceil(treasureCount * 0.7))
+
+  if (ageBand === 'little' && level % 3 !== 0) {
+    return { kind: 'collectFruit', target: gentleTarget, label: `Collect ${gentleTarget} fruit` }
+  }
+  if (level % 5 === 2) {
+    return { kind: 'collectFruit', target: sprintTarget, label: `Snack sprint: collect ${sprintTarget}` }
+  }
+  if (level % 5 === 4) {
+    return { kind: 'collectFruit', target: trailTarget, label: `Treasure trail: collect ${trailTarget}` }
+  }
+  return { kind: 'collectAll', label: 'Rescue every fruit' }
+}
+
+function withGoal(cfg: LevelCfg, level: number, ageBand: AgeBand): LevelCfg {
+  return { ...cfg, goal: goalForLevel(level, cfg.treasureCount, ageBand) }
 }
 
 /** Main 50-level adventure: eases in, then grows through real soroban skills. */
@@ -129,11 +156,17 @@ function addOnEnemy(level: number): EnemyCfg {
 }
 
 export function pacWordsCfg(level: number): LevelCfg {
+  return pacWordsCfgForAge(level, 'early')
+}
+
+export function pacWordsCfgForAge(level: number, ageBand: AgeBand): LevelCfg {
+  const adjustedLevel =
+    ageBand === 'little' ? Math.max(1, level - 2) : ageBand === 'big' ? level + 2 : level
   return {
-    problem: { kind: 'words', level },
+    problem: { kind: 'words', level: adjustedLevel },
     rodCount: 1,
-    enemy: addOnEnemy(level),
-    treasureCount: Math.min(30, 16 + Math.ceil(level / 2)),
+    enemy: addOnEnemy(ageBand === 'little' ? Math.max(1, level - 4) : level),
+    treasureCount: Math.min(30, 16 + Math.ceil(adjustedLevel / 2)),
     gentle: true,
     allowChallenge: false,
     intro: level === 1 ? 'Find the missing letter, then collect the fruit! 🔤' : undefined,
@@ -141,31 +174,75 @@ export function pacWordsCfg(level: number): LevelCfg {
 }
 
 export function pacTablesCfg(level: number): LevelCfg {
+  return pacTablesCfgForAge(level, 'early')
+}
+
+export function pacTablesCfgForAge(level: number, ageBand: AgeBand): LevelCfg {
+  const maxFactor =
+    ageBand === 'little'
+      ? Math.min(5, 1 + Math.ceil(level / 3))
+      : ageBand === 'early'
+        ? Math.min(10, 2 + Math.ceil(level / 3))
+        : Math.min(12, 2 + Math.ceil(level / 2))
   return {
-    problem: { kind: 'tables', maxFactor: Math.min(12, 2 + Math.ceil(level / 2)) },
+    problem: { kind: 'tables', maxFactor },
     rodCount: 2,
-    enemy: addOnEnemy(level),
+    enemy: addOnEnemy(ageBand === 'little' ? Math.max(1, level - 5) : level),
     treasureCount: Math.min(32, 18 + Math.ceil(level / 2)),
-    gentle: false,
+    gentle: ageBand === 'little',
     allowChallenge: false,
     intro: level === 1 ? 'Practice times tables to earn moves! ✖️' : undefined,
   }
 }
 
 export function pacMathCfg(level: number): LevelCfg {
+  return pacMathCfgForAge(level, 'early')
+}
+
+export function pacMathCfgForAge(level: number, ageBand: AgeBand): LevelCfg {
+  const maxAnswer =
+    ageBand === 'little'
+      ? level <= 10 ? 10 : 20
+      : level <= 6
+        ? 10
+        : level <= 14
+          ? 20
+          : 50
   return {
     problem: {
       kind: 'standard',
-      maxAnswer: level <= 6 ? 10 : level <= 14 ? 20 : 50,
-      ops: level <= 8 ? 'add' : 'mixed',
+      maxAnswer,
+      ops: ageBand === 'little' || level <= 8 ? 'add' : 'mixed',
     },
     rodCount: 2,
-    enemy: addOnEnemy(level),
+    enemy: addOnEnemy(ageBand === 'little' ? Math.max(1, level - 4) : level),
     treasureCount: Math.min(34, 18 + Math.ceil(level / 2)),
-    gentle: false,
+    gentle: ageBand === 'little',
     allowChallenge: false,
     intro: level === 1 ? 'Regular math mode: type the answer to earn moves! ➕' : undefined,
   }
+}
+
+export function learningWorldCfg(
+  world: LearningWorldId,
+  level: number,
+  ageBand: AgeBand,
+  settings?: ArcadeSettings,
+): LevelCfg {
+  if (world === 'pacwords') return withGoal(pacWordsCfgForAge(level, ageBand), level, ageBand)
+  if (world === 'pactables') return withGoal(pacTablesCfgForAge(level, ageBand), level, ageBand)
+  if (world === 'pacmath') return withGoal(pacMathCfgForAge(level, ageBand), level, ageBand)
+  if (ageBand === 'little') {
+    return withGoal(countingCfg(Math.min(level, COUNTING_MAX)), level, ageBand)
+  }
+  return withGoal(
+    adventureCfg(
+      ageBand === 'early' ? level : ageBand === 'growing' ? level + 2 : level + 5,
+      settings,
+    ),
+    level,
+    ageBand,
+  )
 }
 
 /** Free-play maze uses whatever the setup screen says. */
@@ -184,5 +261,6 @@ export function freePlayCfg(s: ArcadeSettings): LevelCfg {
     treasureCount: 30,
     gentle: false,
     allowChallenge: true,
+    goal: { kind: 'collectAll', label: 'Collect freely' },
   }
 }

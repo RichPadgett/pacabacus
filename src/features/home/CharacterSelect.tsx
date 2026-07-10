@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Twinkles } from '@/features/arcade/ArcadeGame'
 import { useArcadeSettings } from '@/features/arcade/settingsStore'
 import { BUDDY_ORDER, HEROES, PixelSprite } from '@/features/arcade/sprites'
@@ -12,140 +13,197 @@ export function CharacterSelect({ onBack }: { onBack: () => void }) {
   const profile = useProfile()
   const settings = useArcadeSettings()
   const theme = THEMES[settings.theme] ?? THEMES.stars
+  const [page, setPage] = useState(0)
   const ownedBuddies = new Set(profile.ownedBuddies)
   const activeBuddies = new Set(profile.buddies)
   const playable = playableCharacters(profile.ownedCharacters)
+  const buddyPages = chunk(BUDDY_ORDER, 6)
+  const pages = ['Player', ...buddyPages.map((_, index) => `Buddies ${index + 1}`)]
+  const nextPage = () => setPage((current) => Math.min(pages.length - 1, current + 1))
+  const prevPage = () => setPage((current) => Math.max(0, current - 1))
 
   return (
     <div
-      className="relative flex min-h-svh flex-col items-center gap-5 overflow-hidden bg-[radial-gradient(circle_at_50%_20%,var(--c-bg1),var(--c-bg2)_70%)] p-6 text-slate-50"
+      className="paged-shell relative flex h-svh flex-col items-center gap-2 overflow-hidden bg-[radial-gradient(circle_at_50%_20%,var(--c-bg1),var(--c-bg2)_70%)] p-3 text-slate-50 sm:gap-4 sm:p-6"
       style={theme.vars as React.CSSProperties}
     >
       {theme.id === 'stars' && <Twinkles />}
-      <h1 className="text-3xl font-black text-amber-300">Choose your team! 🎭</h1>
-      <p className="text-sm text-[var(--c-soft)]">
-        Pick your player, buy baby buddies, then choose up to three to follow you.
-      </p>
-      <div className="rounded-full border-2 border-amber-400 bg-amber-500/15 px-5 py-2 text-lg font-black text-amber-200">
-        <GoldCoin /> {profile.treasureCoins} treasure coins
+      <div className="paged-header">
+        <h1 className="text-2xl font-black text-amber-300 sm:text-3xl">Choose your team! 🎭</h1>
+        <div className="rounded-full border-2 border-amber-400 bg-amber-500/15 px-4 py-1 text-sm font-black text-amber-200 sm:text-lg">
+          <GoldCoin /> {profile.treasureCoins}
+        </div>
       </div>
 
-      <section className="w-full max-w-2xl rounded-2xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] p-4">
-        <h2 className="mb-3 text-center text-sm font-bold tracking-wide text-[var(--c-soft)]">
-          PLAYER
-        </h2>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {playable.map((id) => {
-            const hero = HEROES[id]
-            const isCurrent = profile.character === id
-            return (
+      <main className="paged-main">
+        {page === 0 ? (
+          <section className="paged-card">
+            <h2 className="paged-title">PLAYER</h2>
+            <div className="paged-grid paged-grid--characters">
+              {playable.map((id) => {
+                const hero = HEROES[id]
+                const isCurrent = profile.character === id
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => profile.setCharacter(id)}
+                    className={[
+                      'paged-pick-card',
+                      isCurrent
+                        ? 'border-emerald-400 bg-emerald-500/20'
+                        : 'border-[var(--c-border)] bg-black/20 hover:brightness-125',
+                    ].join(' ')}
+                  >
+                    <PixelSprite map={hero.frames[0]} palette={hero.palette} size={58} />
+                    <span className="font-bold">{hero.name}</span>
+                    <span className="text-[10px] text-[var(--c-soft)] sm:text-xs">
+                      {isCurrent ? '✓ Playing!' : 'Tap to pick'}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          </section>
+        ) : (
+          <section className="paged-card">
+            <h2 className="paged-title">BABY BUDDIES ({profile.buddies.length}/3)</h2>
+            <div className="mb-2 flex justify-center">
               <button
-                key={id}
                 type="button"
-                onClick={() => profile.setCharacter(id)}
+                onClick={() => profile.setBuddy(null)}
                 className={[
-                  'flex flex-col items-center gap-2 rounded-2xl border-2 p-4 transition',
-                  isCurrent
+                  'rounded-xl border-2 px-4 py-1.5 text-sm font-bold',
+                  profile.buddy == null
                     ? 'border-emerald-400 bg-emerald-500/20'
                     : 'border-[var(--c-border)] bg-black/20 hover:brightness-125',
                 ].join(' ')}
               >
-                <PixelSprite map={hero.frames[0]} palette={hero.palette} size={64} />
-                <span className="font-bold">{hero.name}</span>
-                <span className="text-xs text-[var(--c-soft)]">
-                  {isCurrent ? '✓ Playing!' : 'Tap to pick'}
-                </span>
+                No buddies
               </button>
-            )
-          })}
-        </div>
-      </section>
+            </div>
+            <div className="paged-grid paged-grid--buddies">
+              {buddyPages[page - 1].map((id) => {
+                const hero = HEROES[id]
+                const cost = buddyCost(id)
+                const isOwned = ownedBuddies.has(id)
+                const canBuy = profile.treasureCoins >= cost
+                const isCurrent = activeBuddies.has(id)
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    disabled={!isOwned && !canBuy}
+                    onClick={() => {
+                      if (isOwned) profile.toggleBuddy(id)
+                      else profile.buyBuddy(id)
+                    }}
+                    className={[
+                      'paged-pick-card',
+                      isCurrent
+                        ? 'border-emerald-400 bg-emerald-500/20'
+                        : isOwned
+                          ? 'border-[var(--c-border)] bg-[var(--c-panel)] hover:brightness-125'
+                          : canBuy
+                            ? 'border-amber-400 bg-amber-500/15 hover:brightness-125'
+                            : 'border-[var(--c-border)] bg-black/30 opacity-70',
+                    ].join(' ')}
+                  >
+                    <PixelSprite
+                      map={hero.frames[0]}
+                      palette={hero.palette}
+                      size={54}
+                      style={isOwned ? undefined : { filter: 'grayscale(1) brightness(0.45)' }}
+                    />
+                    <span className="font-bold">{hero.name}</span>
+                    <span className="text-[10px] text-[var(--c-soft)] sm:text-xs">
+                      {isCurrent
+                        ? '✓ Following!'
+                        : isOwned
+                          ? profile.buddies.length >= 3
+                            ? 'Tap to swap'
+                            : 'Tap to follow'
+                          : canBuy
+                            ? (
+                                <>
+                                  Buy {cost} <GoldCoin small />
+                                </>
+                              )
+                            : (
+                                <>
+                                  {cost} <GoldCoin small />
+                                </>
+                              )}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          </section>
+        )}
+      </main>
 
-      <section className="w-full max-w-2xl rounded-2xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] p-4">
-        <h2 className="mb-3 text-center text-sm font-bold tracking-wide text-[var(--c-soft)]">
-          BABY BUDDIES ({profile.buddies.length}/3)
-        </h2>
-        <div className="mb-3 flex justify-center">
+      <Pager
+        page={page}
+        pages={pages}
+        onBack={onBack}
+        onPrev={prevPage}
+        onNext={nextPage}
+        onPage={setPage}
+      />
+    </div>
+  )
+}
+
+function chunk<T>(items: T[], size: number) {
+  const pages: T[][] = []
+  for (let i = 0; i < items.length; i += size) pages.push(items.slice(i, i + size))
+  return pages
+}
+
+function Pager({
+  page,
+  pages,
+  onBack,
+  onPrev,
+  onNext,
+  onPage,
+}: {
+  page: number
+  pages: string[]
+  onBack: () => void
+  onPrev: () => void
+  onNext: () => void
+  onPage: (page: number) => void
+}) {
+  return (
+    <footer className="paged-footer">
+      <button type="button" onClick={onBack} className="paged-nav-button">
+        🏠
+      </button>
+      <button type="button" onClick={onPrev} disabled={page === 0} className="paged-nav-button">
+        ◀
+      </button>
+      <div className="paged-dots" aria-label={`${pages[page]} page`}>
+        {pages.map((label, index) => (
           <button
+            key={label}
             type="button"
-            onClick={() => profile.setBuddy(null)}
-            className={[
-              'rounded-2xl border-2 px-5 py-3 font-bold',
-              profile.buddy == null
-                ? 'border-emerald-400 bg-emerald-500/20'
-                : 'border-[var(--c-border)] bg-black/20 hover:brightness-125',
-            ].join(' ')}
-          >
-            No buddies
-          </button>
-        </div>
-        <div className="grid max-w-2xl grid-cols-2 gap-3 sm:grid-cols-3">
-          {BUDDY_ORDER.map((id) => {
-            const hero = HEROES[id]
-            const cost = buddyCost(id)
-            const isOwned = ownedBuddies.has(id)
-            const canBuy = profile.treasureCoins >= cost
-            const isCurrent = activeBuddies.has(id)
-            return (
-              <button
-                key={id}
-                type="button"
-                disabled={!isOwned && !canBuy}
-                onClick={() => {
-                  if (isOwned) profile.toggleBuddy(id)
-                  else profile.buyBuddy(id)
-                }}
-                className={[
-                  'flex flex-col items-center gap-2 rounded-2xl border-2 p-4 transition',
-                  isCurrent
-                    ? 'border-emerald-400 bg-emerald-500/20'
-                    : isOwned
-                      ? 'border-[var(--c-border)] bg-[var(--c-panel)] hover:brightness-125'
-                      : canBuy
-                        ? 'border-amber-400 bg-amber-500/15 hover:brightness-125'
-                        : 'border-[var(--c-border)] bg-black/30 opacity-70',
-                ].join(' ')}
-              >
-                <PixelSprite
-                  map={hero.frames[0]}
-                  palette={hero.palette}
-                  size={64}
-                  style={isOwned ? undefined : { filter: 'grayscale(1) brightness(0.45)' }}
-                />
-                <span className="font-bold">{hero.name}</span>
-                <span className="text-xs text-[var(--c-soft)]">
-                  {isCurrent
-                    ? '✓ Following!'
-                    : isOwned
-                      ? profile.buddies.length >= 3
-                        ? 'Tap to swap'
-                        : 'Tap to follow'
-                      : canBuy
-                        ? (
-                            <>
-                              Buy for {cost} <GoldCoin small />
-                            </>
-                          )
-                        : (
-                            <>
-                              {cost} <GoldCoin small />
-                            </>
-                          )}
-                </span>
-              </button>
-            )
-          })}
-        </div>
-      </section>
-
+            onClick={() => onPage(index)}
+            aria-label={label}
+            className={index === page ? 'paged-dot paged-dot--active' : 'paged-dot'}
+          />
+        ))}
+      </div>
       <button
         type="button"
-        onClick={onBack}
-        className="rounded-2xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] px-8 py-3 font-bold hover:brightness-125"
+        onClick={onNext}
+        disabled={page === pages.length - 1}
+        className="paged-nav-button"
       >
-        🏠 Back home
+        ▶
       </button>
-    </div>
+    </footer>
   )
 }
 

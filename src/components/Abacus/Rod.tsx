@@ -13,11 +13,11 @@ export function Rod({ rod, onChange, readOnly, label }: RodProps) {
   const inactiveEarthCount = 4 - rod.earthUp
 
   return (
-    <div className="relative flex w-20 flex-col items-center">
-      <div className="absolute top-0 bottom-5 w-1 rounded bg-indigo-400/70" />
+    <div className="abacus-rod relative flex w-20 flex-col items-center">
+      <div className="abacus-rod-line absolute top-0 bottom-5 w-1 rounded bg-indigo-400/70" />
 
       {/* heaven deck: 1 bead, worth 5, active = pushed down toward beam */}
-      <div className="flex h-24 w-full flex-col items-center pt-1 pb-1">
+      <div className="abacus-heaven flex h-24 w-full flex-col items-center pt-1 pb-1">
         {rod.heavenDown && <div className="flex-1" />}
         <Bead
           tone="heaven"
@@ -29,10 +29,10 @@ export function Rod({ rod, onChange, readOnly, label }: RodProps) {
         {!rod.heavenDown && <div className="flex-1" />}
       </div>
 
-      <div className="z-10 h-1.5 w-full rounded bg-indigo-400" />
+      <div className="abacus-beam z-10 h-1.5 w-full rounded bg-indigo-400" />
 
       {/* earth deck: 4 beads, worth 1 each, active = pushed up toward beam */}
-      <div className="flex h-44 w-full flex-col items-center gap-1.5 pt-1.5">
+      <div className="abacus-earth flex h-44 w-full flex-col items-center gap-1.5 pt-1.5">
         {Array.from({ length: activeEarthCount }).map((_, i) => (
           <Bead
             key={`active-${i}`}
@@ -60,7 +60,7 @@ export function Rod({ rod, onChange, readOnly, label }: RodProps) {
         ))}
       </div>
 
-      {label && <div className="h-5 text-xs text-indigo-300">{label}</div>}
+      {label && <div className="abacus-label h-5 text-xs text-indigo-300">{label}</div>}
     </div>
   )
 }

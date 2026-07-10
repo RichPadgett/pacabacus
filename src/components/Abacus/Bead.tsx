@@ -54,7 +54,7 @@ export function Bead({ active, onClick, onSwipe, readOnly, tone }: BeadProps) {
       }}
       aria-pressed={active}
       className={[
-        'h-7 w-16 shrink-0 touch-none rounded-full border-b-4 transition-colors',
+        'abacus-bead h-7 w-16 shrink-0 touch-none rounded-full border-b-4 transition-colors',
         toneClasses,
         readOnly ? 'cursor-default' : 'cursor-pointer hover:brightness-110 active:scale-95',
       ].join(' ')}

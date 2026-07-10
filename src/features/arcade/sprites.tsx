@@ -63,6 +63,11 @@ export type HeroId =
   | 'crab'
   | 'seal'
   | 'dragon'
+  | 'meerkat'
+  | 'otter'
+  | 'beaver'
+  | 'dolphin'
+  | 'shark'
   | 'koala'
   | 'bunny'
   | 'robo'
@@ -864,6 +869,151 @@ const BUNNY_B = [
   '............',
 ]
 
+const MEERKAT_A = [
+  '...MM..MM...',
+  '..MMMMMMMM..',
+  '.MMFFFFFFFF.',
+  '.MMFBFFBFMM.',
+  '.MMFFFFFFFF.',
+  '..MMNNNNMM..',
+  '..MMMMMMMM..',
+  '...MMMMMM...',
+  '...MM..MM...',
+  '..MMM..MMM..',
+  '..MM....MM..',
+  '............',
+]
+const MEERKAT_B = [
+  '...MM..MM...',
+  '..MMMMMMMM..',
+  '.MMFFFFFFFF.',
+  '.MMFBFFBFMM.',
+  '.MMFFFFFFFF.',
+  '..MMNNNNMM..',
+  '..MMMMMMMM..',
+  '...MMMMMM...',
+  '..MM....MM..',
+  '..MMM..MMM..',
+  '...MM..MM...',
+  '............',
+]
+
+const OTTER_A = [
+  '..OO....OO..',
+  '.OOOOOOOOOO.',
+  '.OOFOOOOFOO.',
+  '.OOFBFFBFOO.',
+  '.OOFFFFFFOO.',
+  '..OOONNOOO..',
+  '..OOOOOOOO..',
+  '...OOOOWW...',
+  '..OOOOWWWW..',
+  '.OOOOOOWWW..',
+  '..OO....OO..',
+  '............',
+]
+const OTTER_B = [
+  '..OO....OO..',
+  '.OOOOOOOOOO.',
+  '.OOFOOOOFOO.',
+  '.OOFBFFBFOO.',
+  '.OOFFFFFFOO.',
+  '..OOONNOOO..',
+  '..OOOOOOOO..',
+  '..OOOOWWWW..',
+  '.OOOOOOWWW..',
+  '..OOOOWW....',
+  '...OO..OO...',
+  '............',
+]
+
+const BEAVER_A = [
+  '..BB....BB..',
+  '.BBBBBBBBBB.',
+  '.BBFBBBBFBB.',
+  '.BBFBFFBFBB.',
+  '.BBBFFFFBBB.',
+  '..BBTTTTBB..',
+  '..BBTTTTBB..',
+  '...BBBBBB...',
+  '..BBRRRRBB..',
+  '..BRRRRRRB..',
+  '...BB..BB...',
+  '............',
+]
+const BEAVER_B = [
+  '..BB....BB..',
+  '.BBBBBBBBBB.',
+  '.BBFBBBBFBB.',
+  '.BBFBFFBFBB.',
+  '.BBBFFFFBBB.',
+  '..BBTTTTBB..',
+  '..BBTTTTBB..',
+  '...BBBBBB...',
+  '.BBRRRRRRBB.',
+  '..BRRRRRRB..',
+  '..BB....BB..',
+  '............',
+]
+
+const DOLPHIN_A = [
+  '............',
+  '....DDDD....',
+  '..DDDDDDDD..',
+  '.DDDDDDDDDD.',
+  'DDDDWDDDDDDD',
+  'DDDBDDDDDDDF',
+  '.DDDDDDDDDF.',
+  '..DDDDDDDF..',
+  '...DDDDDF...',
+  '....D..D....',
+  '...D....D...',
+  '............',
+]
+const DOLPHIN_B = [
+  '............',
+  '...DDDD.....',
+  '.DDDDDDDD...',
+  'DDDDDDDDDD..',
+  'DDDDWDDDDDD.',
+  'DDDBDDDDDDF.',
+  '.DDDDDDDDDF.',
+  '..DDDDDDDF..',
+  '...DDDDDF...',
+  '...D....D...',
+  '....D..D....',
+  '............',
+]
+
+const SHARK_A = [
+  '............',
+  '....SSSS....',
+  '..SSSSSSSS..',
+  '.SSSSSSSSSS.',
+  'SSSSWSSSSSSS',
+  'SSSBSSSSSSSF',
+  'SSSSSSSSSSFF',
+  '.SSSTTTTSSF.',
+  '..SSSSSSSF..',
+  '...SSSSSF...',
+  '....S..S....',
+  '............',
+]
+const SHARK_B = [
+  '............',
+  '...SSSS.....',
+  '.SSSSSSSS...',
+  'SSSSSSSSSS..',
+  'SSSSWSSSSSS.',
+  'SSSBSSSSSSF.',
+  'SSSSSSSSSFF.',
+  '.SSSTTTTSSF.',
+  '..SSSSSSSF..',
+  '...SSSSSF...',
+  '...S....S...',
+  '............',
+]
+
 export const HEROES: Record<HeroId, HeroDef> = {
   kitty: {
     id: 'kitty',
@@ -1041,6 +1191,46 @@ export const HEROES: Record<HeroId, HeroDef> = {
     palette: { G: '#22c55e', B: '#123a16', R: '#fb7185' },
     rotates: false,
   },
+  meerkat: {
+    id: 'meerkat',
+    name: 'Meerkat',
+    unlockLevel: 34,
+    frames: [MEERKAT_A, MEERKAT_B],
+    palette: { M: '#c7904a', F: '#f4c28b', B: '#3a2410', N: '#7a4a22' },
+    rotates: false,
+  },
+  otter: {
+    id: 'otter',
+    name: 'Otter',
+    unlockLevel: 35,
+    frames: [OTTER_A, OTTER_B],
+    palette: { O: '#8b5a2b', F: '#f4c28b', B: '#2a1508', N: '#1f1208', W: '#dff6ff' },
+    rotates: false,
+  },
+  beaver: {
+    id: 'beaver',
+    name: 'Beaver',
+    unlockLevel: 37,
+    frames: [BEAVER_A, BEAVER_B],
+    palette: { B: '#7a4a22', F: '#d9a066', T: '#fff1c7', R: '#a16207' },
+    rotates: false,
+  },
+  dolphin: {
+    id: 'dolphin',
+    name: 'Dolphin',
+    unlockLevel: 39,
+    frames: [DOLPHIN_A, DOLPHIN_B],
+    palette: { D: '#60a5fa', W: '#e0f2fe', B: '#0f172a', F: '#3b82f6' },
+    rotates: false,
+  },
+  shark: {
+    id: 'shark',
+    name: 'Shark',
+    unlockLevel: 42,
+    frames: [SHARK_A, SHARK_B],
+    palette: { S: '#64748b', W: '#e2e8f0', B: '#0f172a', F: '#475569', T: '#ffffff' },
+    rotates: false,
+  },
   koala: {
     id: 'koala',
     name: 'Koala',
@@ -1106,9 +1296,14 @@ export const CHARACTER_ORDER: HeroId[] = [
   'lion',
   'strawbat',
   'dragon',
+  'meerkat',
+  'otter',
   'robo',
+  'beaver',
   'koala',
+  'dolphin',
   'elephant',
+  'shark',
   'chomper',
   'bunny',
 ]
@@ -1135,8 +1330,13 @@ export const BUDDY_COSTS: Partial<Record<HeroId, number>> = {
   seal: 115,
   robo: 120,
   dragon: 130,
+  meerkat: 135,
+  otter: 138,
   elephant: 140,
+  beaver: 145,
+  dolphin: 148,
   koala: 150,
+  shark: 155,
   chomper: 160,
   bunny: 170,
 }

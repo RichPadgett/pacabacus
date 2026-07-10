@@ -90,6 +90,9 @@ export interface GameState {
   answerText: string
   message: GameMessage | null
   answerStartedAt: number
+  goalProgress: number
+  goalTarget: number
+  goalLabel: string
   quickMeter: number
   starReady: boolean
   powerBuddy: Pos | null
@@ -164,6 +167,23 @@ function spawnTreasures(maze: MazeDef, cfg: LevelCfg) {
     }
   }
   return { treasures, jailFruits }
+}
+
+function goalStateFor(cfg: LevelCfg, treasures: Map<string, string>) {
+  const total = collectibleTreasureCount(treasures)
+  if (cfg.goal?.kind === 'collectFruit') {
+    const target = Math.min(cfg.goal.target, total)
+    return {
+      goalProgress: 0,
+      goalTarget: target,
+      goalLabel: cfg.goal.label.replace(String(cfg.goal.target), String(target)),
+    }
+  }
+  return {
+    goalProgress: 0,
+    goalTarget: total,
+    goalLabel: cfg.goal?.label ?? 'Rescue every fruit',
+  }
 }
 
 function hasCollectibleTreasure(treasures: Map<string, string>, pos: Pos) {
@@ -367,6 +387,9 @@ function makeReducer(
       powerTicksLeft: 0,
       exitDoor: null,
       travelExitDoor: TRAVEL_EXIT_DOOR,
+      goalProgress: 0,
+      goalTarget: 1,
+      goalLabel: 'Reach the next door',
       phase: 'travel',
       message: say(state, 'Find the next door! Watch the path baddies. 🚪', 'good'),
     }
@@ -385,6 +408,7 @@ function makeReducer(
     const cfg = cfgFor(level)
     const maze = mazeForLevel(level)
     const { treasures, jailFruits } = spawnTreasures(maze, cfg)
+    const goal = goalStateFor(cfg, treasures)
     return {
       ...state,
       level,
@@ -403,9 +427,32 @@ function makeReducer(
       powerTicksLeft: 0,
       exitDoor: null,
       travelExitDoor: null,
+      ...goal,
       ...freshProblem(cfg),
       message: cfg.intro ? say(state, cfg.intro, 'good') : state.message,
     }
+  }
+
+  const goalComplete = (
+    state: GameState,
+    treasures: Map<string, string>,
+    goalProgress: number,
+  ) => {
+    if (state.cfg.goal?.kind === 'collectFruit') return goalProgress >= state.goalTarget
+    return collectibleTreasureCount(treasures) === 0
+  }
+
+  const clearLevelState = (state: GameState, message?: string): GameState => {
+    if (travelEnabled && state.level < travelMaxLevel) {
+      return {
+        ...state,
+        phase: 'doorOpen',
+        exitDoor: exitDoorForMaze(state.maze),
+        clearStars: Math.max(1, state.lives),
+        message: say(state, message ?? 'The exit door opened! Head to the top door. 🚪', 'good'),
+      }
+    }
+    return { ...state, phase: 'levelClear', clearStars: Math.max(1, state.lives) }
   }
 
   return function reducer(state: GameState, action: Action): GameState {
@@ -560,7 +607,9 @@ function makeReducer(
         const key = posKey(target)
         const treasure = state.treasures.get(key)
         const treasures = new Map(state.treasures)
-        if (treasure && treasure !== ROCK_EMOJI) treasures.delete(key)
+        const collectedFruit = treasure != null && treasure !== ROCK_EMOJI
+        if (collectedFruit) treasures.delete(key)
+        const goalProgress = collectedFruit ? state.goalProgress + 1 : state.goalProgress
         let moved: GameState = {
           ...state,
           pac: target,
@@ -568,6 +617,7 @@ function makeReducer(
           buddyTrail: [state.pac, ...state.buddyTrail].slice(0, 3),
           facing: action.dir,
           treasures,
+          goalProgress,
           movesLeft: state.movesLeft - 1,
         }
         if (state.jailFruits.has(key) && state.ghosts.length) {
@@ -586,17 +636,13 @@ function makeReducer(
         if (state.jailTurns === 0 && state.ghosts.some((g) => samePos(g, target))) {
           return caughtState(moved)
         }
-        if (collectibleTreasureCount(treasures) === 0) {
-          if (travelEnabled && state.level < travelMaxLevel) {
-            return {
-              ...moved,
-              phase: 'doorOpen',
-              exitDoor: exitDoorForMaze(state.maze),
-              clearStars: Math.max(1, moved.lives),
-              message: say(state, 'The exit door opened! Head to the top door. 🚪', 'good'),
-            }
-          }
-          return { ...moved, phase: 'levelClear', clearStars: Math.max(1, moved.lives) }
+        if (goalComplete(moved, treasures, goalProgress)) {
+          return clearLevelState(
+            moved,
+            state.cfg.goal?.kind === 'collectFruit'
+              ? 'Goal reached! The exit door opened! 🚪'
+              : undefined,
+          )
         }
         if (moved.movesLeft <= 0) {
           return enterGhostPhase(moved, state.cfg.enemy.correctSteps, 'next')
@@ -648,12 +694,15 @@ function makeReducer(
         const key = posKey(next)
         const treasure = state.treasures.get(key)
         const treasures = new Map(state.treasures)
-        if (treasure && treasure !== ROCK_EMOJI) treasures.delete(key)
-        const done = state.powerTicksLeft <= 1 || collectibleTreasureCount(treasures) === 0
-        const cleared = done && collectibleTreasureCount(treasures) === 0
+        const collectedFruit = treasure != null && treasure !== ROCK_EMOJI
+        if (collectedFruit) treasures.delete(key)
+        const goalProgress = collectedFruit ? state.goalProgress + 1 : state.goalProgress
+        const cleared = goalComplete(state, treasures, goalProgress)
+        const done = cleared || state.powerTicksLeft <= 1 || collectibleTreasureCount(treasures) === 0
         return {
           ...state,
           treasures,
+          goalProgress,
           powerBuddy: done ? null : next,
           powerTicksLeft: done ? 0 : state.powerTicksLeft - 1,
           phase: cleared
@@ -668,7 +717,7 @@ function makeReducer(
           clearStars: cleared ? Math.max(1, state.lives) : state.clearStars,
           message:
             cleared && travelEnabled && state.level < travelMaxLevel
-              ? say(state, 'The exit door opened! Head to the top door. 🚪', 'good')
+              ? say(state, 'Goal reached! The exit door opened! 🚪', 'good')
               : state.message,
         }
       }
@@ -773,6 +822,7 @@ function makeInitialState(cfgFor: (level: number) => LevelCfg, startLevel: numbe
   const cfg = cfgFor(startLevel)
   const maze = mazeForLevel(startLevel)
   const { treasures, jailFruits } = spawnTreasures(maze, cfg)
+  const goal = goalStateFor(cfg, treasures)
   return {
     level: startLevel,
     cfg,
@@ -801,6 +851,7 @@ function makeInitialState(cfgFor: (level: number) => LevelCfg, startLevel: numbe
     answerText: '',
     message: cfg.intro ? { text: cfg.intro, tone: 'good', id: 1 } : null,
     answerStartedAt: Date.now(),
+    ...goal,
     quickMeter: 0,
     starReady: false,
     powerBuddy: null,

@@ -5,15 +5,20 @@ import { HEROES, PixelSprite, STARTER_HERO_IDS, type HeroId } from '@/features/a
 import { THEMES } from '@/features/arcade/themes'
 import {
   earnedBadges,
-  totalCompleted,
+  totalWorldCompleted,
   useProfile,
 } from '@/features/profile/profileStore'
-import { ADVENTURE_MAX, COUNTING_MAX } from '@/features/arcade/gameConfig'
+import { ADD_ON_MAX, ADVENTURE_MAX } from '@/features/arcade/gameConfig'
+import {
+  AGE_BAND_LABELS,
+  LEARNING_WORLDS,
+  ageFromDateOfBirth,
+  type AgeBand,
+  type LearningWorldId,
+} from '@/features/learning/learningWorlds'
 
 interface HomeScreenProps {
   onAdventure: () => void
-  onCounting: () => void
-  onLearningWorld: (world: LearningWorldId) => void
   onCharacters: () => void
   onRewards: () => void
   onFreePlay: () => void
@@ -21,8 +26,6 @@ interface HomeScreenProps {
 
 export function HomeScreen({
   onAdventure,
-  onCounting,
-  onLearningWorld,
   onCharacters,
   onRewards,
   onFreePlay,
@@ -31,23 +34,34 @@ export function HomeScreen({
   const settings = useArcadeSettings()
   const theme = THEMES[settings.theme] ?? THEMES.stars
   const [nameInput, setNameInput] = useState('')
+  const [dateOfBirthInput, setDateOfBirthInput] = useState('')
   const [starterHero, setStarterHero] = useState<HeroId>(STARTER_HERO_IDS[0])
   const [showProfiles, setShowProfiles] = useState(false)
   const [showTools, setShowTools] = useState(false)
 
   const heroDef = HEROES[profile.character] ?? HEROES.kitty
   const buddyNames = profile.buddies.map((id) => HEROES[id]?.name).filter(Boolean)
-  const total = totalCompleted(profile)
+  const total = totalWorldCompleted(profile)
   const badges = earnedBadges(total)
+  const activeWorld = LEARNING_WORLDS.find((world) => world.id === profile.learningWorld) ?? LEARNING_WORLDS[0]
+  const worldLevel = profile.worldLevels?.[profile.learningWorld] ?? 1
+  const maxWorldLevel = profile.learningWorld === 'pacabacus' ? ADVENTURE_MAX : ADD_ON_MAX
+  const age = ageFromDateOfBirth(profile.dateOfBirth)
+  const adventureStatus =
+    worldLevel > maxWorldLevel
+      ? `Replay ${maxWorldLevel}`
+      : worldLevel > 1
+        ? `Level ${Math.min(worldLevel, maxWorldLevel)}`
+        : 'Level 1'
 
   return (
     <div
-      className="relative flex min-h-svh flex-col items-center gap-6 overflow-x-hidden overflow-y-auto bg-[radial-gradient(circle_at_50%_20%,var(--c-bg1),var(--c-bg2)_70%)] p-6 py-8 text-slate-50"
+      className="home-shell relative flex h-svh flex-col items-center gap-6 overflow-hidden bg-[radial-gradient(circle_at_50%_20%,var(--c-bg1),var(--c-bg2)_70%)] p-6 py-8 text-slate-50"
       style={theme.vars as React.CSSProperties}
     >
       {theme.id === 'stars' && <Twinkles />}
 
-      <header className="text-center">
+      <header className="home-header text-center">
         <h1 className="text-5xl font-black tracking-wide text-amber-300 [text-shadow:0_3px_0_#7a5a00]">
           PacAbacus
         </h1>
@@ -60,11 +74,13 @@ export function HomeScreen({
           setNameInput={setNameInput}
           starterHero={starterHero}
           setStarterHero={setStarterHero}
-          onCreate={() => profile.createProfile(nameInput.trim(), starterHero)}
+          dateOfBirth={dateOfBirthInput}
+          setDateOfBirth={setDateOfBirthInput}
+          onCreate={() => profile.createProfile(nameInput.trim(), starterHero, dateOfBirthInput || null)}
         />
       ) : (
-        <>
-          <div className="flex w-full max-w-md flex-wrap items-center gap-3 rounded-2xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] px-5 py-3">
+        <div className="home-menu-grid flex w-full flex-col items-center gap-6">
+          <div className="home-profile flex w-full max-w-md flex-wrap items-center gap-3 rounded-2xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] px-5 py-3">
             <PixelSprite map={heroDef.frames[0]} palette={heroDef.palette} size={48} />
             <div className="min-w-0 flex-1">
               <div className="text-xl font-black">Hi, {profile.username}! 👋</div>
@@ -72,6 +88,8 @@ export function HomeScreen({
                 {heroDef.name}
                 {buddyNames.length ? ` + ${buddyNames.length} babies` : ''} · {total} levels done ·{' '}
                 {badges.length} badges · {profile.treasureCoins} gold
+                {' · '}
+                {age != null ? `${age} years old` : AGE_BAND_LABELS[profile.ageBand]}
               </div>
             </div>
             <button
@@ -90,7 +108,10 @@ export function HomeScreen({
             </button>
           </div>
 
-          <LearningWorlds onPick={onLearningWorld} />
+          <LearningWorlds
+            current={profile.learningWorld}
+            onPick={profile.setLearningWorld}
+          />
 
           {showProfiles && (
             <div className="flex w-full max-w-md flex-col gap-3 rounded-2xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] p-4">
@@ -123,7 +144,7 @@ export function HomeScreen({
                         <span>
                           <span className="block font-black">{p.username}</span>
                           <span className="block text-xs text-[var(--c-soft)]">
-                            {pHero.name} · {totalCompleted(p)} levels
+                            {pHero.name} · {totalWorldCompleted(p)} levels
                           </span>
                         </span>
                       </button>
@@ -147,24 +168,33 @@ export function HomeScreen({
                 setNameInput={setNameInput}
                 starterHero={starterHero}
                 setStarterHero={setStarterHero}
+                dateOfBirth={dateOfBirthInput}
+                setDateOfBirth={setDateOfBirthInput}
                 onCreate={() => {
-                  profile.createProfile(nameInput.trim(), starterHero)
+                  profile.createProfile(nameInput.trim(), starterHero, dateOfBirthInput || null)
                   setNameInput('')
+                  setDateOfBirthInput('')
                   setShowProfiles(false)
                 }}
               />
             </div>
           )}
 
-          <div className="flex w-full max-w-md flex-col gap-3">
+          <div className="home-actions flex w-full max-w-md flex-col gap-3">
+            <AgeTrainerPanel
+              dateOfBirth={profile.dateOfBirth}
+              ageBand={profile.ageBand}
+              activeWorld={profile.learningWorld}
+              onDateOfBirth={profile.setDateOfBirth}
+              onAgeBand={profile.setAgeBand}
+              onTrainer={() => profile.runTrainer(profile.learningWorld)}
+            />
             <MenuButton onClick={onAdventure} big>
-              🗺️ Adventure —{' '}
-              {profile.adventureLevel > ADVENTURE_MAX
-                ? 'All done! Replay level 50'
-                : profile.adventureLevel > 1
-                  ? `Continue Level ${Math.min(profile.adventureLevel, ADVENTURE_MAX)}`
-                  : 'Start Level 1'}{' '}
-              ▶
+              <span className="home-adventure-label">
+                <span>🗺️ {activeWorld.name}</span>
+                <span className="home-adventure-status">{adventureStatus}</span>
+                <span>▶</span>
+              </span>
             </MenuButton>
             <button
               type="button"
@@ -173,13 +203,6 @@ export function HomeScreen({
             >
               🪨 Rock timer: {settings.rockTimer ? 'On' : 'Off'}
             </button>
-            <MenuButton onClick={onCounting} big>
-              🐣 Little Counters —{' '}
-              {profile.countingLevel > COUNTING_MAX
-                ? 'All done! Replay level 20'
-                : `Level ${Math.min(profile.countingLevel, COUNTING_MAX)}`}{' '}
-              ▶
-            </MenuButton>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <MenuButton onClick={onCharacters}>🎭 Team</MenuButton>
               <MenuButton onClick={onRewards}>🏆 Rewards</MenuButton>
@@ -227,101 +250,122 @@ export function HomeScreen({
               </div>
             )}
           </div>
-        </>
+        </div>
       )}
     </div>
   )
 }
 
-type LearningWorldId = 'pacwords' | 'pactables' | 'pacmath'
-
-const ADD_ON_WORLDS: Array<{
-  id: 'pacabacus' | LearningWorldId
-  name: string
-  icon: string
-  status: string
-  detail: string
-  enabled: boolean
-}> = [
-  {
-    id: 'pacabacus',
-    name: 'PacAbacus',
-    icon: '🧮',
-    status: 'Active',
-    detail: 'Soroban and counting adventure',
-    enabled: true,
-  },
-  {
-    id: 'pacwords',
-    name: 'PacWords',
-    icon: '🔤',
-    status: 'Play',
-    detail: 'Letters, spelling, and sight words',
-    enabled: true,
-  },
-  {
-    id: 'pactables',
-    name: 'PacTables',
-    icon: '✖️',
-    status: 'Play',
-    detail: 'Times tables and skip counting',
-    enabled: true,
-  },
-  {
-    id: 'pacmath',
-    name: 'PacMath',
-    icon: '➕',
-    status: 'Play',
-    detail: 'Standard math without abacus controls',
-    enabled: true,
-  },
-]
-
-function LearningWorlds({ onPick }: { onPick: (world: LearningWorldId) => void }) {
+function LearningWorlds({
+  current,
+  onPick,
+}: {
+  current: LearningWorldId
+  onPick: (world: LearningWorldId) => void
+}) {
   return (
-    <section className="w-full max-w-md rounded-2xl border-2 border-[var(--c-border)] bg-black/20 p-3">
-      <div className="mb-2 flex items-center justify-between gap-3">
+    <section className="home-worlds w-full max-w-md rounded-2xl border-2 border-[var(--c-border)] bg-black/20 p-3">
+      <div className="home-worlds__header mb-2 flex items-center justify-between gap-3">
         <h2 className="text-sm font-black tracking-wide text-amber-200">LEARNING WORLDS</h2>
         <span className="rounded-full border border-amber-300 bg-amber-500/15 px-2 py-0.5 text-[11px] font-black text-amber-100">
-          Family add-ons
+          Choose a world
         </span>
       </div>
-      <div className="grid grid-cols-2 gap-2">
-        {ADD_ON_WORLDS.map((world) => (
+      <div className="home-worlds__grid grid grid-cols-2 gap-2">
+        {LEARNING_WORLDS.map((world) => {
+          const selected = current === world.id
+          return (
+            <button
+              key={world.id}
+              type="button"
+              onClick={() => onPick(world.id)}
+              className={[
+                'home-world-card min-h-28 rounded-xl border-2 p-3 text-left transition active:scale-95',
+                selected
+                  ? 'border-emerald-400 bg-emerald-500/20 hover:brightness-125'
+                  : 'border-[var(--c-border)] bg-[var(--c-panel)] hover:brightness-125',
+              ].join(' ')}
+            >
+              <span className="flex items-center justify-between gap-2">
+                <span className="text-2xl">{world.icon}</span>
+                <span
+                  className={[
+                    'rounded-full px-2 py-0.5 text-[10px] font-black',
+                    selected
+                      ? 'bg-emerald-300 text-emerald-950'
+                      : 'bg-amber-300 text-amber-950',
+                  ].join(' ')}
+                >
+                  {selected ? 'Active' : 'Pick'}
+                </span>
+              </span>
+              <span className="mt-1 block text-sm font-black">{world.name}</span>
+              <span className="mt-0.5 block text-[11px] leading-snug text-[var(--c-soft)]">
+                {world.detail}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
+
+function AgeTrainerPanel({
+  dateOfBirth,
+  ageBand,
+  activeWorld,
+  onDateOfBirth,
+  onAgeBand,
+  onTrainer,
+}: {
+  dateOfBirth: string | null
+  ageBand: AgeBand
+  activeWorld: LearningWorldId
+  onDateOfBirth: (dateOfBirth: string | null) => void
+  onAgeBand: (ageBand: AgeBand) => void
+  onTrainer: () => void
+}) {
+  const active = LEARNING_WORLDS.find((world) => world.id === activeWorld) ?? LEARNING_WORLDS[0]
+  return (
+    <section className="home-age-panel rounded-2xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] p-4">
+      <div className="home-age-panel__header mb-3 flex items-center justify-between gap-3">
+        <h2 className="text-sm font-black tracking-wide text-amber-200">PLAYER FIT</h2>
+        <span className="text-xs font-bold text-[var(--c-soft)]">{AGE_BAND_LABELS[ageBand]}</span>
+      </div>
+      <label className="home-age-panel__birthday block text-xs font-bold tracking-wide text-[var(--c-soft)]">
+        Birthday
+        <input
+          type="date"
+          value={dateOfBirth ?? ''}
+          onChange={(e) => onDateOfBirth(e.target.value || null)}
+          className="mt-1 w-full rounded-xl border-2 border-[var(--c-border)] bg-black/25 px-3 py-2 text-slate-50 outline-none focus:border-emerald-400"
+        />
+      </label>
+      <div className="home-age-panel__bands mt-3 grid grid-cols-2 gap-2">
+        {(Object.keys(AGE_BAND_LABELS) as AgeBand[]).map((band) => (
           <button
-            key={world.id}
+            key={band}
             type="button"
-            disabled={world.id === 'pacabacus'}
-            onClick={() => {
-              if (world.id !== 'pacabacus') onPick(world.id)
-            }}
+            onClick={() => onAgeBand(band)}
             className={[
-              'min-h-28 rounded-xl border-2 p-3 text-left transition active:scale-95',
-              world.id === 'pacabacus'
-                ? 'border-emerald-400 bg-emerald-500/20 hover:brightness-125'
-                : 'border-[var(--c-border)] bg-[var(--c-panel)] hover:brightness-125',
+              'rounded-xl border-2 px-3 py-2 text-xs font-black',
+              ageBand === band
+                ? 'border-emerald-300 bg-emerald-500/20 text-emerald-100'
+                : 'border-[var(--c-border)] bg-black/20 text-[var(--c-soft)] hover:brightness-125',
             ].join(' ')}
           >
-            <span className="flex items-center justify-between gap-2">
-              <span className="text-2xl">{world.icon}</span>
-              <span
-                className={[
-                  'rounded-full px-2 py-0.5 text-[10px] font-black',
-                  world.id === 'pacabacus'
-                    ? 'bg-emerald-300 text-emerald-950'
-                    : 'bg-amber-300 text-amber-950',
-                ].join(' ')}
-              >
-                {world.status}
-              </span>
-            </span>
-            <span className="mt-1 block text-sm font-black">{world.name}</span>
-            <span className="mt-0.5 block text-[11px] leading-snug text-[var(--c-soft)]">
-              {world.detail}
-            </span>
+            {AGE_BAND_LABELS[band]}
           </button>
         ))}
       </div>
+      <button
+        type="button"
+        onClick={onTrainer}
+        className="home-age-panel__trainer mt-3 w-full rounded-xl border-2 border-amber-300 bg-amber-500/15 px-4 py-2 text-sm font-black text-amber-100 hover:bg-amber-500/25"
+      >
+        Trainer tune-up for {active.name}
+      </button>
     </section>
   )
 }
@@ -332,6 +376,8 @@ function SignupCard({
   setNameInput,
   starterHero,
   setStarterHero,
+  dateOfBirth,
+  setDateOfBirth,
   onCreate,
 }: {
   compact?: boolean
@@ -339,6 +385,8 @@ function SignupCard({
   setNameInput: (name: string) => void
   starterHero: HeroId
   setStarterHero: (id: HeroId) => void
+  dateOfBirth: string
+  setDateOfBirth: (dateOfBirth: string) => void
   onCreate: () => void
 }) {
   return (
@@ -355,6 +403,12 @@ function SignupCard({
         maxLength={20}
         placeholder="Type your name..."
         className="w-full rounded-xl border-2 border-[var(--c-border)] bg-black/30 px-4 py-3 text-center text-xl font-bold text-slate-50 outline-none focus:border-emerald-400"
+      />
+      <input
+        type="date"
+        value={dateOfBirth}
+        onChange={(e) => setDateOfBirth(e.target.value)}
+        className="w-full rounded-xl border-2 border-[var(--c-border)] bg-black/30 px-4 py-3 text-center text-base font-bold text-slate-50 outline-none focus:border-emerald-400"
       />
       <div className="w-full">
         <h3 className="mb-3 text-center text-sm font-bold tracking-wide text-[var(--c-soft)]">
