@@ -34,6 +34,7 @@ export interface PlayerProfile {
   character: HeroId
   buddy: HeroId | null
   buddies: HeroId[]
+  buddyUseCounts: Partial<Record<HeroId, number>>
   ownedCharacters: HeroId[]
   ownedBuddies: HeroId[]
   treasureCoins: number
@@ -55,6 +56,7 @@ interface ProfileStore {
   character: HeroId
   buddy: HeroId | null
   buddies: HeroId[]
+  buddyUseCounts: Partial<Record<HeroId, number>>
   ownedCharacters: HeroId[]
   ownedBuddies: HeroId[]
   treasureCoins: number
@@ -142,6 +144,7 @@ function makeProfile(username: string, character: HeroId, dateOfBirth: string | 
     character,
     buddy: null,
     buddies: [],
+    buddyUseCounts: {},
     ownedCharacters: [],
     ownedBuddies: [],
     treasureCoins: 0,
@@ -164,6 +167,7 @@ function activeFields(profile: PlayerProfile) {
     character: profile.character,
     buddy: profile.buddy ?? null,
     buddies: profile.buddies ?? (profile.buddy ? [profile.buddy] : []),
+    buddyUseCounts: profile.buddyUseCounts ?? {},
     ownedCharacters: profile.ownedCharacters ?? unlockedCharacters(profile.adventureLevel),
     ownedBuddies: profile.ownedBuddies ?? [],
     treasureCoins: profile.treasureCoins ?? 0,
@@ -186,6 +190,7 @@ function emptyFields() {
     character: STARTER_HERO_IDS[0],
     buddy: null,
     buddies: [],
+    buddyUseCounts: {},
     ownedCharacters: [],
     ownedBuddies: [],
     treasureCoins: 0,
@@ -210,6 +215,16 @@ function syncActive(
   return profiles.map((p) => (p.id === activeProfileId ? { ...p, ...updates } : p))
 }
 
+function bumpBuddyUses(
+  counts: Partial<Record<HeroId, number>> = {},
+  buddies: HeroId[] = [],
+) {
+  return buddies.reduce(
+    (next, id) => ({ ...next, [id]: (next[id] ?? 0) + 1 }),
+    { ...counts },
+  )
+}
+
 export const useProfile = create<ProfileStore>()(
   persist(
     (set, get) => ({
@@ -219,6 +234,7 @@ export const useProfile = create<ProfileStore>()(
       character: STARTER_HERO_IDS[0],
       buddy: null,
       buddies: [],
+      buddyUseCounts: {},
       ownedCharacters: [],
       ownedBuddies: [],
       treasureCoins: 0,
@@ -323,16 +339,19 @@ export const useProfile = create<ProfileStore>()(
         const cost = buddyCost(buddy)
         if (s.treasureCoins < cost) return false
         const ownedBuddies = [...s.ownedBuddies, buddy]
+        const buddyUseCounts = { ...s.buddyUseCounts, [buddy]: s.buddyUseCounts[buddy] ?? 0 }
         const treasureCoins = s.treasureCoins - cost
         const buddies = [...s.buddies, buddy].slice(-MAX_ACTIVE_BUDDIES)
         set({
           buddy: buddies[0] ?? null,
           buddies,
+          buddyUseCounts,
           ownedBuddies,
           treasureCoins,
           profiles: syncActive(s.profiles, s.activeProfileId, {
             buddy: buddies[0] ?? null,
             buddies,
+            buddyUseCounts,
             ownedBuddies,
             treasureCoins,
           }),
@@ -353,13 +372,15 @@ export const useProfile = create<ProfileStore>()(
         const nextAdventureLevel = mode === 'adventure' ? nextLevel : s.adventureLevel
         const ownedCharacters = Array.from(new Set([...s.ownedCharacters, ...unlockedCharacters(nextAdventureLevel)]))
         const newCharacters = ownedCharacters.filter((id) => !charactersBefore.has(id))
-        const updates = { [levelField]: nextLevel, stars, treasureCoins, ownedCharacters }
+        const buddyUseCounts = bumpBuddyUses(s.buddyUseCounts, s.buddies)
+        const updates = { [levelField]: nextLevel, stars, treasureCoins, ownedCharacters, buddyUseCounts }
         const after = totalCompleted({ ...s, [levelField]: nextLevel })
         set((current) => ({
           [levelField]: nextLevel,
           stars,
           treasureCoins,
           ownedCharacters,
+          buddyUseCounts,
           profiles: syncActive(current.profiles, current.activeProfileId, updates),
         }))
         return {
@@ -389,6 +410,13 @@ export const useProfile = create<ProfileStore>()(
         const rescued = rescue ? [rescue.hero] : []
         const ownedCharacters = Array.from(new Set([...s.ownedCharacters, ...worldCharacters, ...rescued]))
         const ownedBuddies = Array.from(new Set([...s.ownedBuddies, ...rescued]))
+        const buddyUseCounts = bumpBuddyUses(
+          rescued.reduce(
+            (counts, id) => ({ ...counts, [id]: counts[id] ?? 0 }),
+            s.buddyUseCounts,
+          ),
+          s.buddies,
+        )
         const newCharacters = ownedCharacters.filter((id) => !charactersBefore.has(id))
         const after = totalWorldCompleted({ worldLevels: nextWorldLevels })
         set((current) => ({
@@ -398,6 +426,7 @@ export const useProfile = create<ProfileStore>()(
           treasureCoins,
           ownedCharacters,
           ownedBuddies,
+          buddyUseCounts,
           profiles: syncActive(current.profiles, current.activeProfileId, {
             worldLevels: nextWorldLevels,
             playWorldLevels: nextPlayWorldLevels,
@@ -405,6 +434,7 @@ export const useProfile = create<ProfileStore>()(
             treasureCoins,
             ownedCharacters,
             ownedBuddies,
+            buddyUseCounts,
           }),
         }))
         return {
@@ -444,6 +474,7 @@ export const useProfile = create<ProfileStore>()(
           character: STARTER_HERO_IDS[0],
           buddy: null,
           buddies: [],
+          buddyUseCounts: {},
           ownedCharacters: [],
           ownedBuddies: [],
           treasureCoins: 0,
@@ -457,6 +488,7 @@ export const useProfile = create<ProfileStore>()(
             character: STARTER_HERO_IDS[0],
             buddy: null,
             buddies: [],
+            buddyUseCounts: {},
             ownedCharacters: [],
             ownedBuddies: [],
             treasureCoins: 0,
@@ -508,10 +540,15 @@ export const useProfile = create<ProfileStore>()(
                 ...ownedCharacters.filter((id) => SECRET_HERO_IDS.includes(id)),
               ]),
             )
+            const buddyUseCounts = {
+              ...Object.fromEntries(ownedBuddies.map((id) => [id, Math.max(1, (worldLevels.pacabacus ?? 1) - 1)])),
+              ...(p.buddyUseCounts ?? {}),
+            }
             return {
               ...p,
               buddy: buddies[0] ?? p.buddy ?? null,
               buddies: buddies.slice(0, MAX_ACTIVE_BUDDIES),
+              buddyUseCounts,
               ownedCharacters,
               ownedBuddies,
               dateOfBirth: p.dateOfBirth ?? null,
@@ -538,6 +575,7 @@ export const useProfile = create<ProfileStore>()(
           character: s.character ?? STARTER_HERO_IDS[0],
           buddy: null,
           buddies: [],
+          buddyUseCounts: {},
           ownedCharacters: unlockedCharacters(s.adventureLevel ?? 1),
           ownedBuddies: [],
           dateOfBirth: null,

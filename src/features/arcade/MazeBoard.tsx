@@ -1,5 +1,5 @@
 import { useRef, type CSSProperties } from 'react'
-import type { CharacterGrowthProfile } from './characterGrowth'
+import type { CharacterGrowthProfile, CharacterGrowthStage } from './characterGrowth'
 import { isWall, posKey, type Dir, type MazeDef, type Pos } from './maze'
 import { ENEMIES, HEROES, PixelSprite, type HeroId } from './sprites'
 import type { ThemeId } from './themes'
@@ -29,6 +29,7 @@ interface MazeBoardProps {
   hero: HeroId
   buddyId: HeroId | null
   buddyIds?: HeroId[]
+  buddyGrowths?: Partial<Record<HeroId, { stage: CharacterGrowthStage; scale: number }>>
   powerBuddy?: Pos | null
   powerBuddyId?: HeroId | null
   exitDoor?: Pos | null
@@ -58,6 +59,7 @@ export function MazeBoard({
   hero,
   buddyId,
   buddyIds,
+  buddyGrowths,
   powerBuddy,
   powerBuddyId,
   exitDoor,
@@ -245,17 +247,18 @@ export function MazeBoard({
 
       {(buddyIds?.length ? buddyIds : buddyId ? [buddyId] : []).map((id, i) => {
         const p = buddyTrail[i] ?? buddy
+        const buddyGrowth = buddyGrowths?.[id]
         if (samePosForBoard(p, pac)) return null
         return (
           <div
             key={`${id}-${i}`}
-            className={`character-stage character-stage--${growth.buddyStage} absolute top-1 left-1 z-4 flex items-center justify-center`}
+            className={`character-stage character-stage--${buddyGrowth?.stage ?? growth.buddyStage} absolute top-1 left-1 z-4 flex items-center justify-center`}
             style={{ ...spriteStyle(p), opacity: 0.92 - i * 0.08 }}
           >
             <PixelSprite
               map={HEROES[id].frames[(p.r + p.c) % 2]}
               palette={HEROES[id].palette}
-              size={tile * Math.max(0.34, growth.buddyScale - i * 0.04)}
+              size={tile * Math.max(0.34, (buddyGrowth?.scale ?? growth.buddyScale) - i * 0.04)}
             />
           </div>
         )

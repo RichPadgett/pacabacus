@@ -18,7 +18,12 @@ import {
   chapterForLevel,
   type LearningWorldId,
 } from '@/features/learning/learningWorlds'
-import { growthForAgeBand } from './characterGrowth'
+import {
+  buddyScaleForStage,
+  buddyStageForUses,
+  ghostSkillForAgeBand,
+  growthForProgress,
+} from './characterGrowth'
 import { characterDetailFor } from './characterDetails'
 import type { Dir } from './maze'
 import { MazeBoard } from './MazeBoard'
@@ -205,7 +210,6 @@ export function ArcadeGame({
   const startLevel = isFreePlay ? 1 : Math.min(playWorldLevels[activeWorld], maxLevel)
 
   const stepMs = SPEED_MS[settings.speed]
-  const growth = growthForAgeBand(profile.ageBand)
   const { state, dispatch } = useArcadeGame(
     cfgFor,
     startLevel,
@@ -213,10 +217,12 @@ export function ArcadeGame({
     profile.ageBand !== 'little' && settings.rockTimer,
     !isFreePlay,
     maxLevel,
-    growth.ghostSkill,
+    ghostSkillForAgeBand(profile.ageBand),
     activeWorld,
     profile.ownedCharacters,
   )
+  const visualGrowthLevel = isFreePlay ? worldLevels[activeWorld] : state.level
+  const growth = growthForProgress(profile.ageBand, visualGrowthLevel)
   const tile = useTileSize(state.maze.cols, state.maze.rows)
   const world = !isFreePlay ? worldForAdventureLevel(state.level) : null
   const chapter = !isFreePlay ? chapterForLevel(activeWorld, state.level) : null
@@ -227,6 +233,12 @@ export function ArcadeGame({
   const theme = world ? THEMES[world.theme] : (THEMES[settings.theme] ?? THEMES.stars)
   const hero = HEROES[profile.character] ? profile.character : 'kitty'
   const buddies = profile.buddies.filter((id) => HEROES[id]).slice(0, 3)
+  const buddyGrowths = Object.fromEntries(
+    buddies.map((id) => {
+      const stage = buddyStageForUses(profile.buddyUseCounts[id] ?? 0)
+      return [id, { stage, scale: buddyScaleForStage(stage) }]
+    }),
+  )
   const buddy = buddies[0] ?? (profile.buddy && HEROES[profile.buddy] ? profile.buddy : null)
   const touched = useRef(false)
 
@@ -474,6 +486,7 @@ export function ArcadeGame({
             buddyTrail={state.buddyTrail}
             buddyId={buddy}
             buddyIds={buddies}
+            buddyGrowths={buddyGrowths}
             powerBuddy={state.powerBuddy}
             powerBuddyId={powerBuddyId ?? buddies[0] ?? null}
             exitDoor={state.exitDoor}
