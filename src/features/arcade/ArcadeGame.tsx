@@ -215,6 +215,8 @@ export function ArcadeGame({
   const world = !isFreePlay ? worldForAdventureLevel(state.level) : null
   const chapter = !isFreePlay ? chapterForLevel(activeWorld, state.level) : null
   const nextWorld = world && state.level < maxLevel ? worldForAdventureLevel(state.level + 1) : null
+  const nextChapter = !isFreePlay && state.level < maxLevel ? chapterForLevel(activeWorld, state.level + 1) : null
+  const crossingWorld = Boolean(world && nextWorld && world.id !== nextWorld.id)
   const songIndex = world ? world.musicIndex + ((state.level - world.levelStart) % 2) : state.level - 1
   const theme = world ? THEMES[world.theme] : (THEMES[settings.theme] ?? THEMES.stars)
   const hero = HEROES[profile.character] ? profile.character : 'kitty'
@@ -330,7 +332,9 @@ export function ArcadeGame({
         : phase === 'doorOpen'
           ? 'The door is open! Steer to the top door, then press up.'
           : phase === 'travel'
-            ? `Follow the path to the next door: ${nextWorld?.emoji ?? '🚪'} ${nextWorld?.name ?? 'next level'}`
+            ? crossingWorld
+              ? `Cross the world gate: ${nextWorld?.emoji ?? '🚪'} ${nextWorld?.name ?? 'next land'}`
+              : `Journey through ${state.maze.name}: ${nextChapter?.emoji ?? '🚪'} ${nextChapter?.name ?? 'next room'}`
         : phase === 'ghosts'
           ? state.jailTurns > 0
             ? 'The baddies are stuck in jail! 🔒'

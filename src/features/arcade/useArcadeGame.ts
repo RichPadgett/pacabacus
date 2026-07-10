@@ -61,7 +61,7 @@ const QUICK_SOLVE_MS = 6_000
 const QUICK_METER_GAIN = 25
 const QUICK_BONUS_MOVES = 2
 const POWER_TICKS = 16
-const TRAVEL_EXIT_DOOR: Pos = { r: 1, c: 5 }
+const PATH_TREASURES = ['🍓', '🍒', '🍊', '🍌', '🍇', '💰']
 
 function guardChargesForSkill(skill: GhostSkill) {
   if (skill === 'attack') return 2
@@ -297,6 +297,24 @@ function exitDoorForMaze(maze: MazeDef): Pos {
   )[0] ?? maze.pacSpawn
 }
 
+function travelTreasuresForMaze(maze: MazeDef, exitDoor: Pos, level: number): Map<string, string> {
+  const treasures = new Map<string, string>()
+  const blocked = new Set([maze.pacSpawn, exitDoor, ...maze.ghostSpawns].map(posKey))
+  const candidates: Pos[] = []
+  for (let r = 1; r < maze.rows - 1; r++) {
+    for (let c = 1; c < maze.cols - 1; c++) {
+      const p = { r, c }
+      if (!isWall(maze, r, c) && !blocked.has(posKey(p))) candidates.push(p)
+    }
+  }
+  const step = Math.max(2, 4 - (level % 3))
+  candidates.forEach((p, index) => {
+    if (index % step !== level % step) return
+    treasures.set(posKey(p), PATH_TREASURES[(index + level) % PATH_TREASURES.length])
+  })
+  return treasures
+}
+
 function farthestSpawn(maze: MazeDef, pac: Pos): Pos {
   return [...maze.ghostSpawns].sort(
     (a, b) =>
@@ -418,6 +436,9 @@ function makeReducer(
   const enterTravel = (state: GameState): GameState => {
     const maze = travelMazeForLevel(state.level)
     const ghostCount = Math.max(1, Math.min(2, state.cfg.enemy.count))
+    const travelExitDoor = exitDoorForMaze(maze)
+    const treasures = travelTreasuresForMaze(maze, travelExitDoor, state.level)
+    const isWorldGate = state.level % 5 === 0
     return {
       ...state,
       maze,
@@ -427,19 +448,25 @@ function makeReducer(
       facing: 'up',
       ghosts: maze.ghostSpawns.slice(0, ghostCount),
       ghostPrev: maze.ghostSpawns.slice(0, ghostCount),
-      treasures: new Map(),
+      treasures,
       jailFruits: new Set(),
       jailTurns: 0,
       movesLeft: 0,
       powerBuddy: null,
       powerTicksLeft: 0,
       exitDoor: null,
-      travelExitDoor: TRAVEL_EXIT_DOOR,
+      travelExitDoor,
       goalProgress: 0,
       goalTarget: 1,
-      goalLabel: 'Reach the next door',
+      goalLabel: isWorldGate ? 'Cross the world gate' : 'Reach the next room',
       phase: 'travel',
-      message: say(state, 'Find the next door! Watch the path baddies. 🚪', 'good'),
+      message: say(
+        state,
+        isWorldGate
+          ? 'World gate opened! Cross the maze path to the next land. 🚪'
+          : 'Journey path opened! Grab snacks and find the next room. 🚪',
+        'good',
+      ),
     }
   }
 
@@ -619,12 +646,20 @@ function makeReducer(
           return { ...state, facing: action.dir }
         }
         if (state.phase === 'travel') {
+          const key = posKey(target)
+          const treasure = state.treasures.get(key)
+          const treasures = new Map(state.treasures)
+          if (treasure) treasures.delete(key)
           const moved: GameState = {
             ...state,
             pac: target,
             buddy: state.pac,
             buddyTrail: [state.pac, ...state.buddyTrail].slice(0, 3),
             facing: action.dir,
+            treasures,
+            message: treasure
+              ? say(state, treasure === '💰' ? 'Path coin found! 💰' : 'Trail snack! Keep going. 🍓', 'good')
+              : state.message,
           }
           if (state.travelExitDoor && samePos(target, state.travelExitDoor)) {
             return levelStart(moved, state.level + 1)

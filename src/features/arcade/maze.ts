@@ -204,28 +204,97 @@ export function mazeForLevel(level: number): MazeDef {
 }
 
 export function travelMazeForLevel(level: number): MazeDef {
-  const grid = [
-    '#############',
-    '#.....#.....#',
-    '#.###.#.###.#',
-    '#...........#',
-    '#.###...###.#',
-    '#...........#',
-    '#.###.#.###.#',
-    '#.....#.....#',
-    '#############',
+  const journeys: { name: string; grid: string[]; pacSpawn: Pos; ghostSpawns: Pos[] }[] = [
+    {
+      name: 'Doorstep Trail',
+      grid: [
+        '#############',
+        '#.....#.....#',
+        '#.###.#.###.#',
+        '#...........#',
+        '#.###...###.#',
+        '#...........#',
+        '#.###.#.###.#',
+        '#.....#.....#',
+        '#############',
+      ],
+      pacSpawn: { r: 7, c: 5 },
+      ghostSpawns: [
+        { r: 3, c: 10 },
+        { r: 5, c: 2 },
+        { r: 1, c: 1 },
+      ],
+    },
+    {
+      name: 'Winding Bridge',
+      grid: [
+        '#############',
+        '#...........#',
+        '#.####.####.#',
+        '#.#.......#.#',
+        '#.#.###.#.#.#',
+        '#...#...#...#',
+        '#.###.#####.#',
+        '#...........#',
+        '#############',
+      ],
+      pacSpawn: { r: 7, c: 6 },
+      ghostSpawns: [
+        { r: 1, c: 10 },
+        { r: 5, c: 1 },
+        { r: 3, c: 6 },
+      ],
+    },
+    {
+      name: 'Little Room Road',
+      grid: [
+        '#############',
+        '#.....#.....#',
+        '#.###...###.#',
+        '#...#.#.#...#',
+        '###.#.#.#.###',
+        '#...#...#...#',
+        '#.###.#.###.#',
+        '#.....#.....#',
+        '#############',
+      ],
+      pacSpawn: { r: 7, c: 6 },
+      ghostSpawns: [
+        { r: 1, c: 1 },
+        { r: 3, c: 11 },
+        { r: 5, c: 1 },
+      ],
+    },
+    {
+      name: 'World Gate Maze',
+      grid: [
+        '#############',
+        '#.....#.....#',
+        '#.###.#.###.#',
+        '#...#...#...#',
+        '#.#.#####.#.#',
+        '#.#.......#.#',
+        '#.#####.###.#',
+        '#...........#',
+        '#############',
+      ],
+      pacSpawn: { r: 7, c: 6 },
+      ghostSpawns: [
+        { r: 1, c: 10 },
+        { r: 3, c: 1 },
+        { r: 5, c: 10 },
+      ],
+    },
   ]
+  const journey = level % 5 === 0 ? journeys[3] : journeys[level % 3]
+  const grid = journey.grid
   return {
-    name: `Path to Level ${level + 1}`,
+    name: `${journey.name} to Level ${level + 1}`,
     grid,
     rows: grid.length,
     cols: grid[0].length,
-    pacSpawn: { r: 7, c: 5 },
-    ghostSpawns: [
-      { r: 3, c: 10 },
-      { r: 5, c: 2 },
-      { r: 1, c: 1 },
-    ],
+    pacSpawn: journey.pacSpawn,
+    ghostSpawns: journey.ghostSpawns,
   }
 }
 
