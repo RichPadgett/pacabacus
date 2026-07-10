@@ -52,24 +52,41 @@ function withGoal(cfg: LevelCfg, level: number, ageBand: AgeBand): LevelCfg {
 }
 
 function ageTuneEnemy(enemy: EnemyCfg, ageBand: AgeBand): EnemyCfg {
+  if (ageBand === 'little') {
+    return {
+      ...enemy,
+      count: Math.min(enemy.count, 1),
+      correctSteps: Math.max(0, enemy.correctSteps - 1),
+      wrongSteps: 0,
+      chaseChance: Math.min(0.25, enemy.chaseChance),
+      spawnChance: 0,
+    }
+  }
+  if (ageBand === 'early') {
+    return {
+      ...enemy,
+      chaseChance: Math.min(0.65, enemy.chaseChance + 0.06),
+      spawnChance: Math.min(0.18, enemy.spawnChance + 0.03),
+    }
+  }
   if (ageBand === 'growing') {
     return {
       ...enemy,
       count: Math.min(3, enemy.count + (enemy.count > 0 ? 1 : 0)),
       correctSteps: enemy.correctSteps + 1,
       wrongSteps: enemy.wrongSteps + 1,
-      chaseChance: Math.min(0.9, enemy.chaseChance + 0.16),
-      spawnChance: Math.min(0.35, enemy.spawnChance + 0.08),
+      chaseChance: Math.min(0.9, enemy.chaseChance + 0.22),
+      spawnChance: Math.min(0.38, enemy.spawnChance + 0.12),
     }
   }
   if (ageBand === 'big') {
     return {
       ...enemy,
-      count: Math.min(4, enemy.count + (enemy.count > 0 ? 1 : 0)),
-      correctSteps: enemy.correctSteps + 1,
+      count: Math.min(4, enemy.count + (enemy.count > 1 ? 2 : enemy.count > 0 ? 1 : 0)),
+      correctSteps: enemy.correctSteps + 2,
       wrongSteps: enemy.wrongSteps + 1,
-      chaseChance: Math.min(0.95, enemy.chaseChance + 0.24),
-      spawnChance: Math.min(0.45, enemy.spawnChance + 0.14),
+      chaseChance: Math.min(0.96, enemy.chaseChance + 0.32),
+      spawnChance: Math.min(0.5, enemy.spawnChance + 0.2),
     }
   }
   return enemy
@@ -122,7 +139,7 @@ export function adventureCfg(level: number, settings?: ArcadeSettings): LevelCfg
     problem,
     rodCount: 2,
     enemy,
-    treasureCount: Math.min(36, 22 + Math.floor(level / 2)),
+    treasureCount: Math.min(44, 28 + Math.floor(level / 2)),
     gentle: false,
     allowChallenge: true,
     intro:
@@ -160,7 +177,7 @@ export function countingCfg(level: number): LevelCfg {
     // one rod keeps it simple until sums can reach 10
     rodCount: level <= 12 ? 1 : 2,
     enemy,
-    treasureCount: Math.min(22, 12 + Math.ceil(level / 2)),
+    treasureCount: Math.min(28, 16 + Math.ceil(level / 2)),
     gentle: true,
     allowChallenge: false,
     intro:
@@ -207,7 +224,7 @@ export function pacWordsCfgForAge(level: number, ageBand: AgeBand): LevelCfg {
     problem: { kind: 'words', level: adjustedLevel },
     rodCount: 1,
     enemy: addOnEnemy(ageBand === 'little' ? Math.max(1, level - 4) : level),
-    treasureCount: Math.min(30, 16 + Math.ceil(adjustedLevel / 2)),
+    treasureCount: Math.min(38, 22 + Math.ceil(adjustedLevel / 2)),
     gentle: true,
     allowChallenge: false,
     intro: level === 1 ? 'Find the missing letter, then collect the fruit! 🔤' : undefined,
@@ -232,7 +249,7 @@ export function pacTablesCfgForAge(level: number, ageBand: AgeBand): LevelCfg {
     problem: { kind: 'tables', maxFactor },
     rodCount: 2,
     enemy: addOnEnemy(ageBand === 'little' ? Math.max(1, level - 5) : level),
-    treasureCount: Math.min(32, 18 + Math.ceil(level / 2)),
+    treasureCount: Math.min(40, 24 + Math.ceil(level / 2)),
     gentle: ageBand === 'little',
     allowChallenge: false,
     intro: level === 1 ? 'Practice times tables to earn moves! ✖️' : undefined,
@@ -275,7 +292,7 @@ export function pacMathCfgForAge(level: number, ageBand: AgeBand): LevelCfg {
     },
     rodCount: 2,
     enemy: addOnEnemy(ageBand === 'little' ? Math.max(1, level - 4) : level),
-    treasureCount: Math.min(34, 18 + Math.ceil(level / 2)),
+    treasureCount: Math.min(42, 24 + Math.ceil(level / 2)),
     gentle: ageBand === 'little',
     allowChallenge: false,
     intro: level === 1 ? 'Regular math mode: type the answer to earn moves! ➕' : undefined,

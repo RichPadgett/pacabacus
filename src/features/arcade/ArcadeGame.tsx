@@ -345,7 +345,9 @@ export function ArcadeGame({
         ? `Count the ${problem.emoji}s and make the beads match!`
         : `Solve it to earn ${payout} moves!`
       : phase === 'move'
-        ? `Steer! ${state.movesLeft} move${state.movesLeft === 1 ? '' : 's'} left — ${state.goalLabel}.`
+        ? state.vulnerableMovesLeft > 0
+          ? `Power chase! ${state.vulnerableMovesLeft} zap move${state.vulnerableMovesLeft === 1 ? '' : 's'} — catch baddies!`
+          : `Steer! ${state.movesLeft} move${state.movesLeft === 1 ? '' : 's'} left — ${state.goalLabel}.`
         : phase === 'doorOpen'
           ? 'The door is open! Steer to the top door, then press up.'
           : phase === 'travel'
@@ -392,6 +394,9 @@ export function ArcadeGame({
             <span className="growth-charge-pill">
               {growth.ghostSkill === 'attack' ? '✨' : '🛡️'} {state.guardCharges}
             </span>
+          )}
+          {state.vulnerableMovesLeft > 0 && (
+            <span className="growth-charge-pill">⚡ {state.vulnerableMovesLeft}</span>
           )}
         </div>
         <div className="flex items-center gap-1">
@@ -440,6 +445,7 @@ export function ArcadeGame({
             treasures={state.treasures}
             jailFruits={state.jailFruits}
             jailTurns={state.jailTurns}
+            vulnerableMovesLeft={state.vulnerableMovesLeft}
             pac={state.pac}
             facing={state.facing}
             ghosts={state.ghosts}

@@ -19,6 +19,7 @@ interface MazeBoardProps {
   treasures: Map<string, string>
   jailFruits: Set<string>
   jailTurns: number
+  vulnerableMovesLeft: number
   pac: Pos
   buddy: Pos
   buddyTrail: Pos[]
@@ -44,6 +45,7 @@ export function MazeBoard({
   treasures,
   jailFruits,
   jailTurns,
+  vulnerableMovesLeft,
   pac,
   buddy,
   buddyTrail,
@@ -203,13 +205,26 @@ export function MazeBoard({
       {ghosts.map((g, i) => {
         const enemy = ENEMIES[i % ENEMIES.length]
         const jailed = jailTurns > 0
+        const vulnerable = vulnerableMovesLeft > 0
         return (
           <div
             key={i}
             className="absolute top-1 left-1 z-4 flex items-center justify-center"
-            style={{ ...spriteStyle(g), opacity: jailed ? 0.45 : 1 }}
+            style={{
+              ...spriteStyle(g),
+              opacity: jailed ? 0.45 : vulnerable ? 0.78 : 1,
+              filter: vulnerable ? 'drop-shadow(0 0 8px #60a5fa) hue-rotate(155deg)' : undefined,
+            }}
           >
             <PixelSprite map={enemy.map} palette={enemy.palette} size={tile * 0.86} />
+            {vulnerable && (
+              <span
+                className="absolute inset-0 flex items-center justify-center"
+                style={{ fontSize: tile * 0.48 }}
+              >
+                ⚡
+              </span>
+            )}
             {jailed && (
               <span
                 className="absolute inset-0 flex items-center justify-center"

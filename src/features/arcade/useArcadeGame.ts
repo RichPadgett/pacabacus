@@ -53,7 +53,7 @@ const TREASURE_EMOJI = [
   '🥝',
 ]
 const ROCK_EMOJI = '🪨'
-const JAIL_TURNS = 3
+const POWER_STRAWBERRY_MOVES = 20
 const ROCK_DELAY_MIN_MS = 10_000
 const ROCK_DELAY_MAX_MS = 20_000
 const CLOAK_SAFE_DISTANCE = 4
@@ -85,6 +85,7 @@ export interface GameState {
   treasures: Map<string, string>
   jailFruits: Set<string>
   jailTurns: number
+  vulnerableMovesLeft: number
   phase: Phase
   movesLeft: number
   ghostStepsLeft: number
@@ -383,7 +384,13 @@ function makeReducer(
   }
 
   const defendedState = (state: GameState): GameState | null => {
-    if (ghostSkill === 'none' || state.jailTurns > 0 || state.guardCharges <= 0) return null
+    if (
+      ghostSkill === 'none' ||
+      state.vulnerableMovesLeft > 0 ||
+      state.jailTurns > 0 ||
+      state.guardCharges <= 0
+    )
+      return null
     const colliding = state.ghosts.filter((g) => samePos(g, state.pac))
     if (!colliding.length) return null
     if (ghostSkill === 'attack') {
@@ -392,6 +399,7 @@ function makeReducer(
         ghosts: state.ghosts.filter((g) => !samePos(g, state.pac)),
         ghostPrev: state.ghosts,
         jailTurns: 0,
+        vulnerableMovesLeft: 0,
         guardCharges: state.guardCharges - 1,
         message: say(
           state,
@@ -457,6 +465,7 @@ function makeReducer(
       treasures,
       jailFruits: new Set(),
       jailTurns: 0,
+      vulnerableMovesLeft: 0,
       movesLeft: 0,
       powerBuddy: null,
       powerTicksLeft: 0,
@@ -506,6 +515,7 @@ function makeReducer(
       treasures,
       jailFruits,
       jailTurns: 0,
+      vulnerableMovesLeft: 0,
       guardCharges: guardChargesForSkill(ghostSkill),
       powerBuddy: null,
       powerTicksLeft: 0,
@@ -717,6 +727,7 @@ function makeReducer(
         const collectedFruit = treasure != null && treasure !== ROCK_EMOJI
         if (collectedFruit) treasures.delete(key)
         const goalProgress = collectedFruit ? state.goalProgress + 1 : state.goalProgress
+        const vulnerableMovesLeft = Math.max(0, state.vulnerableMovesLeft - 1)
         let moved: GameState = {
           ...state,
           pac: target,
@@ -726,21 +737,29 @@ function makeReducer(
           treasures,
           goalProgress,
           movesLeft: state.movesLeft - 1,
+          vulnerableMovesLeft,
         }
         if (state.jailFruits.has(key) && state.ghosts.length) {
-          const jail = state.maze.ghostSpawns[0]
           const jailFruits = new Set(state.jailFruits)
           jailFruits.delete(key)
           moved = {
             ...moved,
             jailFruits,
-            jailTurns: JAIL_TURNS,
-            ghosts: state.ghosts.map(() => jail),
-            ghostPrev: state.ghosts,
-            message: say(state, 'Golden strawberry! Baddies go to jail! 🔒', 'good'),
+            movesLeft: moved.movesLeft + POWER_STRAWBERRY_MOVES,
+            vulnerableMovesLeft: POWER_STRAWBERRY_MOVES,
+            message: say(state, `Power strawberry! +${POWER_STRAWBERRY_MOVES} moves — zap baddies! ⚡`, 'good'),
           }
         }
-        if (state.jailTurns === 0 && state.ghosts.some((g) => samePos(g, target))) {
+        if (moved.vulnerableMovesLeft > 0 && moved.ghosts.some((g) => samePos(g, target))) {
+          return {
+            ...moved,
+            ghosts: moved.ghosts.filter((g) => !samePos(g, target)),
+            ghostPrev: moved.ghosts,
+            stars: moved.stars + 2,
+            message: say(state, 'ZAP! Baddie poofed away! ⚡', 'good'),
+          }
+        }
+        if (state.jailTurns === 0 && moved.ghosts.some((g) => samePos(g, target))) {
           return caughtState(moved)
         }
         if (goalComplete(moved, treasures, goalProgress)) {
@@ -843,6 +862,7 @@ function makeReducer(
       case 'GHOST_TICK': {
         if (state.phase !== 'ghosts') return state
         const ghosts = state.ghosts.map((g) => {
+          if (state.vulnerableMovesLeft > 0) return randomSafeStep(state.maze, g, state.pac)
           const leaveFruit = leaveFruitStep(state.maze, g, state.treasures)
           if (leaveFruit) return leaveFruit
           return Math.random() < state.cfg.enemy.chaseChance
@@ -856,6 +876,15 @@ function makeReducer(
           ghostStepsLeft: state.ghostStepsLeft - 1,
         }
         if (ghosts.some((g) => samePos(g, state.pac))) {
+          if (state.vulnerableMovesLeft > 0) {
+            return {
+              ...stepped,
+              ghosts: ghosts.filter((g) => !samePos(g, state.pac)),
+              ghostPrev: ghosts,
+              stars: stepped.stars + 2,
+              message: say(state, 'ZAP! Baddie poofed away! ⚡', 'good'),
+            }
+          }
           return caughtState(stepped)
         }
         if (stepped.ghostStepsLeft <= 0) {
@@ -909,6 +938,7 @@ function makeReducer(
           ghosts: state.maze.ghostSpawns.slice(0, state.cfg.enemy.count),
           ghostPrev: state.maze.ghostSpawns.slice(0, state.cfg.enemy.count),
           jailTurns: 0,
+          vulnerableMovesLeft: 0,
           ...freshProblem(state.cfg),
         }
       }
@@ -954,6 +984,7 @@ function makeInitialState(
     treasures,
     jailFruits,
     jailTurns: 0,
+    vulnerableMovesLeft: 0,
     phase: 'answer',
     movesLeft: 0,
     ghostStepsLeft: 0,
