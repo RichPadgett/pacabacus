@@ -462,7 +462,20 @@ export function ArcadeGame({
 
         <div className="z-10 flex w-full max-w-[29rem] shrink-0 flex-col items-center gap-1.5 landscape:w-[23rem]">
           <div className="flex w-full flex-col items-center rounded-2xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] p-2 shadow-lg shadow-black/20 sm:p-3 landscape:flex-row landscape:justify-center landscape:gap-2">
-            {canSteer ? (
+            {state.powerTicksLeft > 0 ? (
+              <div className="buddy-power-panel flex w-full flex-col items-center justify-center rounded-xl border border-amber-300 bg-amber-500/15 p-3 text-center landscape:min-h-24">
+                <div className="text-xl font-black text-amber-200">⭐ Buddy power!</div>
+                <div className="mt-1 text-sm font-bold text-[var(--c-soft)]">
+                  Watch your buddy grab fruit.
+                </div>
+                <div className="mt-2 h-2 w-full max-w-52 overflow-hidden rounded-full bg-black/30">
+                  <div
+                    className="h-full rounded-full bg-amber-300 transition-all"
+                    style={{ width: `${Math.max(0, Math.min(100, (state.powerTicksLeft / 16) * 100))}%` }}
+                  />
+                </div>
+              </div>
+            ) : canSteer ? (
               <SteeringControls
                 embedded
                 canMove

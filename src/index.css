@@ -1136,3 +1136,24 @@ body {
 .growth-pill--legend {
   background: rgba(245, 158, 11, 0.35);
 }
+
+.buddy-power-panel {
+  min-height: 4.75rem;
+}
+
+@media (orientation: portrait) and (max-width: 520px) {
+  .buddy-power-panel {
+    min-height: 3.75rem;
+    padding: 0.55rem !important;
+  }
+
+  .buddy-power-panel .text-xl {
+    font-size: 1rem !important;
+    line-height: 1.1 !important;
+  }
+
+  .buddy-power-panel .text-sm {
+    font-size: 0.72rem !important;
+    line-height: 1 !important;
+  }
+}
