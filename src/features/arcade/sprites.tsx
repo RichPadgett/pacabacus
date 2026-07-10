@@ -73,6 +73,11 @@ export type HeroId =
   | 'robo'
   | 'elephant'
   | 'chomper'
+  | 'starwhisker'
+  | 'mooncalf'
+  | 'coraldragon'
+  | 'gearfox'
+  | 'mewtwo'
 
 export interface HeroDef {
   id: HeroId
@@ -1271,6 +1276,46 @@ export const HEROES: Record<HeroId, HeroDef> = {
     palette: { Y: '#ffd23f', B: '#3a2800' },
     rotates: true,
   },
+  starwhisker: {
+    id: 'starwhisker',
+    name: 'Starwhisker',
+    unlockLevel: 999,
+    frames: [KITTY_A, KITTY_B],
+    palette: { P: '#f9a8d4', L: '#fde047', B: '#2e1065', R: '#fef3c7', W: '#ffffff' },
+    rotates: false,
+  },
+  mooncalf: {
+    id: 'mooncalf',
+    name: 'Mooncalf',
+    unlockLevel: 999,
+    frames: [LAMBY_A, LAMBY_B],
+    palette: { W: '#dbeafe', F: '#bfdbfe', B: '#1e1b4b', P: '#c4b5fd' },
+    rotates: false,
+  },
+  coraldragon: {
+    id: 'coraldragon',
+    name: 'Coral Dragon',
+    unlockLevel: 999,
+    frames: [DRAGON_A, DRAGON_B],
+    palette: { G: '#fb7185', B: '#3b0764', R: '#fef08a' },
+    rotates: false,
+  },
+  gearfox: {
+    id: 'gearfox',
+    name: 'Gear Fox',
+    unlockLevel: 999,
+    frames: [FOX_A, FOX_B],
+    palette: { O: '#f59e0b', F: '#e2e8f0', B: '#0f172a', W: '#f8fafc', T: '#38bdf8' },
+    rotates: false,
+  },
+  mewtwo: {
+    id: 'mewtwo',
+    name: 'Mewtwo of PacAbacus',
+    unlockLevel: 999,
+    frames: [CHOMPER_OPEN, CHOMPER_CLOSED],
+    palette: { Y: '#c084fc', B: '#1e1b4b' },
+    rotates: true,
+  },
 }
 
 export const CHARACTER_ORDER: HeroId[] = [
@@ -1306,11 +1351,17 @@ export const CHARACTER_ORDER: HeroId[] = [
   'shark',
   'chomper',
   'bunny',
+  'starwhisker',
+  'mooncalf',
+  'coraldragon',
+  'gearfox',
+  'mewtwo',
 ]
 
 export const STARTER_HERO_IDS: HeroId[] = ['dog', 'kitty', 'orca', 'fox']
+export const SECRET_HERO_IDS: HeroId[] = ['starwhisker', 'mooncalf', 'coraldragon', 'gearfox', 'mewtwo']
 export const BUDDY_ORDER: HeroId[] = CHARACTER_ORDER.filter(
-  (id) => !STARTER_HERO_IDS.includes(id),
+  (id) => !STARTER_HERO_IDS.includes(id) && !SECRET_HERO_IDS.includes(id),
 )
 export const BUDDY_COSTS: Partial<Record<HeroId, number>> = {
   chick: 30,

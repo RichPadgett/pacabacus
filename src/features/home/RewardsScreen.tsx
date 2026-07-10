@@ -6,6 +6,7 @@ import {
   CHARACTER_ORDER,
   HEROES,
   PixelSprite,
+  SECRET_HERO_IDS,
   STARTER_HERO_IDS,
   type HeroId,
 } from '@/features/arcade/sprites'
@@ -17,6 +18,7 @@ import {
   totalCompleted,
   useProfile,
 } from '@/features/profile/profileStore'
+import { RESCUE_CHALLENGES } from '@/features/profile/rescueChallenges'
 
 export function RewardsScreen({ onBack }: { onBack: () => void }) {
   const profile = useProfile()
@@ -29,6 +31,11 @@ export function RewardsScreen({ onBack }: { onBack: () => void }) {
   const earned = new Set(earnedBadges(total).map((b) => b.id))
   const totalStars = Object.values(profile.stars).reduce((a, b) => a + b, 0)
   const pages = ['Characters', 'Buddies', 'Badges', 'Trophies']
+  const rescueByHero = new Map(RESCUE_CHALLENGES.map((challenge) => [challenge.hero, challenge]))
+  const buddyRewardOrder = [
+    ...BUDDY_ORDER,
+    ...SECRET_HERO_IDS.filter((id) => unlockedBuddies.has(id)),
+  ]
   const nextPage = () => setPage((current) => Math.min(pages.length - 1, current + 1))
   const prevPage = () => setPage((current) => Math.max(0, current - 1))
 
@@ -64,7 +71,13 @@ export function RewardsScreen({ onBack }: { onBack: () => void }) {
                 <RewardSprite
                   key={id}
                   id={id}
-                  label={unlockedCharacters.has(id) ? HEROES[id].name : `L${HEROES[id].unlockLevel}`}
+                  label={
+                    unlockedCharacters.has(id)
+                      ? HEROES[id].name
+                      : rescueByHero.has(id)
+                        ? `Rescue L${rescueByHero.get(id)?.level}`
+                        : `L${HEROES[id].unlockLevel}`
+                  }
                   locked={!unlockedCharacters.has(id)}
                 />
               ))}
@@ -74,9 +87,9 @@ export function RewardsScreen({ onBack }: { onBack: () => void }) {
 
         {page === 1 && (
           <section className="paged-card">
-            <h2 className="paged-title">BABY BUDDIES ({unlockedBuddies.size}/{BUDDY_ORDER.length})</h2>
+            <h2 className="paged-title">BABY BUDDIES ({unlockedBuddies.size}/{buddyRewardOrder.length})</h2>
             <div className="reward-grid">
-              {BUDDY_ORDER.map((id) => (
+              {buddyRewardOrder.map((id) => (
                 <RewardSprite
                   key={id}
                   id={id}

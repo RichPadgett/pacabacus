@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Twinkles } from '@/features/arcade/ArcadeGame'
 import { useArcadeSettings } from '@/features/arcade/settingsStore'
-import { HEROES, PixelSprite, STARTER_HERO_IDS, type HeroId } from '@/features/arcade/sprites'
+import { HEROES, PixelSprite, SECRET_HERO_IDS, STARTER_HERO_IDS, type HeroId } from '@/features/arcade/sprites'
 import { THEMES } from '@/features/arcade/themes'
 import {
   earnedBadges,
@@ -9,6 +9,7 @@ import {
   useProfile,
 } from '@/features/profile/profileStore'
 import { ADD_ON_MAX, ADVENTURE_MAX } from '@/features/arcade/gameConfig'
+import { RESCUE_CHALLENGES, rescueForAgeBand } from '@/features/profile/rescueChallenges'
 import {
   AGE_BAND_LABELS,
   LEARNING_WORLDS,
@@ -38,14 +39,18 @@ export function HomeScreen({
   const [starterHero, setStarterHero] = useState<HeroId>(STARTER_HERO_IDS[0])
   const [showProfiles, setShowProfiles] = useState(false)
   const [showTools, setShowTools] = useState(false)
+  const [secretCode, setSecretCode] = useState('')
 
   const heroDef = HEROES[profile.character] ?? HEROES.kitty
   const buddyNames = profile.buddies.map((id) => HEROES[id]?.name).filter(Boolean)
   const total = totalWorldCompleted(profile)
   const badges = earnedBadges(total)
   const activeWorld = LEARNING_WORLDS.find((world) => world.id === profile.learningWorld) ?? LEARNING_WORLDS[0]
-  const worldLevel = profile.worldLevels?.[profile.learningWorld] ?? 1
+  const unlockedWorldLevel = profile.worldLevels?.[profile.learningWorld] ?? 1
+  const worldLevel = profile.playWorldLevels?.[profile.learningWorld] ?? unlockedWorldLevel
   const maxWorldLevel = profile.learningWorld === 'pacabacus' ? ADVENTURE_MAX : ADD_ON_MAX
+  const rescuedCount = SECRET_HERO_IDS.filter((id) => profile.ownedCharacters.includes(id)).length
+  const ageRescue = rescueForAgeBand(profile.ageBand)
   const age = ageFromDateOfBirth(profile.dateOfBirth)
   const adventureStatus =
     worldLevel > maxWorldLevel
@@ -90,6 +95,8 @@ export function HomeScreen({
                 {badges.length} badges · {profile.treasureCoins} gold
                 {' · '}
                 {age != null ? `${age} years old` : AGE_BAND_LABELS[profile.ageBand]}
+                {' · '}
+                {rescuedCount}/{SECRET_HERO_IDS.length} rescues
               </div>
             </div>
             <button
@@ -209,10 +216,61 @@ export function HomeScreen({
               <MenuButton onClick={onFreePlay}>⚙️ Settings</MenuButton>
             </div>
             {showTools && (
-              <div className="flex flex-col gap-2 rounded-2xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] p-4">
+              <div className="home-tools-panel flex flex-col gap-2 rounded-2xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] p-4">
                 <h2 className="text-center text-sm font-black tracking-wide text-amber-200">
                   GROWN-UP TOOLS
                 </h2>
+                <div className="rounded-xl border border-amber-300/60 bg-amber-500/10 p-3">
+                  <div className="text-xs font-black text-amber-100">
+                    Rescue preview
+                  </div>
+                  <div className="mt-1 text-[11px] leading-snug text-[var(--c-soft)]">
+                    Age boss: {ageRescue.title} at level {ageRescue.level}. Try codes: rescue, mooncalf, coraldragon, gearfox, mewtwo, or level12.
+                  </div>
+                  <div className="mt-2 grid grid-cols-[1fr_auto] gap-2">
+                    <input
+                      value={secretCode}
+                      onChange={(e) => setSecretCode(e.target.value)}
+                      placeholder="secret code"
+                      className="rounded-lg border border-[var(--c-border)] bg-black/25 px-3 py-2 text-sm font-bold text-white outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!profile.applySecretCode(secretCode)) return
+                        setSecretCode('')
+                        setShowTools(false)
+                      }}
+                      className="rounded-lg border border-emerald-300 bg-emerald-500/20 px-3 py-2 text-sm font-black text-emerald-100"
+                    >
+                      Jump
+                    </button>
+                  </div>
+                </div>
+                <div className="rounded-xl border border-[var(--c-border)] bg-black/20 p-3">
+                  <label className="text-xs font-black text-[var(--c-soft)]">
+                    Replay unlocked level
+                    <select
+                      value={worldLevel}
+                      onChange={(e) => profile.setWorldLevel(profile.learningWorld, Number(e.target.value))}
+                      className="mt-1 w-full rounded-lg border border-[var(--c-border)] bg-black/30 px-3 py-2 text-sm font-bold text-white"
+                    >
+                      {Array.from(
+                        { length: Math.min(unlockedWorldLevel, maxWorldLevel) },
+                        (_, i) => i + 1,
+                      ).map((level) => {
+                        const rescue = RESCUE_CHALLENGES.find(
+                          (challenge) => challenge.world === profile.learningWorld && challenge.level === level,
+                        )
+                        return (
+                          <option key={level} value={level}>
+                            Level {level}{rescue ? ` - ${rescue.title}` : ''}
+                          </option>
+                        )
+                      })}
+                    </select>
+                  </label>
+                </div>
                 <button
                   type="button"
                   onClick={() => {

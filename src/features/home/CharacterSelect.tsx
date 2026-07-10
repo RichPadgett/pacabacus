@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Twinkles } from '@/features/arcade/ArcadeGame'
 import { useArcadeSettings } from '@/features/arcade/settingsStore'
-import { BUDDY_ORDER, HEROES, PixelSprite } from '@/features/arcade/sprites'
+import { BUDDY_ORDER, HEROES, PixelSprite, SECRET_HERO_IDS } from '@/features/arcade/sprites'
 import { THEMES } from '@/features/arcade/themes'
 import {
   buddyCost,
@@ -17,7 +17,11 @@ export function CharacterSelect({ onBack }: { onBack: () => void }) {
   const ownedBuddies = new Set(profile.ownedBuddies)
   const activeBuddies = new Set(profile.buddies)
   const playable = playableCharacters(profile.ownedCharacters)
-  const buddyPages = chunk(BUDDY_ORDER, 6)
+  const buddyRoster = [
+    ...BUDDY_ORDER,
+    ...SECRET_HERO_IDS.filter((id) => ownedBuddies.has(id)),
+  ]
+  const buddyPages = chunk(buddyRoster, 6)
   const pages = ['Player', ...buddyPages.map((_, index) => `Buddies ${index + 1}`)]
   const nextPage = () => setPage((current) => Math.min(pages.length - 1, current + 1))
   const prevPage = () => setPage((current) => Math.max(0, current - 1))

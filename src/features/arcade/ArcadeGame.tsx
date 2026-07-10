@@ -21,7 +21,7 @@ import {
 import { growthForAgeBand } from './characterGrowth'
 import type { Dir } from './maze'
 import { MazeBoard } from './MazeBoard'
-import { HEROES, type HeroId } from './sprites'
+import { HEROES, SECRET_HERO_IDS, type HeroId } from './sprites'
 import { SPEED_MS, useArcadeSettings } from './settingsStore'
 import { THEMES } from './themes'
 import { collectibleTreasureCount, useArcadeGame } from './useArcadeGame'
@@ -187,6 +187,7 @@ export function ArcadeGame({
       : profile.learningWorld)
   const isFreePlay = mode === 'free'
   const worldLevels = { ...DEFAULT_WORLD_LEVELS, ...profile.worldLevels }
+  const playWorldLevels = { ...worldLevels, ...profile.playWorldLevels }
 
   const cfgFor = useMemo(() => {
     if (!isFreePlay) {
@@ -198,7 +199,7 @@ export function ArcadeGame({
   }, [activeWorld, isFreePlay, profile.ageBand, settings])
 
   const maxLevel = activeWorld === 'pacabacus' ? ADVENTURE_MAX : ADD_ON_MAX
-  const startLevel = isFreePlay ? 1 : Math.min(worldLevels[activeWorld], maxLevel)
+  const startLevel = isFreePlay ? 1 : Math.min(playWorldLevels[activeWorld], maxLevel)
 
   const stepMs = SPEED_MS[settings.speed]
   const growth = growthForAgeBand(profile.ageBand)
@@ -607,9 +608,14 @@ export function ArcadeGame({
           )}
           {rewards?.newCharacters.map((id) => (
             <p key={id} className="font-bold text-amber-300">
-              🎁 New character unlocked: {HEROES[id].name}!
+              {SECRET_HERO_IDS.includes(id) ? '🔓 Prisoner rescued' : '🎁 New character unlocked'}: {HEROES[id].name}!
             </p>
           ))}
+          {rewards?.newCharacters.includes('mewtwo') && (
+            <p className="text-lg font-black text-fuchsia-200">
+              You saved the super secret character. Whole journey complete! ✨
+            </p>
+          )}
           {rewards?.newBadges.map((b) => (
             <p key={b.id} className="font-bold text-amber-300">
               {b.emoji} New badge: {b.name}!

@@ -4,6 +4,7 @@ import {
   BUDDY_COSTS,
   BUDDY_ORDER,
   HEROES,
+  SECRET_HERO_IDS,
   STARTER_HERO_IDS,
   type HeroId,
 } from '@/features/arcade/sprites'
@@ -15,6 +16,7 @@ import {
   type AgeBand,
   type LearningWorldId,
 } from '@/features/learning/learningWorlds'
+import { RESCUE_CHALLENGES, rescueForClear, secretCodeLevel } from './rescueChallenges'
 import { BADGES, type Badge } from './rewards'
 
 export type ProgressMode = 'adventure' | 'counting'
@@ -39,6 +41,7 @@ export interface PlayerProfile {
   ageBand: AgeBand
   learningWorld: LearningWorldId
   worldLevels: Record<LearningWorldId, number>
+  playWorldLevels: Record<LearningWorldId, number>
   worldStars: Record<string, number>
   adventureLevel: number
   countingLevel: number
@@ -59,6 +62,7 @@ interface ProfileStore {
   ageBand: AgeBand
   learningWorld: LearningWorldId
   worldLevels: Record<LearningWorldId, number>
+  playWorldLevels: Record<LearningWorldId, number>
   worldStars: Record<string, number>
   /** next level to play in each mode (1-based) */
   adventureLevel: number
@@ -71,6 +75,8 @@ interface ProfileStore {
   setDateOfBirth: (dateOfBirth: string | null) => void
   setAgeBand: (ageBand: AgeBand) => void
   setLearningWorld: (world: LearningWorldId) => void
+  setWorldLevel: (world: LearningWorldId, level: number) => void
+  applySecretCode: (code: string) => boolean
   setCharacter: (id: HeroId) => void
   setBuddy: (id: HeroId | null) => void
   toggleBuddy: (id: HeroId) => void
@@ -103,6 +109,10 @@ export function unlockedCharacters(adventureLevel: number): HeroId[] {
 
 export function playableCharacters(ownedCharacters: HeroId[] = []): HeroId[] {
   return Array.from(new Set([...STARTER_HERO_IDS, ...ownedCharacters]))
+}
+
+export function secretCharacters(ownedCharacters: HeroId[] = []): HeroId[] {
+  return SECRET_HERO_IDS.filter((id) => ownedCharacters.includes(id))
 }
 
 export function unlockedBuddies(adventureLevel: number): HeroId[] {
@@ -139,6 +149,7 @@ function makeProfile(username: string, character: HeroId, dateOfBirth: string | 
     ageBand: ageBandFromDateOfBirth(dateOfBirth),
     learningWorld: 'pacabacus',
     worldLevels: { ...DEFAULT_WORLD_LEVELS },
+    playWorldLevels: { ...DEFAULT_WORLD_LEVELS },
     worldStars: {},
     adventureLevel: 1,
     countingLevel: 1,
@@ -160,6 +171,7 @@ function activeFields(profile: PlayerProfile) {
     ageBand: profile.ageBand ?? ageBandFromDateOfBirth(profile.dateOfBirth),
     learningWorld: profile.learningWorld ?? 'pacabacus',
     worldLevels: normalizeWorldLevels(profile.worldLevels),
+    playWorldLevels: normalizeWorldLevels(profile.playWorldLevels ?? profile.worldLevels),
     worldStars: profile.worldStars ?? {},
     adventureLevel: profile.adventureLevel,
     countingLevel: profile.countingLevel,
@@ -181,6 +193,7 @@ function emptyFields() {
     ageBand: 'early' as AgeBand,
     learningWorld: 'pacabacus' as LearningWorldId,
     worldLevels: { ...DEFAULT_WORLD_LEVELS },
+    playWorldLevels: { ...DEFAULT_WORLD_LEVELS },
     worldStars: {},
     adventureLevel: 1,
     countingLevel: 1,
@@ -213,6 +226,7 @@ export const useProfile = create<ProfileStore>()(
       ageBand: 'early',
       learningWorld: 'pacabacus',
       worldLevels: { ...DEFAULT_WORLD_LEVELS },
+      playWorldLevels: { ...DEFAULT_WORLD_LEVELS },
       worldStars: {},
       adventureLevel: 1,
       countingLevel: 1,
@@ -252,6 +266,28 @@ export const useProfile = create<ProfileStore>()(
           learningWorld,
           profiles: syncActive(s.profiles, s.activeProfileId, { learningWorld }),
         })),
+      setWorldLevel: (learningWorld, level) =>
+        set((s) => {
+          const playWorldLevels = normalizeWorldLevels(s.playWorldLevels)
+          const nextPlayWorldLevels = {
+            ...playWorldLevels,
+            [learningWorld]: Math.max(1, level),
+          }
+          return {
+            learningWorld,
+            playWorldLevels: nextPlayWorldLevels,
+            profiles: syncActive(s.profiles, s.activeProfileId, {
+              learningWorld,
+              playWorldLevels: nextPlayWorldLevels,
+            }),
+          }
+        }),
+      applySecretCode: (code) => {
+        const level = secretCodeLevel(code)
+        if (!level) return false
+        get().setWorldLevel('pacabacus', level)
+        return true
+      },
       setCharacter: (character) =>
         set((s) => ({
           character,
@@ -342,25 +378,33 @@ export const useProfile = create<ProfileStore>()(
         const worldLevels = normalizeWorldLevels(s.worldLevels)
         const nextLevel = Math.max(worldLevels[world], level + 1)
         const nextWorldLevels = { ...worldLevels, [world]: nextLevel }
+        const nextPlayWorldLevels = { ...normalizeWorldLevels(s.playWorldLevels), [world]: Math.min(nextLevel, level + 1) }
         const key = `${world}:${level}`
         const firstClear = s.worldStars[key] == null
         const coinsEarned = firstClear ? 10 + starCount * 5 : 2
         const treasureCoins = s.treasureCoins + coinsEarned
         const worldStars = { ...s.worldStars, [key]: Math.max(s.worldStars[key] ?? 0, starCount) }
         const worldCharacters = characterUnlocksForWorld(world, nextLevel)
-        const ownedCharacters = Array.from(new Set([...s.ownedCharacters, ...worldCharacters]))
+        const rescue = rescueForClear(world, level)
+        const rescued = rescue ? [rescue.hero] : []
+        const ownedCharacters = Array.from(new Set([...s.ownedCharacters, ...worldCharacters, ...rescued]))
+        const ownedBuddies = Array.from(new Set([...s.ownedBuddies, ...rescued]))
         const newCharacters = ownedCharacters.filter((id) => !charactersBefore.has(id))
         const after = totalWorldCompleted({ worldLevels: nextWorldLevels })
         set((current) => ({
           worldLevels: nextWorldLevels,
+          playWorldLevels: nextPlayWorldLevels,
           worldStars,
           treasureCoins,
           ownedCharacters,
+          ownedBuddies,
           profiles: syncActive(current.profiles, current.activeProfileId, {
             worldLevels: nextWorldLevels,
+            playWorldLevels: nextPlayWorldLevels,
             worldStars,
             treasureCoins,
             ownedCharacters,
+            ownedBuddies,
           }),
         }))
         return {
@@ -395,6 +439,7 @@ export const useProfile = create<ProfileStore>()(
           countingLevel: 1,
           stars: {},
           worldLevels: { ...DEFAULT_WORLD_LEVELS },
+          playWorldLevels: { ...DEFAULT_WORLD_LEVELS },
           worldStars: {},
           character: STARTER_HERO_IDS[0],
           buddy: null,
@@ -407,6 +452,7 @@ export const useProfile = create<ProfileStore>()(
             countingLevel: 1,
             stars: {},
             worldLevels: { ...DEFAULT_WORLD_LEVELS },
+            playWorldLevels: { ...DEFAULT_WORLD_LEVELS },
             worldStars: {},
             character: STARTER_HERO_IDS[0],
             buddy: null,
@@ -436,7 +482,7 @@ export const useProfile = create<ProfileStore>()(
     }),
     {
       name: 'pacabacus-profile',
-      version: 4,
+      version: 5,
       migrate: (persisted) => {
         const s = persisted as Partial<ProfileStore>
         if (s.profiles?.length) {
@@ -451,6 +497,15 @@ export const useProfile = create<ProfileStore>()(
                 ...(p.ownedCharacters ?? []),
                 ...unlockedCharacters(p.adventureLevel ?? 1),
                 ...characterUnlocksForWorld('pacabacus', worldLevels.pacabacus),
+                ...RESCUE_CHALLENGES.filter((challenge) =>
+                  (p.worldStars ?? {})[`${challenge.world}:${challenge.level}`] != null,
+                ).map((challenge) => challenge.hero),
+              ]),
+            )
+            const ownedBuddies = Array.from(
+              new Set([
+                ...(p.ownedBuddies ?? []),
+                ...ownedCharacters.filter((id) => SECRET_HERO_IDS.includes(id)),
               ]),
             )
             return {
@@ -458,11 +513,12 @@ export const useProfile = create<ProfileStore>()(
               buddy: buddies[0] ?? p.buddy ?? null,
               buddies: buddies.slice(0, MAX_ACTIVE_BUDDIES),
               ownedCharacters,
-              ownedBuddies: p.ownedBuddies ?? [],
+              ownedBuddies,
               dateOfBirth: p.dateOfBirth ?? null,
               ageBand: p.ageBand ?? ageBandFromDateOfBirth(p.dateOfBirth),
               learningWorld: p.learningWorld ?? 'pacabacus',
               worldLevels,
+              playWorldLevels: normalizeWorldLevels(p.playWorldLevels ?? p.worldLevels),
               worldStars: p.worldStars ?? {},
               treasureCoins:
                 p.treasureCoins ?? totalCompleted(p) * 12 + Object.keys(p.stars ?? {}).length * 3,
@@ -488,6 +544,9 @@ export const useProfile = create<ProfileStore>()(
           ageBand: 'early',
           learningWorld: 'pacabacus',
           worldLevels: normalizeWorldLevels({
+            pacabacus: Math.max(s.adventureLevel ?? 1, s.countingLevel ?? 1),
+          }),
+          playWorldLevels: normalizeWorldLevels({
             pacabacus: Math.max(s.adventureLevel ?? 1, s.countingLevel ?? 1),
           }),
           worldStars: {},
