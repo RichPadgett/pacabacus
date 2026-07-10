@@ -19,6 +19,8 @@ export interface MazeDef {
   cols: number
   pacSpawn: Pos
   ghostSpawns: Pos[]
+  troubleSpots?: Pos[]
+  decorations?: Record<string, string>
 }
 
 /** Maze layouts cycle as levels advance. All are 13×9 and fully connected. */
@@ -204,7 +206,14 @@ export function mazeForLevel(level: number): MazeDef {
 }
 
 export function travelMazeForLevel(level: number): MazeDef {
-  const journeys: { name: string; grid: string[]; pacSpawn: Pos; ghostSpawns: Pos[] }[] = [
+  const journeys: {
+    name: string
+    grid: string[]
+    pacSpawn: Pos
+    ghostSpawns: Pos[]
+    troubleSpots: Pos[]
+    decorations: Record<string, string>
+  }[] = [
     {
       name: 'Doorstep Trail',
       grid: [
@@ -223,7 +232,19 @@ export function travelMazeForLevel(level: number): MazeDef {
         { r: 3, c: 10 },
         { r: 5, c: 2 },
         { r: 1, c: 1 },
+        { r: 7, c: 10 },
       ],
+      troubleSpots: [
+        { r: 3, c: 5 },
+        { r: 5, c: 7 },
+      ],
+      decorations: {
+        '1,5': '✦',
+        '3,1': '🌿',
+        '3,11': '🌿',
+        '7,1': '🪧',
+        '7,11': '✦',
+      },
     },
     {
       name: 'Winding Bridge',
@@ -243,7 +264,20 @@ export function travelMazeForLevel(level: number): MazeDef {
         { r: 1, c: 10 },
         { r: 5, c: 1 },
         { r: 3, c: 6 },
+        { r: 7, c: 2 },
       ],
+      troubleSpots: [
+        { r: 1, c: 6 },
+        { r: 5, c: 6 },
+        { r: 7, c: 9 },
+      ],
+      decorations: {
+        '1,1': '🪧',
+        '1,11': '✦',
+        '3,3': '🌉',
+        '5,9': '🌉',
+        '7,6': '✦',
+      },
     },
     {
       name: 'Little Room Road',
@@ -263,7 +297,20 @@ export function travelMazeForLevel(level: number): MazeDef {
         { r: 1, c: 1 },
         { r: 3, c: 11 },
         { r: 5, c: 1 },
+        { r: 7, c: 11 },
       ],
+      troubleSpots: [
+        { r: 1, c: 6 },
+        { r: 3, c: 3 },
+        { r: 5, c: 9 },
+      ],
+      decorations: {
+        '1,5': '🚪',
+        '1,7': '🚪',
+        '3,1': '✦',
+        '5,11': '✦',
+        '7,6': '🪧',
+      },
     },
     {
       name: 'World Gate Maze',
@@ -283,7 +330,22 @@ export function travelMazeForLevel(level: number): MazeDef {
         { r: 1, c: 10 },
         { r: 3, c: 1 },
         { r: 5, c: 10 },
+        { r: 7, c: 2 },
+        { r: 7, c: 10 },
       ],
+      troubleSpots: [
+        { r: 1, c: 5 },
+        { r: 3, c: 7 },
+        { r: 5, c: 5 },
+        { r: 7, c: 8 },
+      ],
+      decorations: {
+        '1,1': '🏰',
+        '1,11': '🏰',
+        '3,5': '✦',
+        '5,7': '✦',
+        '7,6': '🪧',
+      },
     },
   ]
   const journey = level % 5 === 0 ? journeys[3] : journeys[level % 3]
@@ -295,6 +357,8 @@ export function travelMazeForLevel(level: number): MazeDef {
     cols: grid[0].length,
     pacSpawn: journey.pacSpawn,
     ghostSpawns: journey.ghostSpawns,
+    troubleSpots: level >= 15 ? journey.troubleSpots : [],
+    decorations: journey.decorations,
   }
 }
 

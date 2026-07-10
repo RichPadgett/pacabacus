@@ -987,6 +987,16 @@ body {
   filter: drop-shadow(0 0 8px var(--door-glow));
 }
 
+.travel-trouble {
+  border-radius: 999px;
+  background:
+    radial-gradient(circle, rgba(250, 204, 21, 0.85) 0 24%, rgba(234, 88, 12, 0.45) 25% 45%, transparent 62%);
+  color: #431407;
+  font-weight: 900;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
+  animation: troublePulse 1s ease-in-out infinite;
+}
+
 .door-burst__light {
   position: absolute;
   border-radius: 999px 999px 40% 40%;
@@ -1046,6 +1056,18 @@ body {
   to {
     opacity: 1;
     transform: translateY(-10%) scale(1.15);
+  }
+}
+
+@keyframes troublePulse {
+  0%,
+  100% {
+    opacity: 0.72;
+    transform: scale(0.82);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
   }
 }
 

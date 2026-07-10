@@ -71,6 +71,8 @@ export function MazeBoard({
       const k = posKey({ r, c })
       const treasure = treasures.get(k)
       const isJailFruit = jailFruits.has(k)
+      const trouble = maze.troubleSpots?.some((spot) => samePosForBoard(spot, { r, c }))
+      const decoration = maze.decorations?.[k]
       const hasDoor =
         (!wall && exitDoor && samePosForBoard(exitDoor, { r, c })) ||
         (!wall && travelExitDoor && samePosForBoard(travelExitDoor, { r, c }))
@@ -102,6 +104,23 @@ export function MazeBoard({
               <span className="door-burst__right" style={{ width: tile * 0.28, height: tile * 0.72 }} />
               <span className="door-burst__spark" style={{ fontSize: tile * 0.42 }}>✦</span>
             </div>
+          )}
+          {!wall && trouble && !hasDoor && (
+            <span
+              className="travel-trouble absolute inset-0 z-[1] flex items-center justify-center"
+              style={{ fontSize: tile * 0.42 }}
+              aria-label="Trouble zone"
+            >
+              ⚠
+            </span>
+          )}
+          {!wall && decoration && !treasure && !hasDoor && (
+            <span
+              className="absolute inset-0 flex items-center justify-center leading-none opacity-75"
+              style={{ fontSize: tile * 0.38 }}
+            >
+              {decoration}
+            </span>
           )}
           {!wall && treasure === 'gold-coin' && (
             <span

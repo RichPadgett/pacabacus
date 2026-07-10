@@ -79,6 +79,13 @@ function ageTuneCfg(cfg: LevelCfg, ageBand: AgeBand): LevelCfg {
   return { ...cfg, enemy: ageTuneEnemy(cfg.enemy, ageBand) }
 }
 
+function ageAdjustedLevel(level: number, ageBand: AgeBand) {
+  if (ageBand === 'little') return Math.max(1, level - 2)
+  if (ageBand === 'growing') return level + 6
+  if (ageBand === 'big') return level + 14
+  return level
+}
+
 /** Main 50-level adventure: eases in, then grows through real soroban skills. */
 export function adventureCfg(level: number, settings?: ArcadeSettings): LevelCfg {
   const problem: ProblemCfg =
@@ -189,7 +196,13 @@ export function pacWordsCfg(level: number): LevelCfg {
 
 export function pacWordsCfgForAge(level: number, ageBand: AgeBand): LevelCfg {
   const adjustedLevel =
-    ageBand === 'little' ? Math.max(1, level - 2) : ageBand === 'big' ? level + 2 : level
+    ageBand === 'little'
+      ? Math.max(1, level - 2)
+      : ageBand === 'growing'
+        ? level + 4
+        : ageBand === 'big'
+          ? level + 8
+          : level
   return {
     problem: { kind: 'words', level: adjustedLevel },
     rodCount: 1,
@@ -206,12 +219,15 @@ export function pacTablesCfg(level: number): LevelCfg {
 }
 
 export function pacTablesCfgForAge(level: number, ageBand: AgeBand): LevelCfg {
+  const adjustedLevel = ageAdjustedLevel(level, ageBand)
   const maxFactor =
     ageBand === 'little'
       ? Math.min(5, 1 + Math.ceil(level / 3))
       : ageBand === 'early'
         ? Math.min(10, 2 + Math.ceil(level / 3))
-        : Math.min(12, 2 + Math.ceil(level / 2))
+        : ageBand === 'growing'
+          ? Math.min(12, 4 + Math.ceil(adjustedLevel / 3))
+          : Math.min(12, 6 + Math.ceil(adjustedLevel / 3))
   return {
     problem: { kind: 'tables', maxFactor },
     rodCount: 2,
@@ -228,19 +244,34 @@ export function pacMathCfg(level: number): LevelCfg {
 }
 
 export function pacMathCfgForAge(level: number, ageBand: AgeBand): LevelCfg {
+  const adjustedLevel = ageAdjustedLevel(level, ageBand)
   const maxAnswer =
     ageBand === 'little'
       ? level <= 10 ? 10 : 20
-      : level <= 6
-        ? 10
-        : level <= 14
-          ? 20
+      : ageBand === 'early'
+        ? level <= 6
+          ? 10
+          : level <= 14
+            ? 20
+            : 50
+        : ageBand === 'growing'
+          ? adjustedLevel <= 14
+            ? 20
+            : 50
           : 50
+  const ops =
+    ageBand === 'little' || level <= 5
+      ? 'add'
+      : ageBand === 'early'
+        ? level <= 8
+          ? 'add'
+          : 'mixed'
+        : 'mixed'
   return {
     problem: {
       kind: 'standard',
       maxAnswer,
-      ops: ageBand === 'little' || level <= 8 ? 'add' : 'mixed',
+      ops,
     },
     rodCount: 2,
     enemy: addOnEnemy(ageBand === 'little' ? Math.max(1, level - 4) : level),
@@ -265,10 +296,7 @@ export function learningWorldCfg(
   }
   return withGoal(
     ageTuneCfg(
-      adventureCfg(
-        ageBand === 'early' ? level : ageBand === 'growing' ? level + 2 : level + 5,
-        settings,
-      ),
+      adventureCfg(ageAdjustedLevel(level, ageBand), settings),
       ageBand,
     ),
     level,

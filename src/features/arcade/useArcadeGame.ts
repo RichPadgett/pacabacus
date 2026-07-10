@@ -322,6 +322,12 @@ function farthestSpawn(maze: MazeDef, pac: Pos): Pos {
   )[0]
 }
 
+function travelGhostCount(level: number, cfgCount: number, spawnCount: number) {
+  const base = level % 5 === 0 ? 3 : 2
+  const lateBoost = level >= 30 ? 2 : level >= 15 ? 1 : 0
+  return Math.max(base, Math.min(spawnCount, cfgCount + 1 + lateBoost))
+}
+
 function makeReducer(
   cfgFor: (level: number) => LevelCfg,
   travelEnabled: boolean,
@@ -435,7 +441,7 @@ function makeReducer(
 
   const enterTravel = (state: GameState): GameState => {
     const maze = travelMazeForLevel(state.level)
-    const ghostCount = Math.max(1, Math.min(2, state.cfg.enemy.count))
+    const ghostCount = travelGhostCount(state.level, state.cfg.enemy.count, maze.ghostSpawns.length)
     const travelExitDoor = exitDoorForMaze(maze)
     const treasures = travelTreasuresForMaze(maze, travelExitDoor, state.level)
     const isWorldGate = state.level % 5 === 0
@@ -464,7 +470,9 @@ function makeReducer(
         state,
         isWorldGate
           ? 'World gate opened! Cross the maze path to the next land. 🚪'
-          : 'Journey path opened! Grab snacks and find the next room. 🚪',
+          : maze.troubleSpots?.length
+            ? 'Journey path opened! Warning tiles can call more baddies. ⚠'
+            : 'Journey path opened! Grab snacks and find the next room. 🚪',
         'good',
       ),
     }
@@ -650,16 +658,30 @@ function makeReducer(
           const treasure = state.treasures.get(key)
           const treasures = new Map(state.treasures)
           if (treasure) treasures.delete(key)
+          const hitTrouble = state.maze.troubleSpots?.some((spot) => samePos(spot, target)) ?? false
+          const canSpawnTrouble =
+            hitTrouble &&
+            state.ghosts.length < state.maze.ghostSpawns.length &&
+            Math.random() < (state.level >= 35 ? 0.8 : state.level >= 20 ? 0.55 : 0.35)
+          const ghosts = canSpawnTrouble
+            ? [...state.ghosts, farthestSpawn(state.maze, target)]
+            : state.ghosts
           const moved: GameState = {
             ...state,
             pac: target,
             buddy: state.pac,
             buddyTrail: [state.pac, ...state.buddyTrail].slice(0, 3),
             facing: action.dir,
+            ghosts,
+            ghostPrev: canSpawnTrouble ? [...state.ghostPrev, state.pac] : state.ghostPrev,
             treasures,
-            message: treasure
-              ? say(state, treasure === '💰' ? 'Path coin found! 💰' : 'Trail snack! Keep going. 🍓', 'good')
-              : state.message,
+            message: canSpawnTrouble
+              ? say(state, 'Trouble zone! Another baddie joined the path. ⚠', 'bad')
+              : treasure
+                ? say(state, treasure === '💰' ? 'Path coin found! 💰' : 'Trail snack! Keep going. 🍓', 'good')
+                : hitTrouble
+                  ? say(state, 'Trouble zone... keep moving. ⚠', 'bad')
+                  : state.message,
           }
           if (state.travelExitDoor && samePos(target, state.travelExitDoor)) {
             return levelStart(moved, state.level + 1)
@@ -846,7 +868,11 @@ function makeReducer(
 
       case 'TRAVEL_GHOST_TICK': {
         if (state.phase !== 'travel') return state
-        const ghosts = state.ghosts.map((g) => randomStep(state.maze, g))
+        const ghosts = state.ghosts.map((g) =>
+          Math.random() < (state.level >= 35 ? 0.35 : 0.18)
+            ? nextStepToward(state.maze, g, state.pac)
+            : randomStep(state.maze, g),
+        )
         const stepped = {
           ...state,
           ghosts,
