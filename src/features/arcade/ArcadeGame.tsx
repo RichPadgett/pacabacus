@@ -367,6 +367,11 @@ export function ArcadeGame({
           <span className={`growth-pill growth-pill--${growth.stage}`}>
             {growth.shortLabel}
           </span>
+          {growth.ghostSkill !== 'none' && (
+            <span className="growth-charge-pill">
+              {growth.ghostSkill === 'attack' ? '✨' : '🛡️'} {state.guardCharges}
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-1">
           <div className="hidden min-w-20 text-center sm:block">

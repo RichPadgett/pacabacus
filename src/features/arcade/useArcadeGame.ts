@@ -63,6 +63,12 @@ const QUICK_BONUS_MOVES = 2
 const POWER_TICKS = 16
 const TRAVEL_EXIT_DOOR: Pos = { r: 1, c: 5 }
 
+function guardChargesForSkill(skill: GhostSkill) {
+  if (skill === 'attack') return 2
+  if (skill === 'defend') return 3
+  return 0
+}
+
 export interface GameState {
   level: number
   cfg: LevelCfg
@@ -96,6 +102,7 @@ export interface GameState {
   goalLabel: string
   quickMeter: number
   starReady: boolean
+  guardCharges: number
   powerBuddy: Pos | null
   powerTicksLeft: number
   exitDoor: Pos | null
@@ -352,7 +359,7 @@ function makeReducer(
   }
 
   const defendedState = (state: GameState): GameState | null => {
-    if (ghostSkill === 'none' || state.jailTurns > 0) return null
+    if (ghostSkill === 'none' || state.jailTurns > 0 || state.guardCharges <= 0) return null
     const colliding = state.ghosts.filter((g) => samePos(g, state.pac))
     if (!colliding.length) return null
     if (ghostSkill === 'attack') {
@@ -361,7 +368,14 @@ function makeReducer(
         ghosts: state.ghosts.filter((g) => !samePos(g, state.pac)),
         ghostPrev: state.ghosts,
         jailTurns: 0,
-        message: say(state, 'Legend power! The baddie poofed away! ✨', 'good'),
+        guardCharges: state.guardCharges - 1,
+        message: say(
+          state,
+          state.guardCharges > 1
+            ? `Legend power! The baddie poofed away! ${state.guardCharges - 1} left. ✨`
+            : 'Legend power used up! The baddie poofed away! ✨',
+          'good',
+        ),
       }
     }
     const jail = state.maze.ghostSpawns[0] ?? state.maze.pacSpawn
@@ -370,7 +384,14 @@ function makeReducer(
       ghosts: state.ghosts.map((g) => (samePos(g, state.pac) ? jail : g)),
       ghostPrev: state.ghosts,
       jailTurns: 1,
-      message: say(state, 'Guardian block! The baddie bounced away! 🛡️', 'good'),
+      guardCharges: state.guardCharges - 1,
+      message: say(
+        state,
+        state.guardCharges > 1
+          ? `Guardian block! ${state.guardCharges - 1} blocks left. 🛡️`
+          : 'Guardian block used up! Stay sharp. 🛡️',
+        'good',
+      ),
     }
   }
 
@@ -450,6 +471,7 @@ function makeReducer(
       treasures,
       jailFruits,
       jailTurns: 0,
+      guardCharges: guardChargesForSkill(ghostSkill),
       powerBuddy: null,
       powerTicksLeft: 0,
       exitDoor: null,
@@ -846,7 +868,11 @@ function makeReducer(
   }
 }
 
-function makeInitialState(cfgFor: (level: number) => LevelCfg, startLevel: number): GameState {
+function makeInitialState(
+  cfgFor: (level: number) => LevelCfg,
+  startLevel: number,
+  ghostSkill: GhostSkill,
+): GameState {
   const cfg = cfgFor(startLevel)
   const maze = mazeForLevel(startLevel)
   const { treasures, jailFruits } = spawnTreasures(maze, cfg)
@@ -882,6 +908,7 @@ function makeInitialState(cfgFor: (level: number) => LevelCfg, startLevel: numbe
     ...goal,
     quickMeter: 0,
     starReady: false,
+    guardCharges: guardChargesForSkill(ghostSkill),
     powerBuddy: null,
     powerTicksLeft: 0,
     exitDoor: null,
@@ -906,7 +933,7 @@ export function useArcadeGame(
   const [state, dispatch] = useReducer(
     reducer,
     null,
-    () => makeInitialState(cfgFor, startLevel),
+    () => makeInitialState(cfgFor, startLevel, ghostSkill),
   )
 
   useEffect(() => {

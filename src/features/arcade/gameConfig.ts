@@ -51,6 +51,34 @@ function withGoal(cfg: LevelCfg, level: number, ageBand: AgeBand): LevelCfg {
   return { ...cfg, goal: goalForLevel(level, cfg.treasureCount, ageBand) }
 }
 
+function ageTuneEnemy(enemy: EnemyCfg, ageBand: AgeBand): EnemyCfg {
+  if (ageBand === 'growing') {
+    return {
+      ...enemy,
+      count: Math.min(3, enemy.count + (enemy.count > 0 ? 1 : 0)),
+      correctSteps: enemy.correctSteps + 1,
+      wrongSteps: enemy.wrongSteps + 1,
+      chaseChance: Math.min(0.9, enemy.chaseChance + 0.16),
+      spawnChance: Math.min(0.35, enemy.spawnChance + 0.08),
+    }
+  }
+  if (ageBand === 'big') {
+    return {
+      ...enemy,
+      count: Math.min(4, enemy.count + (enemy.count > 0 ? 1 : 0)),
+      correctSteps: enemy.correctSteps + 1,
+      wrongSteps: enemy.wrongSteps + 1,
+      chaseChance: Math.min(0.95, enemy.chaseChance + 0.24),
+      spawnChance: Math.min(0.45, enemy.spawnChance + 0.14),
+    }
+  }
+  return enemy
+}
+
+function ageTuneCfg(cfg: LevelCfg, ageBand: AgeBand): LevelCfg {
+  return { ...cfg, enemy: ageTuneEnemy(cfg.enemy, ageBand) }
+}
+
 /** Main 50-level adventure: eases in, then grows through real soroban skills. */
 export function adventureCfg(level: number, settings?: ArcadeSettings): LevelCfg {
   const problem: ProblemCfg =
@@ -229,16 +257,19 @@ export function learningWorldCfg(
   ageBand: AgeBand,
   settings?: ArcadeSettings,
 ): LevelCfg {
-  if (world === 'pacwords') return withGoal(pacWordsCfgForAge(level, ageBand), level, ageBand)
-  if (world === 'pactables') return withGoal(pacTablesCfgForAge(level, ageBand), level, ageBand)
-  if (world === 'pacmath') return withGoal(pacMathCfgForAge(level, ageBand), level, ageBand)
+  if (world === 'pacwords') return withGoal(ageTuneCfg(pacWordsCfgForAge(level, ageBand), ageBand), level, ageBand)
+  if (world === 'pactables') return withGoal(ageTuneCfg(pacTablesCfgForAge(level, ageBand), ageBand), level, ageBand)
+  if (world === 'pacmath') return withGoal(ageTuneCfg(pacMathCfgForAge(level, ageBand), ageBand), level, ageBand)
   if (ageBand === 'little') {
     return withGoal(countingCfg(Math.min(level, COUNTING_MAX)), level, ageBand)
   }
   return withGoal(
-    adventureCfg(
-      ageBand === 'early' ? level : ageBand === 'growing' ? level + 2 : level + 5,
-      settings,
+    ageTuneCfg(
+      adventureCfg(
+        ageBand === 'early' ? level : ageBand === 'growing' ? level + 2 : level + 5,
+        settings,
+      ),
+      ageBand,
     ),
     level,
     ageBand,
