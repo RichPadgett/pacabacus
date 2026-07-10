@@ -52,7 +52,8 @@ function useTileSize(cols: number, rows: number) {
   const calc = () => {
     const isLandscape = window.innerWidth > window.innerHeight
     const shortScreen = Math.min(window.innerWidth, window.innerHeight) < 430
-    const boardWidth = isLandscape ? window.innerWidth * 0.64 - 20 : window.innerWidth - 24
+    const sidePanelWidth = isLandscape ? Math.min(336, window.innerWidth * 0.36) : 0
+    const boardWidth = isLandscape ? window.innerWidth - sidePanelWidth - 36 : window.innerWidth - 24
     const widthFit = Math.floor(boardWidth / cols)
     const reservedHeight = isLandscape ? 92 : shortScreen ? 246 : 270
     const heightFit = Math.floor((window.innerHeight - reservedHeight) / rows)
@@ -501,8 +502,8 @@ export function ArcadeGame({
           />
         </div>
 
-        <div className="z-10 flex w-full max-w-[29rem] shrink-0 flex-col items-center gap-1.5 landscape:w-[23rem]">
-          <div className="flex w-full flex-col items-center rounded-2xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] p-2 shadow-lg shadow-black/20 sm:p-3 landscape:flex-row landscape:justify-center landscape:gap-2">
+        <div className="z-10 flex w-full max-w-[29rem] shrink-0 flex-col items-center gap-1.5 landscape:w-[min(21rem,36vw)]">
+          <div className="flex w-full flex-col items-center rounded-2xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] p-2 shadow-lg shadow-black/20 sm:p-3 landscape:flex-row landscape:justify-center landscape:gap-2 landscape:p-2">
             {state.powerTicksLeft > 0 ? (
               <div className="buddy-power-panel flex w-full flex-col items-center justify-center rounded-xl border border-amber-300 bg-amber-500/15 p-3 text-center landscape:min-h-24">
                 <div className="text-xl font-black text-amber-200">⭐ Buddy power!</div>
@@ -527,7 +528,7 @@ export function ArcadeGame({
               <>
                 <div
                   className={[
-                    'flex w-full flex-col items-center rounded-xl border p-1.5 sm:p-2 landscape:w-[12rem] landscape:shrink-0',
+                    'flex w-full flex-col items-center rounded-xl border p-1.5 sm:p-2 landscape:w-[min(11rem,17vw)] landscape:shrink-0 landscape:p-1.5',
                     isChallenge
                       ? 'border-amber-400 bg-amber-950/50'
                       : 'border-white/10 bg-black/10',
@@ -649,6 +650,7 @@ export function ArcadeGame({
                         onChange={setAnswer}
                         readOnly={!canAnswer}
                         showLabels={state.cfg.rodCount > 1}
+                        compact
                       />
                       <div className="mt-1 text-sm sm:mt-2 sm:text-lg">
                         Beads: <b className="text-xl text-amber-300 sm:text-2xl">{state.answerValue}</b>

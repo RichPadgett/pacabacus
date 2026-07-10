@@ -10,6 +10,7 @@ interface AbacusProps {
   onChange?: (value: number) => void
   readOnly?: boolean
   showLabels?: boolean
+  compact?: boolean
 }
 
 export function Abacus({
@@ -19,6 +20,7 @@ export function Abacus({
   onChange,
   readOnly,
   showLabels,
+  compact,
 }: AbacusProps) {
   const { rods, setRod } = useAbacusValue({
     rodCount,
@@ -28,7 +30,12 @@ export function Abacus({
   })
 
   return (
-    <div className="abacus-frame inline-flex touch-none gap-2 rounded-2xl border-2 border-indigo-500 bg-indigo-950 p-4 overscroll-contain">
+    <div
+      className={[
+        'abacus-frame inline-flex touch-none gap-2 rounded-2xl border-2 border-indigo-500 bg-indigo-950 p-4 overscroll-contain',
+        compact ? 'abacus-frame--compact' : '',
+      ].join(' ')}
+    >
       {rods.map((rod, i) => (
         <Rod
           key={i}
@@ -36,6 +43,7 @@ export function Abacus({
           onChange={(next) => setRod(i, next)}
           readOnly={readOnly}
           label={showLabels ? PLACE_LABELS[rodCount - 1 - i] : undefined}
+          compact={compact}
         />
       ))}
     </div>

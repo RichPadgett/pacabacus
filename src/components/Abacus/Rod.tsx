@@ -6,14 +6,20 @@ interface RodProps {
   onChange: (next: RodState) => void
   readOnly?: boolean
   label?: string
+  compact?: boolean
 }
 
-export function Rod({ rod, onChange, readOnly, label }: RodProps) {
+export function Rod({ rod, onChange, readOnly, label, compact }: RodProps) {
   const activeEarthCount = rod.earthUp
   const inactiveEarthCount = 4 - rod.earthUp
 
   return (
-    <div className="abacus-rod relative flex w-20 flex-col items-center">
+    <div
+      className={[
+        'abacus-rod relative flex w-20 flex-col items-center',
+        compact ? 'abacus-rod--compact' : '',
+      ].join(' ')}
+    >
       <div className="abacus-rod-line absolute top-0 bottom-5 w-1 rounded bg-indigo-400/70" />
 
       {/* heaven deck: 1 bead, worth 5, active = pushed down toward beam */}
@@ -23,6 +29,7 @@ export function Rod({ rod, onChange, readOnly, label }: RodProps) {
           tone="heaven"
           active={rod.heavenDown}
           readOnly={readOnly}
+          compact={compact}
           onClick={() => onChange({ ...rod, heavenDown: !rod.heavenDown })}
           onSwipe={(dir) => onChange({ ...rod, heavenDown: dir === 'down' })}
         />
@@ -39,6 +46,7 @@ export function Rod({ rod, onChange, readOnly, label }: RodProps) {
             tone="earth"
             active
             readOnly={readOnly}
+            compact={compact}
             onClick={() => onChange({ ...rod, earthUp: i })}
             onSwipe={(dir) => {
               if (dir === 'down') onChange({ ...rod, earthUp: i })
@@ -52,6 +60,7 @@ export function Rod({ rod, onChange, readOnly, label }: RodProps) {
             tone="earth"
             active={false}
             readOnly={readOnly}
+            compact={compact}
             onClick={() => onChange({ ...rod, earthUp: rod.earthUp + i + 1 })}
             onSwipe={(dir) => {
               if (dir === 'up') onChange({ ...rod, earthUp: rod.earthUp + i + 1 })

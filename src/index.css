@@ -12,6 +12,48 @@ body {
   touch-action: manipulation;
 }
 
+.abacus-frame--compact {
+  gap: 0.375rem !important;
+  padding: 0.5rem !important;
+  border-radius: 0.875rem !important;
+}
+
+.abacus-rod--compact {
+  width: 3.25rem !important;
+}
+
+.abacus-rod--compact .abacus-rod-line {
+  bottom: 1rem !important;
+}
+
+.abacus-rod--compact .abacus-heaven {
+  height: 3.4rem !important;
+  padding-top: 0.125rem !important;
+  padding-bottom: 0.125rem !important;
+}
+
+.abacus-rod--compact .abacus-earth {
+  height: 6.4rem !important;
+  gap: 0.25rem !important;
+  padding-top: 0.25rem !important;
+}
+
+.abacus-rod--compact .abacus-beam {
+  height: 0.25rem !important;
+}
+
+.abacus-bead--compact {
+  width: 2.85rem !important;
+  height: 1.1rem !important;
+  border-bottom-width: 2px !important;
+}
+
+.abacus-rod--compact .abacus-label {
+  height: 0.875rem !important;
+  font-size: 0.625rem !important;
+  line-height: 0.875rem !important;
+}
+
 #root {
   min-height: 100svh;
 }
