@@ -23,9 +23,12 @@ export interface ArcadeProblem {
   answer: number
   technique: Technique
   /** 'count' shows a objects to count; 'equation' is normal math */
-  kind?: 'count' | 'equation'
+  kind?: 'count' | 'equation' | 'word' | 'tables'
   /** cute object to render for visual counting problems */
   emoji?: string
+  prompt?: string
+  answerText?: string
+  choices?: string[]
 }
 
 /** harder techniques pay out more maze moves */
@@ -43,6 +46,7 @@ export function movesForProblem(p: ArcadeProblem): number {
 }
 
 export function problemText(p: ArcadeProblem): string {
+  if (p.prompt) return p.prompt
   const sym = (op: Operation) => (op === 'add' ? '+' : '−')
   const tail = p.c != null && p.op2 ? ` ${sym(p.op2)} ${p.c}` : ''
   return `${p.a} ${sym(p.op)} ${p.b}${tail}`
@@ -223,9 +227,123 @@ export interface TechProblemCfg {
   maxAnswer: number
 }
 
-export type ProblemCfg = EarlyProblemCfg | SumProblemCfg | TechProblemCfg
+export interface WordsProblemCfg {
+  kind: 'words'
+  level: number
+}
+
+export interface TablesProblemCfg {
+  kind: 'tables'
+  maxFactor: number
+}
+
+export interface StandardProblemCfg {
+  kind: 'standard'
+  maxAnswer: number
+  ops: OpsChoice
+}
+
+export type ProblemCfg =
+  | EarlyProblemCfg
+  | SumProblemCfg
+  | TechProblemCfg
+  | WordsProblemCfg
+  | TablesProblemCfg
+  | StandardProblemCfg
+
+const WORD_BANK = [
+  'cat',
+  'dog',
+  'sun',
+  'fox',
+  'pig',
+  'bat',
+  'fish',
+  'frog',
+  'star',
+  'moon',
+  'tree',
+  'book',
+  'cake',
+  'ship',
+  'train',
+  'apple',
+  'happy',
+  'green',
+  'little',
+  'friend',
+]
+
+const LETTERS = 'abcdefghijklmnopqrstuvwxyz'.split('')
+
+function makeChoices(answer: string, pool: string[], count = 4) {
+  const choices = new Set([answer])
+  while (choices.size < count) choices.add(pick(pool))
+  return shuffle([...choices])
+}
+
+function shuffle<T>(items: T[]) {
+  const out = [...items]
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = rand(0, i)
+    const tmp = out[i]
+    out[i] = out[j]
+    out[j] = tmp
+  }
+  return out
+}
+
+function generateWordProblem(level: number): ArcadeProblem {
+  const words = WORD_BANK.slice(0, Math.min(WORD_BANK.length, 6 + level * 2))
+  const word = pick(words)
+  const missing = rand(0, word.length - 1)
+  const answerText = word[missing]
+  const prompt = `${word.slice(0, missing)}_${word.slice(missing + 1)}`
+  return {
+    a: 0,
+    b: 0,
+    op: 'add',
+    answer: 0,
+    answerText,
+    choices: makeChoices(answerText, LETTERS),
+    prompt,
+    technique: 'plain',
+    kind: 'word',
+  }
+}
+
+function generateTableProblem(maxFactor: number): ArcadeProblem {
+  const a = rand(1, maxFactor)
+  const b = rand(1, maxFactor)
+  return {
+    a,
+    b,
+    op: 'add',
+    answer: a * b,
+    prompt: `${a} × ${b}`,
+    technique: 'plain',
+    kind: 'tables',
+  }
+}
+
+function generateStandardProblem(cfg: StandardProblemCfg): ArcadeProblem {
+  const op = pickOp(cfg.ops)
+  let a: number
+  let b: number
+  if (op === 'add') {
+    a = rand(1, cfg.maxAnswer - 1)
+    b = rand(1, cfg.maxAnswer - a)
+  } else {
+    a = rand(2, cfg.maxAnswer)
+    b = rand(1, a - 1)
+  }
+  return { a, b, op, answer: op === 'add' ? a + b : a - b, technique: 'plain', kind: 'equation' }
+}
 
 export function generateFromCfg(cfg: ProblemCfg): ArcadeProblem {
+  if (cfg.kind === 'words') return generateWordProblem(cfg.level)
+  if (cfg.kind === 'tables') return generateTableProblem(cfg.maxFactor)
+  if (cfg.kind === 'standard') return generateStandardProblem(cfg)
   if (cfg.kind === 'tech') {
     return generateProblem({
       mathLevel: cfg.mathLevel,
@@ -345,6 +463,12 @@ export function beadHint(p: ArcadeProblem, techniqueHints = true): string {
   const sym = p.op === 'add' ? '+' : '−'
   const friendOfFive = 5 - p.b
   const friendOfTen = 10 - p.b
+  if (p.kind === 'word') {
+    return `Say the word out loud, then choose the missing letter.`
+  }
+  if (p.kind === 'tables') {
+    return `Think of ${p.a} groups with ${p.b} in each group.`
+  }
   if (p.kind === 'count') {
     return `Count them one by one — slide one blue bead up for each ${p.emoji ?? 'one'}!${p.answer > 5 ? ' The gold bead counts as 5!' : ''}`
   }

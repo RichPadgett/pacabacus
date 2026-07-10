@@ -116,6 +116,57 @@ export function countingCfg(level: number): LevelCfg {
 
 export const ADVENTURE_MAX = 50
 export const COUNTING_MAX = 20
+export const ADD_ON_MAX = 20
+
+function addOnEnemy(level: number): EnemyCfg {
+  return {
+    count: level <= 3 ? 0 : level <= 10 ? 1 : 2,
+    correctSteps: 1,
+    wrongSteps: level <= 8 ? 0 : 1,
+    chaseChance: Math.min(0.55, 0.18 + level * 0.015),
+    spawnChance: 0,
+  }
+}
+
+export function pacWordsCfg(level: number): LevelCfg {
+  return {
+    problem: { kind: 'words', level },
+    rodCount: 1,
+    enemy: addOnEnemy(level),
+    treasureCount: Math.min(30, 16 + Math.ceil(level / 2)),
+    gentle: true,
+    allowChallenge: false,
+    intro: level === 1 ? 'Find the missing letter, then collect the fruit! 🔤' : undefined,
+  }
+}
+
+export function pacTablesCfg(level: number): LevelCfg {
+  return {
+    problem: { kind: 'tables', maxFactor: Math.min(12, 2 + Math.ceil(level / 2)) },
+    rodCount: 2,
+    enemy: addOnEnemy(level),
+    treasureCount: Math.min(32, 18 + Math.ceil(level / 2)),
+    gentle: false,
+    allowChallenge: false,
+    intro: level === 1 ? 'Practice times tables to earn moves! ✖️' : undefined,
+  }
+}
+
+export function pacMathCfg(level: number): LevelCfg {
+  return {
+    problem: {
+      kind: 'standard',
+      maxAnswer: level <= 6 ? 10 : level <= 14 ? 20 : 50,
+      ops: level <= 8 ? 'add' : 'mixed',
+    },
+    rodCount: 2,
+    enemy: addOnEnemy(level),
+    treasureCount: Math.min(34, 18 + Math.ceil(level / 2)),
+    gentle: false,
+    allowChallenge: false,
+    intro: level === 1 ? 'Regular math mode: type the answer to earn moves! ➕' : undefined,
+  }
+}
 
 /** Free-play maze uses whatever the setup screen says. */
 export function freePlayCfg(s: ArcadeSettings): LevelCfg {

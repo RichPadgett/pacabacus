@@ -87,6 +87,7 @@ export interface GameState {
   answerTicks: number
   hint: string
   answerValue: number
+  answerText: string
   message: GameMessage | null
   answerStartedAt: number
   quickMeter: number
@@ -101,6 +102,7 @@ export interface GameState {
 
 type Action =
   | { type: 'SET_ANSWER'; value: number }
+  | { type: 'SET_TEXT_ANSWER'; value: string }
   | { type: 'SUBMIT' }
   | { type: 'CHALLENGE' }
   | { type: 'MOVE'; dir: Dir }
@@ -291,6 +293,7 @@ function makeReducer(
     answerTicks: 0,
     hint: '',
     answerValue: 0,
+    answerText: '',
     answerStartedAt: Date.now(),
     phase: 'answer',
   })
@@ -412,6 +415,11 @@ function makeReducer(
         return { ...state, answerValue: action.value }
       }
 
+      case 'SET_TEXT_ANSWER': {
+        if (state.phase !== 'answer') return state
+        return { ...state, answerText: action.value }
+      }
+
       case 'CHALLENGE': {
         if (
           state.phase !== 'answer' ||
@@ -437,7 +445,11 @@ function makeReducer(
       case 'SUBMIT': {
         if (state.phase !== 'answer') return state
         const p = state.problem
-        if (state.answerValue === p.answer) {
+        const correct =
+          p.answerText != null
+            ? state.answerText.trim().toLowerCase() === p.answerText.toLowerCase()
+            : state.answerValue === p.answer
+        if (correct) {
           const isChallenge = p.technique === 'challenge'
           const quickSolve = !isChallenge && Date.now() - state.answerStartedAt <= QUICK_SOLVE_MS
           const quickMeter = quickSolve
@@ -786,6 +798,7 @@ function makeInitialState(cfgFor: (level: number) => LevelCfg, startLevel: numbe
     answerTicks: 0,
     hint: '',
     answerValue: 0,
+    answerText: '',
     message: cfg.intro ? { text: cfg.intro, tone: 'good', id: 1 } : null,
     answerStartedAt: Date.now(),
     quickMeter: 0,

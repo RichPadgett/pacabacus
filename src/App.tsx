@@ -16,6 +16,9 @@ type Screen =
   | 'adventure-map'
   | 'adventure'
   | 'counting'
+  | 'pacwords'
+  | 'pactables'
+  | 'pacmath'
   | 'free-game'
 
 function App() {
@@ -36,6 +39,12 @@ function App() {
       return <ArcadeGame key="adventure" mode="adventure" onExit={goHome} />
     case 'counting':
       return <ArcadeGame key="counting" mode="counting" onExit={goHome} />
+    case 'pacwords':
+      return <ArcadeGame key="pacwords" mode="pacwords" onExit={goHome} />
+    case 'pactables':
+      return <ArcadeGame key="pactables" mode="pactables" onExit={goHome} />
+    case 'pacmath':
+      return <ArcadeGame key="pacmath" mode="pacmath" onExit={goHome} />
     case 'free-game':
       return mode === 'rain' ? (
         <RainGame key="rain" onExit={() => setScreen('freeplay-setup')} />
@@ -50,6 +59,7 @@ function App() {
           onCharacters={() => setScreen('characters')}
           onRewards={() => setScreen('rewards')}
           onFreePlay={() => setScreen('freeplay-setup')}
+          onLearningWorld={(world) => setScreen(world)}
         />
       )
   }

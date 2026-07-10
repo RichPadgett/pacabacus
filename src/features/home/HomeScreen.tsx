@@ -13,6 +13,7 @@ import { ADVENTURE_MAX, COUNTING_MAX } from '@/features/arcade/gameConfig'
 interface HomeScreenProps {
   onAdventure: () => void
   onCounting: () => void
+  onLearningWorld: (world: LearningWorldId) => void
   onCharacters: () => void
   onRewards: () => void
   onFreePlay: () => void
@@ -21,6 +22,7 @@ interface HomeScreenProps {
 export function HomeScreen({
   onAdventure,
   onCounting,
+  onLearningWorld,
   onCharacters,
   onRewards,
   onFreePlay,
@@ -88,7 +90,7 @@ export function HomeScreen({
             </button>
           </div>
 
-          <LearningWorlds />
+          <LearningWorlds onPick={onLearningWorld} />
 
           {showProfiles && (
             <div className="flex w-full max-w-md flex-col gap-3 rounded-2xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] p-4">
@@ -231,7 +233,16 @@ export function HomeScreen({
   )
 }
 
-const ADD_ON_WORLDS = [
+type LearningWorldId = 'pacwords' | 'pactables' | 'pacmath'
+
+const ADD_ON_WORLDS: Array<{
+  id: 'pacabacus' | LearningWorldId
+  name: string
+  icon: string
+  status: string
+  detail: string
+  enabled: boolean
+}> = [
   {
     id: 'pacabacus',
     name: 'PacAbacus',
@@ -244,29 +255,29 @@ const ADD_ON_WORLDS = [
     id: 'pacwords',
     name: 'PacWords',
     icon: '🔤',
-    status: 'Add-on',
+    status: 'Play',
     detail: 'Letters, spelling, and sight words',
-    enabled: false,
+    enabled: true,
   },
   {
     id: 'pactables',
     name: 'PacTables',
     icon: '✖️',
-    status: 'Add-on',
+    status: 'Play',
     detail: 'Times tables and skip counting',
-    enabled: false,
+    enabled: true,
   },
   {
     id: 'pacmath',
     name: 'PacMath',
     icon: '➕',
-    status: 'Add-on',
+    status: 'Play',
     detail: 'Standard math without abacus controls',
-    enabled: false,
+    enabled: true,
   },
 ]
 
-function LearningWorlds() {
+function LearningWorlds({ onPick }: { onPick: (world: LearningWorldId) => void }) {
   return (
     <section className="w-full max-w-md rounded-2xl border-2 border-[var(--c-border)] bg-black/20 p-3">
       <div className="mb-2 flex items-center justify-between gap-3">
@@ -280,12 +291,15 @@ function LearningWorlds() {
           <button
             key={world.id}
             type="button"
-            disabled={!world.enabled}
+            disabled={world.id === 'pacabacus'}
+            onClick={() => {
+              if (world.id !== 'pacabacus') onPick(world.id)
+            }}
             className={[
               'min-h-28 rounded-xl border-2 p-3 text-left transition active:scale-95',
-              world.enabled
+              world.id === 'pacabacus'
                 ? 'border-emerald-400 bg-emerald-500/20 hover:brightness-125'
-                : 'border-[var(--c-border)] bg-[var(--c-panel)] opacity-85',
+                : 'border-[var(--c-border)] bg-[var(--c-panel)] hover:brightness-125',
             ].join(' ')}
           >
             <span className="flex items-center justify-between gap-2">
@@ -293,7 +307,7 @@ function LearningWorlds() {
               <span
                 className={[
                   'rounded-full px-2 py-0.5 text-[10px] font-black',
-                  world.enabled
+                  world.id === 'pacabacus'
                     ? 'bg-emerald-300 text-emerald-950'
                     : 'bg-amber-300 text-amber-950',
                 ].join(' ')}
