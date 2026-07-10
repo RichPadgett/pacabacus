@@ -239,7 +239,7 @@ export function RainGame({ onExit }: { onExit: () => void }) {
 
   return (
     <div
-      className="relative flex min-h-svh flex-col items-center gap-3 overflow-hidden bg-[radial-gradient(circle_at_50%_20%,var(--c-bg1),var(--c-bg2)_70%)] p-3 text-slate-50"
+      className="relative flex min-h-svh flex-col items-center gap-3 overflow-x-hidden overflow-y-auto bg-[radial-gradient(circle_at_50%_20%,var(--c-bg1),var(--c-bg2)_70%)] p-3 text-slate-50"
       style={theme.vars as React.CSSProperties}
     >
       {theme.id === 'stars' && <Twinkles />}

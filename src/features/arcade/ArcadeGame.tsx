@@ -373,7 +373,7 @@ export function ArcadeGame({
 
   return (
     <div
-      className="relative flex h-svh flex-col items-center gap-1.5 overflow-hidden bg-[radial-gradient(circle_at_50%_20%,var(--c-bg1),var(--c-bg2)_70%)] p-1.5 text-slate-50 sm:gap-2 sm:p-2"
+      className="relative flex min-h-svh flex-col items-center gap-1.5 overflow-x-hidden overflow-y-auto bg-[radial-gradient(circle_at_50%_20%,var(--c-bg1),var(--c-bg2)_70%)] p-1.5 text-slate-50 sm:gap-2 sm:p-2"
       style={theme.vars as React.CSSProperties}
     >
       {theme.id === 'stars' && <Twinkles />}

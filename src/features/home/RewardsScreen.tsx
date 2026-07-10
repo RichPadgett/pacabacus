@@ -51,7 +51,7 @@ export function RewardsScreen({ onBack }: { onBack: () => void }) {
 
   return (
     <div
-      className="paged-shell relative flex h-svh flex-col items-center gap-2 overflow-hidden bg-[radial-gradient(circle_at_50%_20%,var(--c-bg1),var(--c-bg2)_70%)] p-3 text-slate-50 sm:gap-4 sm:p-6"
+      className="paged-shell relative flex min-h-svh flex-col items-center gap-2 overflow-x-hidden overflow-y-auto bg-[radial-gradient(circle_at_50%_20%,var(--c-bg1),var(--c-bg2)_70%)] p-3 text-slate-50 sm:gap-4 sm:p-6"
       style={theme.vars as React.CSSProperties}
     >
       {theme.id === 'stars' && <Twinkles />}
