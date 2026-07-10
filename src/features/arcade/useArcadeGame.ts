@@ -6,6 +6,8 @@ import {
   movesForProblem,
   type ArcadeProblem,
 } from '@/features/drills/problemGenerator'
+import type { LearningWorldId } from '@/features/learning/learningWorlds'
+import { rescueForClear, type RescueChallenge } from '@/features/profile/rescueChallenges'
 import type { GhostSkill } from './characterGrowth'
 import type { LevelCfg } from './gameConfig'
 import {
@@ -23,6 +25,8 @@ import {
 
 export type Phase =
   | 'answer'
+  | 'rescueFight'
+  | 'rescueWall'
   | 'move'
   | 'ghosts'
   | 'reveal'
@@ -36,6 +40,14 @@ export interface GameMessage {
   text: string
   tone: 'good' | 'bad'
   id: number
+}
+
+export interface RescueRun {
+  challenge: RescueChallenge
+  badGuysLeft: number
+  wallHits: number
+  wallTarget: number
+  saved: boolean
 }
 
 const TREASURE_EMOJI = [
@@ -62,6 +74,8 @@ const QUICK_METER_GAIN = 25
 const QUICK_BONUS_MOVES = 2
 const POWER_TICKS = 16
 const PATH_TREASURES = ['🍓', '🍒', '🍊', '🍌', '🍇', '💰']
+
+export const ANSWER_PHASES: Phase[] = ['answer', 'rescueFight', 'rescueWall']
 
 function guardChargesForSkill(skill: GhostSkill) {
   if (skill === 'attack') return 2
@@ -97,6 +111,7 @@ export interface GameState {
   answerValue: number
   answerText: string
   message: GameMessage | null
+  rescue: RescueRun | null
   answerStartedAt: number
   goalProgress: number
   goalTarget: number
@@ -329,11 +344,38 @@ function travelGhostCount(level: number, cfgCount: number, spawnCount: number) {
   return Math.max(base, Math.min(spawnCount, cfgCount + 1 + lateBoost))
 }
 
+function rescueProblem(cfg: LevelCfg): ArcadeProblem {
+  const problem = cfg.problem
+  if (problem.kind === 'tech') {
+    return generateChallenge({
+      mathLevel: problem.mathLevel,
+      ops: problem.ops,
+      maxAnswer: problem.maxAnswer,
+    })
+  }
+  if (problem.kind === 'tables') {
+    return generateFromCfg({ ...problem, maxFactor: Math.min(15, problem.maxFactor + 2) })
+  }
+  if (problem.kind === 'standard') {
+    return generateFromCfg({ ...problem, maxAnswer: Math.min(100, problem.maxAnswer + 25) })
+  }
+  if (problem.kind === 'words') {
+    return generateFromCfg({ ...problem, level: problem.level + 3 })
+  }
+  return generateChallenge({ mathLevel: 3, ops: 'add', maxAnswer: 20 })
+}
+
+function rescueWallTarget(level: number) {
+  return level >= 50 ? 5 : level >= 35 ? 4 : 3
+}
+
 function makeReducer(
   cfgFor: (level: number) => LevelCfg,
   travelEnabled: boolean,
   travelMaxLevel: number,
   ghostSkill: GhostSkill,
+  learningWorld: LearningWorldId,
+  ownedCharacters: string[],
 ) {
   const say = (state: GameState, text: string, tone: 'good' | 'bad'): GameMessage => ({
     text,
@@ -350,6 +392,51 @@ function makeReducer(
     answerText: '',
     answerStartedAt: Date.now(),
     phase: 'answer',
+  })
+
+  const freshRescueProblem = (state: GameState): Partial<GameState> => ({
+    problem: rescueProblem(state.cfg),
+    attempts: 0,
+    answerTicks: 0,
+    hint: '',
+    answerValue: 0,
+    answerText: '',
+    answerStartedAt: Date.now(),
+  })
+
+  const rescueForState = (state: GameState) => {
+    const rescue = rescueForClear(learningWorld, state.level)
+    if (!rescue || ownedCharacters.includes(rescue.hero)) return null
+    return rescue
+  }
+
+  const startRescue = (state: GameState, rescue: RescueChallenge): GameState => {
+    const badGuysLeft = Math.max(2, state.ghosts.length, Math.min(4, state.cfg.enemy.count + 1))
+    const ghosts = state.maze.ghostSpawns.slice(0, badGuysLeft)
+    return {
+      ...state,
+      rescue: {
+        challenge: rescue,
+        badGuysLeft,
+        wallHits: 0,
+        wallTarget: rescueWallTarget(state.level),
+        saved: false,
+      },
+      ghosts,
+      ghostPrev: ghosts,
+      movesLeft: 0,
+      phase: 'rescueFight',
+      ...freshRescueProblem(state),
+      message: say(state, `${rescue.title}! Defeat the baddies, then break the rescue wall.`, 'good'),
+    }
+  }
+
+  const clearRescueState = (state: GameState): GameState => ({
+    ...state,
+    phase: 'levelClear',
+    clearStars: Math.max(1, state.lives),
+    rescue: state.rescue ? { ...state.rescue, saved: true } : null,
+    message: say(state, 'Rescue complete! The wall crumbled away. 🔓', 'good'),
   })
 
   const enterGhostPhase = (
@@ -521,6 +608,7 @@ function makeReducer(
       powerTicksLeft: 0,
       exitDoor: null,
       travelExitDoor: null,
+      rescue: null,
       ...goal,
       ...freshProblem(cfg),
       message: cfg.intro ? say(state, cfg.intro, 'good') : state.message,
@@ -537,6 +625,8 @@ function makeReducer(
   }
 
   const clearLevelState = (state: GameState, message?: string): GameState => {
+    const rescue = rescueForState(state)
+    if (rescue) return startRescue(state, rescue)
     if (travelEnabled && state.level < travelMaxLevel) {
       return {
         ...state,
@@ -552,12 +642,12 @@ function makeReducer(
   return function reducer(state: GameState, action: Action): GameState {
     switch (action.type) {
       case 'SET_ANSWER': {
-        if (state.phase !== 'answer') return state
+        if (!ANSWER_PHASES.includes(state.phase)) return state
         return { ...state, answerValue: action.value }
       }
 
       case 'SET_TEXT_ANSWER': {
-        if (state.phase !== 'answer') return state
+        if (!ANSWER_PHASES.includes(state.phase)) return state
         return { ...state, answerText: action.value }
       }
 
@@ -584,12 +674,90 @@ function makeReducer(
       }
 
       case 'SUBMIT': {
-        if (state.phase !== 'answer') return state
+        if (!ANSWER_PHASES.includes(state.phase)) return state
         const p = state.problem
         const correct =
           p.answerText != null
             ? state.answerText.trim().toLowerCase() === p.answerText.toLowerCase()
             : state.answerValue === p.answer
+        if (state.phase === 'rescueFight') {
+          if (!state.rescue) return state
+          if (correct) {
+            const badGuysLeft = Math.max(0, state.rescue.badGuysLeft - 1)
+            const rescue = { ...state.rescue, badGuysLeft }
+            const ghosts = state.ghosts.slice(0, badGuysLeft)
+            if (badGuysLeft <= 0) {
+              return {
+                ...state,
+                rescue,
+                ghosts: [],
+                ghostPrev: [],
+                phase: 'rescueWall',
+                stars: state.stars + 2,
+                ...freshRescueProblem(state),
+                message: say(state, 'Baddies beaten! Solve to crumble the rescue wall. 🧱', 'good'),
+              }
+            }
+            return {
+              ...state,
+              rescue,
+              ghosts,
+              ghostPrev: ghosts,
+              stars: state.stars + 2,
+              ...freshRescueProblem(state),
+              message: say(state, `Baddie beaten! ${badGuysLeft} left before the wall. ⚡`, 'good'),
+            }
+          }
+          const lives = state.lives - 1
+          if (lives <= 0) {
+            return {
+              ...state,
+              lives: 0,
+              phase: 'gameOver',
+              message: say(state, 'The rescue baddies got you! 👻', 'bad'),
+            }
+          }
+          return {
+            ...state,
+            lives,
+            ...freshRescueProblem(state),
+            attempts: state.attempts + 1,
+            hint: beadHint(p),
+            message: say(state, 'The baddie pushed back! You lost a heart. ❤️', 'bad'),
+          }
+        }
+        if (state.phase === 'rescueWall') {
+          if (!state.rescue) return state
+          if (correct) {
+            const wallHits = state.rescue.wallHits + 1
+            const rescue = { ...state.rescue, wallHits }
+            if (wallHits >= state.rescue.wallTarget) {
+              return clearRescueState({ ...state, rescue, stars: state.stars + 3, ghosts: [], ghostPrev: [] })
+            }
+            return {
+              ...state,
+              rescue,
+              stars: state.stars + 1,
+              ...freshRescueProblem(state),
+              message: say(
+                state,
+                `Crack! The wall is crumbling (${wallHits}/${state.rescue.wallTarget}). 🧱`,
+                'good',
+              ),
+            }
+          }
+          const rescue = { ...state.rescue, badGuysLeft: 1 }
+          const ghost = farthestSpawn(state.maze, state.pac)
+          return {
+            ...state,
+            rescue,
+            ghosts: [ghost],
+            ghostPrev: [ghost],
+            phase: 'rescueFight',
+            ...freshRescueProblem(state),
+            message: say(state, 'Oops! A new rescue baddie appeared. Beat it first! 👀', 'bad'),
+          }
+        }
         if (correct) {
           const isChallenge = p.technique === 'challenge'
           const quickSolve = !isChallenge && Date.now() - state.answerStartedAt <= QUICK_SOLVE_MS
@@ -996,6 +1164,7 @@ function makeInitialState(
     answerValue: 0,
     answerText: '',
     message: cfg.intro ? { text: cfg.intro, tone: 'good', id: 1 } : null,
+    rescue: null,
     answerStartedAt: Date.now(),
     ...goal,
     quickMeter: 0,
@@ -1017,10 +1186,12 @@ export function useArcadeGame(
   travelEnabled = false,
   travelMaxLevel = Infinity,
   ghostSkill: GhostSkill = 'none',
+  learningWorld: LearningWorldId = 'pacabacus',
+  ownedCharacters: string[] = [],
 ) {
   const reducer = useMemo(
-    () => makeReducer(cfgFor, travelEnabled, travelMaxLevel, ghostSkill),
-    [cfgFor, travelEnabled, travelMaxLevel, ghostSkill],
+    () => makeReducer(cfgFor, travelEnabled, travelMaxLevel, ghostSkill, learningWorld, ownedCharacters),
+    [cfgFor, travelEnabled, travelMaxLevel, ghostSkill, learningWorld, ownedCharacters],
   )
   const [state, dispatch] = useReducer(
     reducer,

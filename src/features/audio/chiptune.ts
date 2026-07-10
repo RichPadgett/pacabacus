@@ -288,6 +288,41 @@ const SONG_CASTLE: Song = {
   `),
 }
 
+const SONG_MENU: Song = {
+  name: 'PacAbacus Welcome',
+  bpm: 124,
+  leadWave: 'triangle',
+  harmonyWave: 'square',
+  bassWave: 'triangle',
+  leadVol: 0.46,
+  harmonyVol: 0.13,
+  bassVol: 0.5,
+  melody: parse(`
+    C5 .  E5 .  G5 .  E5 .    D5 .  F5 .  A5 .  F5 .
+    E5 .  G5 .  C6 .  G5 .    F5 .  A5 .  D6 .  A5 .
+    G5 .  E5 .  C5 .  E5 .    A5 .  F5 .  D5 .  F5 .
+    G5 .  B5 .  D6 .  B5 .    C6 -  G5 .  E5 .  C5 .
+  `),
+  harmony: parse(`
+    .  E4 .  G4 .  E4 .  G4   .  F4 .  A4 .  F4 .  A4
+    .  E4 .  G4 .  E4 .  G4   .  F4 .  A4 .  F4 .  A4
+    .  E4 .  G4 .  E4 .  G4   .  F4 .  A4 .  F4 .  A4
+    .  G4 .  B4 .  G4 .  B4   .  E4 .  G4 .  E4 .  G4
+  `),
+  bass: parse(`
+    C3 .  G3 .  C3 .  G3 .    D3 .  A3 .  D3 .  A3 .
+    C3 .  G3 .  C3 .  G3 .    F2 .  C3 .  F2 .  C3 .
+    C3 .  G3 .  C3 .  G3 .    D3 .  A3 .  D3 .  A3 .
+    G2 .  D3 .  G2 .  D3 .    C3 .  G2 .  C3 .  .  .
+  `),
+  drums: parse(`
+    k .  h .  s .  h .    k .  h .  s .  h .
+    k .  h .  s .  h .    k .  h .  s .  h .
+    k .  h .  s .  h .    k .  h .  s .  h .
+    k .  h .  s .  h .    c .  h .  s .  . .
+  `),
+}
+
 export const SONGS: Song[] = [SONG_MARCH, SONG_WALTZ, SONG_CHASE, SONG_FOREST, SONG_CASTLE]
 
 const LOOKAHEAD_SEC = 0.12
@@ -435,6 +470,13 @@ class Chiptune {
     if (this.playing && next === this.song) return
     this.stopMusic()
     this.song = next
+    this.startMusic()
+  }
+
+  playMenuSong() {
+    if (this.playing && this.song === SONG_MENU) return
+    this.stopMusic()
+    this.song = SONG_MENU
     this.startMusic()
   }
 

@@ -33,6 +33,9 @@ interface MazeBoardProps {
   powerBuddyId?: HeroId | null
   exitDoor?: Pos | null
   travelExitDoor?: Pos | null
+  rescueHeroId?: HeroId | null
+  rescueWallHits?: number
+  rescueWallTarget?: number
   themeId?: ThemeId
   growth: CharacterGrowthProfile
   cloaked?: boolean
@@ -59,6 +62,9 @@ export function MazeBoard({
   powerBuddyId,
   exitDoor,
   travelExitDoor,
+  rescueHeroId,
+  rescueWallHits = 0,
+  rescueWallTarget = 0,
   themeId = 'stars',
   growth,
   cloaked,
@@ -286,6 +292,31 @@ export function MazeBoard({
             palette={HEROES[powerBuddyId].palette}
             size={tile * growth.powerBuddyScale}
           />
+        </div>
+      )}
+
+      {rescueHeroId && rescueWallTarget > 0 && (
+        <div
+          className="absolute z-[7] flex flex-col items-center rounded-xl border-2 border-amber-300 bg-slate-950/75 p-1 shadow-lg shadow-black/30"
+          style={{
+            top: tile * 0.35,
+            right: tile * 0.35,
+            width: tile * 2.45,
+          }}
+          aria-label="Rescue wall"
+        >
+          <div className="flex leading-none" style={{ fontSize: tile * 0.28 }}>
+            {'🧱'.repeat(Math.max(0, rescueWallTarget - rescueWallHits))}
+            {'💥'.repeat(rescueWallHits)}
+          </div>
+          <PixelSprite
+            map={HEROES[rescueHeroId].frames[0]}
+            palette={HEROES[rescueHeroId].palette}
+            size={tile * 0.9}
+          />
+          <div className="text-center font-black text-amber-200" style={{ fontSize: tile * 0.22 }}>
+            SAVE
+          </div>
         </div>
       )}
 

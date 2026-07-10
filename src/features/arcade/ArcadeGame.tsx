@@ -19,12 +19,13 @@ import {
   type LearningWorldId,
 } from '@/features/learning/learningWorlds'
 import { growthForAgeBand } from './characterGrowth'
+import { characterDetailFor } from './characterDetails'
 import type { Dir } from './maze'
 import { MazeBoard } from './MazeBoard'
-import { HEROES, SECRET_HERO_IDS, type HeroId } from './sprites'
+import { HEROES, PixelSprite, SECRET_HERO_IDS, type HeroId } from './sprites'
 import { SPEED_MS, useArcadeSettings } from './settingsStore'
 import { THEMES } from './themes'
-import { collectibleTreasureCount, useArcadeGame } from './useArcadeGame'
+import { ANSWER_PHASES, collectibleTreasureCount, useArcadeGame } from './useArcadeGame'
 import { worldForAdventureLevel } from './worlds'
 
 export type PlayMode = 'adventure' | 'counting' | 'free' | 'pacwords' | 'pactables' | 'pacmath'
@@ -213,6 +214,8 @@ export function ArcadeGame({
     !isFreePlay,
     maxLevel,
     growth.ghostSkill,
+    activeWorld,
+    profile.ownedCharacters,
   )
   const tile = useTileSize(state.maze.cols, state.maze.rows)
   const world = !isFreePlay ? worldForAdventureLevel(state.level) : null
@@ -243,7 +246,7 @@ export function ArcadeGame({
 
   // hands-free: right beads auto-submit after a short settle
   useEffect(() => {
-    if (state.phase !== 'answer' || !touched.current) return
+    if (!ANSWER_PHASES.includes(state.phase) || !touched.current) return
     if (state.problem.answerText != null) return
     if (state.answerValue !== state.problem.answer) return
     const t = setTimeout(() => dispatch({ type: 'SUBMIT' }), 550)
@@ -255,7 +258,7 @@ export function ArcadeGame({
   }, [state.problem])
 
   useEffect(() => {
-    if (state.phase !== 'answer') {
+    if (!ANSWER_PHASES.includes(state.phase)) {
       setAnswerInputReady(false)
       return
     }
@@ -333,10 +336,14 @@ export function ArcadeGame({
     },
     [dispatch, answerInputReady],
   )
-  const canAnswer = phase === 'answer' && answerInputReady
+  const canAnswer = ANSWER_PHASES.includes(phase) && answerInputReady
 
   const goalText =
-    phase === 'answer'
+    phase === 'rescueFight'
+      ? `Rescue fight! Solve hard problems to beat ${state.rescue?.badGuysLeft ?? 0} baddie${state.rescue?.badGuysLeft === 1 ? '' : 's'}.`
+      : phase === 'rescueWall'
+        ? `Break the rescue wall: ${state.rescue?.wallHits ?? 0}/${state.rescue?.wallTarget ?? 0} cracks.`
+        : phase === 'answer'
       ? problem.kind === 'word'
         ? `Choose the missing letter to earn ${payout} moves!`
         : problem.kind === 'tables'
@@ -384,7 +391,9 @@ export function ArcadeGame({
         <div className="flex items-center gap-1.5 text-xs font-black sm:text-sm">
           <span>{'❤️'.repeat(state.lives) || '💔'}</span>
           <span className="rounded-full bg-black/25 px-2 py-0.5 text-amber-200">
-            {Math.min(state.goalProgress, state.goalTarget)}/{state.goalTarget}
+            {state.rescue && ['rescueFight', 'rescueWall', 'levelClear'].includes(phase)
+              ? `🧱 ${state.rescue.wallHits}/${state.rescue.wallTarget}`
+              : `${Math.min(state.goalProgress, state.goalTarget)}/${state.goalTarget}`}
           </span>
           <span className="hidden sm:inline">⭐ {state.stars}</span>
           <span className={`growth-pill growth-pill--${growth.stage}`}>
@@ -436,6 +445,16 @@ export function ArcadeGame({
       <div className="z-10 max-w-[98vw] rounded-full border border-emerald-400 bg-[var(--c-panel)] px-3 py-0.5 text-center text-xs font-bold text-emerald-300 sm:border-2 sm:px-4 sm:py-1 sm:text-sm">
         {goalText}
       </div>
+      {state.rescue && ['rescueFight', 'rescueWall'].includes(phase) && (
+        <div className="z-10 flex max-w-[98vw] items-center gap-2 rounded-2xl border-2 border-amber-300 bg-amber-500/15 px-3 py-1 text-xs font-black text-amber-100">
+          <span>🔒 {HEROES[state.rescue.challenge.hero]?.name}</span>
+          <span className="text-lg tracking-tight">
+            {'🧱'.repeat(Math.max(0, state.rescue.wallTarget - state.rescue.wallHits))}
+            {'💥'.repeat(state.rescue.wallHits)}
+          </span>
+          <span>👀 {state.rescue.badGuysLeft}</span>
+        </div>
+      )}
 
       <div className="flex min-h-0 w-full flex-1 flex-col items-center justify-center gap-1.5 landscape:flex-row landscape:items-center landscape:justify-center landscape:gap-2">
         <div className="flex min-h-0 flex-1 items-center justify-center">
@@ -459,9 +478,12 @@ export function ArcadeGame({
             powerBuddyId={powerBuddyId ?? buddies[0] ?? null}
             exitDoor={state.exitDoor}
             travelExitDoor={state.travelExitDoor}
+            rescueHeroId={state.rescue && !state.rescue.saved ? state.rescue.challenge.hero : null}
+            rescueWallHits={state.rescue?.wallHits}
+            rescueWallTarget={state.rescue?.wallTarget}
             themeId={theme.id}
             growth={growth}
-            cloaked={phase === 'answer' && state.ghosts.length > 0}
+            cloaked={ANSWER_PHASES.includes(phase) && state.ghosts.length > 0}
             onSwipe={(dir) => dispatch({ type: 'MOVE', dir })}
           />
         </div>
@@ -500,7 +522,11 @@ export function ArcadeGame({
                 >
                   <h3 className="text-[11px] font-bold tracking-wide text-[var(--c-soft)] sm:text-xs">
                     {isChallenge
-                      ? '⚡ CHALLENGE — ONE TRY! ⚡'
+                      ? phase === 'rescueFight'
+                        ? '⚡ RESCUE FIGHT! ⚡'
+                        : phase === 'rescueWall'
+                          ? '🧱 BREAK THE WALL! 🧱'
+                          : '⚡ CHALLENGE — ONE TRY! ⚡'
                       : problem.kind === 'count'
                         ? 'HOW MANY?'
                         : problem.kind === 'word'
@@ -509,7 +535,13 @@ export function ArcadeGame({
                   </h3>
                   <ProblemPrompt problem={problem} />
                   <div className="mb-0.5 rounded-full border border-emerald-500 bg-emerald-500/15 px-2.5 py-0 text-[10px] font-bold text-emerald-300 sm:text-xs">
-                    {phase === 'answer' && !answerInputReady ? 'ready...' : `worth +${payout} moves`}
+                    {ANSWER_PHASES.includes(phase) && !answerInputReady
+                      ? 'ready...'
+                      : phase === 'rescueFight'
+                        ? 'correct = zap a baddie'
+                        : phase === 'rescueWall'
+                          ? 'correct = crack the wall'
+                          : `worth +${payout} moves`}
                   </div>
                   <p className="min-h-4 max-w-64 text-center text-[10px] text-[var(--c-soft)] sm:min-h-6 sm:text-xs">
                     {state.hint}
@@ -540,7 +572,7 @@ export function ArcadeGame({
                       onMove={(dir) => dispatch({ type: 'MOVE', dir })}
                     />
                   </div>
-                  {state.cfg.allowChallenge && !isChallenge && (
+                  {phase === 'answer' && state.cfg.allowChallenge && !isChallenge && (
                     <button
                       type="button"
                       onClick={() => dispatch({ type: 'CHALLENGE' })}
@@ -638,6 +670,9 @@ export function ArcadeGame({
           <Confetti />
           <p className="text-2xl">{'⭐'.repeat(state.clearStars)}</p>
           <p className="text-lg">Goal complete: {state.goalLabel}!</p>
+          {state.rescue?.saved && (
+            <RescueCard heroId={state.rescue.challenge.hero} />
+          )}
           {world && nextWorld && state.level < maxLevel && (
             <p className="font-bold text-emerald-300">
               {world.doorText} Next stop: {nextWorld.emoji} {nextWorld.name}
@@ -696,6 +731,27 @@ export function ArcadeGame({
           </div>
         </Overlay>
       )}
+    </div>
+  )
+}
+
+function RescueCard({ heroId }: { heroId: HeroId }) {
+  const hero = HEROES[heroId]
+  const detail = characterDetailFor(heroId)
+  if (!hero) return null
+  return (
+    <div className="my-2 flex max-w-sm flex-col items-center rounded-2xl border-2 border-amber-300 bg-amber-500/15 p-4 text-center shadow-lg shadow-black/20">
+      <div className="mb-2 rounded-full bg-black/25 p-3">
+        <PixelSprite map={hero.frames[0]} palette={hero.palette} size={76} />
+      </div>
+      <div className="text-xl font-black text-amber-200">You saved {hero.name}!</div>
+      <div className="mt-1 text-sm font-black text-emerald-200">{detail.title}</div>
+      <p className="mt-2 text-sm leading-snug text-slate-100">
+        {detail.rescueLine ?? detail.personality}
+      </p>
+      <p className="mt-2 text-xs font-bold text-[var(--c-soft)]">
+        Power: {detail.power}
+      </p>
     </div>
   )
 }

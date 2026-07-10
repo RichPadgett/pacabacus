@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Twinkles } from '@/features/arcade/ArcadeGame'
 import { useArcadeSettings } from '@/features/arcade/settingsStore'
 import { HEROES, PixelSprite, SECRET_HERO_IDS, STARTER_HERO_IDS, type HeroId } from '@/features/arcade/sprites'
 import { THEMES } from '@/features/arcade/themes'
+import { chiptune } from '@/features/audio/chiptune'
 import {
   earnedBadges,
   totalWorldCompleted,
@@ -61,6 +62,12 @@ export function HomeScreen({
       : worldLevel > 1
         ? `Level ${Math.min(worldLevel, maxWorldLevel)}`
         : 'Level 1'
+
+  useEffect(() => {
+    if (settings.music) chiptune.playMenuSong()
+    else chiptune.stopMusic()
+    return () => chiptune.stopMusic()
+  }, [settings.music])
 
   return (
     <div
