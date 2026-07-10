@@ -18,6 +18,7 @@ import {
   chapterForLevel,
   type LearningWorldId,
 } from '@/features/learning/learningWorlds'
+import { growthForAgeBand } from './characterGrowth'
 import type { Dir } from './maze'
 import { MazeBoard } from './MazeBoard'
 import { HEROES, type HeroId } from './sprites'
@@ -200,6 +201,7 @@ export function ArcadeGame({
   const startLevel = isFreePlay ? 1 : Math.min(worldLevels[activeWorld], maxLevel)
 
   const stepMs = SPEED_MS[settings.speed]
+  const growth = growthForAgeBand(profile.ageBand)
   const { state, dispatch } = useArcadeGame(
     cfgFor,
     startLevel,
@@ -207,6 +209,7 @@ export function ArcadeGame({
     profile.ageBand !== 'little' && settings.rockTimer,
     !isFreePlay,
     maxLevel,
+    growth.ghostSkill,
   )
   const tile = useTileSize(state.maze.cols, state.maze.rows)
   const world = !isFreePlay ? worldForAdventureLevel(state.level) : null
@@ -361,6 +364,9 @@ export function ArcadeGame({
             {Math.min(state.goalProgress, state.goalTarget)}/{state.goalTarget}
           </span>
           <span className="hidden sm:inline">⭐ {state.stars}</span>
+          <span className={`growth-pill growth-pill--${growth.stage}`}>
+            {growth.shortLabel}
+          </span>
         </div>
         <div className="flex items-center gap-1">
           <div className="hidden min-w-20 text-center sm:block">
@@ -422,6 +428,7 @@ export function ArcadeGame({
             exitDoor={state.exitDoor}
             travelExitDoor={state.travelExitDoor}
             themeId={theme.id}
+            growth={growth}
             cloaked={phase === 'answer' && state.ghosts.length > 0}
             onSwipe={(dir) => dispatch({ type: 'MOVE', dir })}
           />

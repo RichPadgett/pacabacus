@@ -1,4 +1,5 @@
 import { useRef, type CSSProperties } from 'react'
+import type { CharacterGrowthProfile } from './characterGrowth'
 import { isWall, posKey, type Dir, type MazeDef, type Pos } from './maze'
 import { ENEMIES, HEROES, PixelSprite, type HeroId } from './sprites'
 import type { ThemeId } from './themes'
@@ -32,6 +33,7 @@ interface MazeBoardProps {
   exitDoor?: Pos | null
   travelExitDoor?: Pos | null
   themeId?: ThemeId
+  growth: CharacterGrowthProfile
   cloaked?: boolean
   onSwipe?: (dir: Dir) => void
 }
@@ -56,6 +58,7 @@ export function MazeBoard({
   exitDoor,
   travelExitDoor,
   themeId = 'stars',
+  growth,
   cloaked,
   onSwipe,
 }: MazeBoardProps) {
@@ -206,13 +209,13 @@ export function MazeBoard({
         return (
           <div
             key={`${id}-${i}`}
-            className="absolute top-1 left-1 z-4 flex items-center justify-center"
+            className={`character-stage character-stage--${growth.buddyStage} absolute top-1 left-1 z-4 flex items-center justify-center`}
             style={{ ...spriteStyle(p), opacity: 0.92 - i * 0.08 }}
           >
             <PixelSprite
               map={HEROES[id].frames[(p.r + p.c) % 2]}
               palette={HEROES[id].palette}
-              size={tile * (0.58 - i * 0.04)}
+              size={tile * Math.max(0.34, growth.buddyScale - i * 0.04)}
             />
           </div>
         )
@@ -247,19 +250,19 @@ export function MazeBoard({
           <PixelSprite
             map={HEROES[powerBuddyId].frames[(powerBuddy.r + powerBuddy.c) % 2]}
             palette={HEROES[powerBuddyId].palette}
-            size={tile * 0.74}
+            size={tile * growth.powerBuddyScale}
           />
         </div>
       )}
 
       <div
-        className="absolute top-1 left-1 z-5 flex items-center justify-center"
+        className={`character-stage character-stage--${growth.stage} absolute top-1 left-1 z-5 flex items-center justify-center`}
         style={spriteStyle(pac)}
       >
         <PixelSprite
           map={heroFrame}
           palette={heroDef.palette}
-          size={tile * 0.9}
+          size={tile * growth.heroScale}
           style={{ transform: heroTransform }}
         />
       </div>

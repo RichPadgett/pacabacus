@@ -6,6 +6,7 @@ import {
   movesForProblem,
   type ArcadeProblem,
 } from '@/features/drills/problemGenerator'
+import type { GhostSkill } from './characterGrowth'
 import type { LevelCfg } from './gameConfig'
 import {
   DIR_VECTORS,
@@ -300,6 +301,7 @@ function makeReducer(
   cfgFor: (level: number) => LevelCfg,
   travelEnabled: boolean,
   travelMaxLevel: number,
+  ghostSkill: GhostSkill,
 ) {
   const say = (state: GameState, text: string, tone: 'good' | 'bad'): GameMessage => ({
     text,
@@ -349,7 +351,32 @@ function makeReducer(
     return { ...state, ghosts, message, phase: 'ghosts', ghostStepsLeft: steps, afterGhosts: after }
   }
 
+  const defendedState = (state: GameState): GameState | null => {
+    if (ghostSkill === 'none' || state.jailTurns > 0) return null
+    const colliding = state.ghosts.filter((g) => samePos(g, state.pac))
+    if (!colliding.length) return null
+    if (ghostSkill === 'attack') {
+      return {
+        ...state,
+        ghosts: state.ghosts.filter((g) => !samePos(g, state.pac)),
+        ghostPrev: state.ghosts,
+        jailTurns: 0,
+        message: say(state, 'Legend power! The baddie poofed away! ✨', 'good'),
+      }
+    }
+    const jail = state.maze.ghostSpawns[0] ?? state.maze.pacSpawn
+    return {
+      ...state,
+      ghosts: state.ghosts.map((g) => (samePos(g, state.pac) ? jail : g)),
+      ghostPrev: state.ghosts,
+      jailTurns: 1,
+      message: say(state, 'Guardian block! The baddie bounced away! 🛡️', 'good'),
+    }
+  }
+
   const caughtState = (state: GameState): GameState => {
+    const defended = defendedState(state)
+    if (defended) return defended
     const lives = state.lives - 1
     if (lives <= 0) {
       return {
@@ -581,7 +608,8 @@ function makeReducer(
             return levelStart(moved, state.level + 1)
           }
           if (state.ghosts.some((g) => samePos(g, target))) {
-            return {
+            const defended = defendedState(moved)
+            return defended ?? {
               ...moved,
               pac: state.maze.pacSpawn,
               buddy: state.maze.pacSpawn,
@@ -762,19 +790,19 @@ function makeReducer(
       case 'TRAVEL_GHOST_TICK': {
         if (state.phase !== 'travel') return state
         const ghosts = state.ghosts.map((g) => randomStep(state.maze, g))
-        const bumped = ghosts.some((g) => samePos(g, state.pac))
-        return {
+        const stepped = {
           ...state,
           ghosts,
           ghostPrev: state.ghosts,
-          ...(bumped
-            ? {
-                pac: state.maze.pacSpawn,
-                buddy: state.maze.pacSpawn,
-                buddyTrail: [state.maze.pacSpawn, state.maze.pacSpawn, state.maze.pacSpawn],
-                message: say(state, 'A path baddie bumped you back to the door! Try again. 👀', 'bad'),
-              }
-            : {}),
+        }
+        if (!ghosts.some((g) => samePos(g, state.pac))) return stepped
+        const defended = defendedState(stepped)
+        return defended ?? {
+          ...stepped,
+          pac: state.maze.pacSpawn,
+          buddy: state.maze.pacSpawn,
+          buddyTrail: [state.maze.pacSpawn, state.maze.pacSpawn, state.maze.pacSpawn],
+          message: say(state, 'A path baddie bumped you back to the door! Try again. 👀', 'bad'),
         }
       }
 
@@ -869,10 +897,11 @@ export function useArcadeGame(
   rockAgingEnabled: boolean,
   travelEnabled = false,
   travelMaxLevel = Infinity,
+  ghostSkill: GhostSkill = 'none',
 ) {
   const reducer = useMemo(
-    () => makeReducer(cfgFor, travelEnabled, travelMaxLevel),
-    [cfgFor, travelEnabled, travelMaxLevel],
+    () => makeReducer(cfgFor, travelEnabled, travelMaxLevel, ghostSkill),
+    [cfgFor, travelEnabled, travelMaxLevel, ghostSkill],
   )
   const [state, dispatch] = useReducer(
     reducer,
