@@ -40,6 +40,8 @@ const KEY_DIRS: Record<string, Dir> = {
   d: 'right',
 }
 
+const ANSWER_INPUT_GUARD_MS = 700
+
 function useTileSize(cols: number, rows: number) {
   const calc = () => {
     const isLandscape = window.innerWidth > window.innerHeight
@@ -227,6 +229,7 @@ export function ArcadeGame({
 
   const [rewards, setRewards] = useState<CompleteResult | null>(null)
   const [powerBuddyId, setPowerBuddyId] = useState<HeroId | null>(null)
+  const [answerInputReady, setAnswerInputReady] = useState(false)
   const completedLevelRef = useRef(0)
 
   // record progress + unlocks the moment a level is cleared
@@ -251,6 +254,16 @@ export function ArcadeGame({
     touched.current = false
   }, [state.problem])
 
+  useEffect(() => {
+    if (state.phase !== 'answer') {
+      setAnswerInputReady(false)
+      return
+    }
+    setAnswerInputReady(false)
+    const t = setTimeout(() => setAnswerInputReady(true), ANSWER_INPUT_GUARD_MS)
+    return () => clearTimeout(t)
+  }, [state.phase, state.problem])
+
   // keyboard
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -259,12 +272,13 @@ export function ArcadeGame({
         e.preventDefault()
         dispatch({ type: 'MOVE', dir })
       } else if (e.key === 'Enter') {
+        if (!answerInputReady) return
         dispatch({ type: 'SUBMIT' })
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [dispatch])
+  }, [dispatch, answerInputReady])
 
   // music + sfx
   useEffect(() => {
@@ -313,11 +327,13 @@ export function ArcadeGame({
 
   const setAnswer = useCallback(
     (value: number) => {
+      if (!answerInputReady) return
       touched.current = true
       dispatch({ type: 'SET_ANSWER', value })
     },
-    [dispatch],
+    [dispatch, answerInputReady],
   )
+  const canAnswer = phase === 'answer' && answerInputReady
 
   const goalText =
     phase === 'answer'
@@ -474,7 +490,7 @@ export function ArcadeGame({
                   </h3>
                   <ProblemPrompt problem={problem} />
                   <div className="mb-0.5 rounded-full border border-emerald-500 bg-emerald-500/15 px-2.5 py-0 text-[10px] font-bold text-emerald-300 sm:text-xs">
-                    worth +{payout} moves
+                    {phase === 'answer' && !answerInputReady ? 'ready...' : `worth +${payout} moves`}
                   </div>
                   <p className="min-h-4 max-w-64 text-center text-[10px] text-[var(--c-soft)] sm:min-h-6 sm:text-xs">
                     {state.hint}
@@ -482,16 +498,20 @@ export function ArcadeGame({
                   <div className="mt-0.5 grid w-full max-w-64 grid-cols-[0.9fr_1.35fr_auto] items-center gap-1.5 landscape:max-w-44 landscape:grid-cols-[0.75fr_1fr]">
                     <button
                       type="button"
-                      onClick={() => dispatch({ type: 'SET_ANSWER', value: 0 })}
-                      disabled={phase !== 'answer'}
+                      onClick={() => {
+                        if (canAnswer) dispatch({ type: 'SET_ANSWER', value: 0 })
+                      }}
+                      disabled={!canAnswer}
                       className="rounded-lg border-2 border-[var(--c-border)] bg-[var(--c-panel)] px-2 py-1.5 text-xs font-bold brightness-110 disabled:opacity-40"
                     >
                       Clear
                     </button>
                     <button
                       type="button"
-                      onClick={() => dispatch({ type: 'SUBMIT' })}
-                      disabled={phase !== 'answer'}
+                      onClick={() => {
+                        if (canAnswer) dispatch({ type: 'SUBMIT' })
+                      }}
+                      disabled={!canAnswer}
                       className="rounded-lg border-2 border-emerald-600 bg-emerald-400 px-3 py-1.5 text-sm font-black text-emerald-950 disabled:opacity-40"
                     >
                       Go ▶
@@ -505,7 +525,7 @@ export function ArcadeGame({
                     <button
                       type="button"
                       onClick={() => dispatch({ type: 'CHALLENGE' })}
-                      disabled={phase !== 'answer'}
+                      disabled={!canAnswer}
                       className="mt-1 rounded-lg border border-amber-500 bg-amber-500/20 px-2.5 py-0.5 text-[10px] font-bold text-amber-300 hover:bg-amber-500/30 disabled:opacity-40 sm:text-xs"
                     >
                       ⚡ 10-move challenge
@@ -538,8 +558,9 @@ export function ArcadeGame({
                     <WordChoices
                       choices={problem.choices ?? []}
                       selected={state.answerText}
-                      disabled={phase !== 'answer'}
+                      disabled={!canAnswer}
                       onPick={(value) => {
+                        if (!canAnswer) return
                         dispatch({ type: 'SET_TEXT_ANSWER', value })
                         dispatch({ type: 'SUBMIT' })
                       }}
@@ -547,9 +568,11 @@ export function ArcadeGame({
                   ) : answerMode === 'keypad' ? (
                     <NumberPad
                       value={state.answerValue}
-                      disabled={phase !== 'answer'}
+                      disabled={!canAnswer}
                       onChange={setAnswer}
-                      onSubmit={() => dispatch({ type: 'SUBMIT' })}
+                      onSubmit={() => {
+                        if (canAnswer) dispatch({ type: 'SUBMIT' })
+                      }}
                     />
                   ) : (
                     <>
@@ -560,7 +583,7 @@ export function ArcadeGame({
                         rodCount={state.cfg.rodCount}
                         value={state.answerValue}
                         onChange={setAnswer}
-                        readOnly={phase !== 'answer'}
+                        readOnly={!canAnswer}
                         showLabels={state.cfg.rodCount > 1}
                       />
                       <div className="mt-1 text-sm sm:mt-2 sm:text-lg">
