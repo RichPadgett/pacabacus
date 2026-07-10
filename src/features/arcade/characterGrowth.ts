@@ -1,6 +1,6 @@
 import type { AgeBand } from '@/features/learning/learningWorlds'
 
-export type CharacterGrowthStage = 'baby' | 'kid' | 'guardian' | 'legend'
+export type CharacterGrowthStage = 'baby' | 'kid' | 'guardian' | 'legend' | 'master'
 export type GhostSkill = 'none' | 'defend' | 'attack'
 
 export interface CharacterGrowthProfile {
@@ -19,6 +19,7 @@ export const GROWTH_STAGE_LABELS: Record<CharacterGrowthStage, string> = {
   kid: 'Big Kid',
   guardian: 'Guardian',
   legend: 'Legend',
+  master: 'Master',
 }
 
 export function growthForAgeBand(ageBand: AgeBand): CharacterGrowthProfile {
@@ -58,14 +59,26 @@ export function growthForAgeBand(ageBand: AgeBand): CharacterGrowthProfile {
       ghostSkill: 'defend',
     }
   }
+  if (ageBand === 'big') {
+    return {
+      stage: 'legend',
+      buddyStage: 'guardian',
+      label: 'Legend characters',
+      shortLabel: 'Legend',
+      heroScale: 1.05,
+      buddyScale: 0.68,
+      powerBuddyScale: 0.9,
+      ghostSkill: 'attack',
+    }
+  }
   return {
-    stage: 'legend',
-    buddyStage: 'guardian',
-    label: 'Legend characters',
-    shortLabel: 'Legend',
-    heroScale: 1.05,
-    buddyScale: 0.68,
-    powerBuddyScale: 0.9,
+    stage: 'master',
+    buddyStage: 'legend',
+    label: 'Master characters',
+    shortLabel: 'Master',
+    heroScale: 1.12,
+    buddyScale: 0.72,
+    powerBuddyScale: 0.96,
     ghostSkill: 'attack',
   }
 }

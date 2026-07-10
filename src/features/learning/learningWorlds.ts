@@ -2,7 +2,7 @@ import type { HeroId } from '@/features/arcade/sprites'
 
 export type LearningWorldId = 'pacabacus' | 'pacwords' | 'pactables' | 'pacmath'
 export type PlayStyle = 'adventure' | 'free' | 'rain'
-export type AgeBand = 'little' | 'early' | 'growing' | 'big'
+export type AgeBand = 'little' | 'early' | 'growing' | 'big' | 'master'
 
 export interface LearningWorldDef {
   id: LearningWorldId
@@ -93,7 +93,8 @@ export const AGE_BAND_LABELS: Record<AgeBand, string> = {
   little: 'Ages 4-5',
   early: 'Ages 6-7',
   growing: 'Ages 8-9',
-  big: 'Ages 10+',
+  big: 'Ages 10-14',
+  master: 'Ages 15+',
 }
 
 export function ageFromDateOfBirth(dateOfBirth?: string | null, now = new Date()) {
@@ -112,31 +113,36 @@ export function ageBandFromDateOfBirth(dateOfBirth?: string | null): AgeBand {
   if (age <= 5) return 'little'
   if (age <= 7) return 'early'
   if (age <= 9) return 'growing'
-  return 'big'
+  if (age <= 14) return 'big'
+  return 'master'
 }
 
 export function trainerStartLevel(ageBand: AgeBand, world: LearningWorldId) {
   if (world === 'pactables') {
     if (ageBand === 'little' || ageBand === 'early') return 1
     if (ageBand === 'growing') return 4
-    return 7
+    if (ageBand === 'big') return 7
+    return 11
   }
   if (world === 'pacwords') {
     if (ageBand === 'little') return 1
     if (ageBand === 'early') return 3
     if (ageBand === 'growing') return 6
-    return 8
+    if (ageBand === 'big') return 8
+    return 12
   }
   if (world === 'pacmath') {
     if (ageBand === 'little') return 1
     if (ageBand === 'early') return 3
     if (ageBand === 'growing') return 7
-    return 10
+    if (ageBand === 'big') return 10
+    return 15
   }
   if (ageBand === 'little') return 1
   if (ageBand === 'early') return 4
   if (ageBand === 'growing') return 9
-  return 14
+  if (ageBand === 'big') return 14
+  return 22
 }
 
 export const WORLD_CHARACTER_UNLOCKS: Record<LearningWorldId, HeroId[]> = {

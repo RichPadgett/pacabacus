@@ -89,6 +89,16 @@ function ageTuneEnemy(enemy: EnemyCfg, ageBand: AgeBand): EnemyCfg {
       spawnChance: Math.min(0.5, enemy.spawnChance + 0.2),
     }
   }
+  if (ageBand === 'master') {
+    return {
+      ...enemy,
+      count: Math.min(5, enemy.count + (enemy.count > 1 ? 2 : enemy.count > 0 ? 1 : 0)),
+      correctSteps: enemy.correctSteps + 3,
+      wrongSteps: enemy.wrongSteps + 2,
+      chaseChance: Math.min(0.98, enemy.chaseChance + 0.38),
+      spawnChance: Math.min(0.6, enemy.spawnChance + 0.26),
+    }
+  }
   return enemy
 }
 
@@ -100,6 +110,7 @@ function ageAdjustedLevel(level: number, ageBand: AgeBand) {
   if (ageBand === 'little') return Math.max(1, level - 2)
   if (ageBand === 'growing') return level + 6
   if (ageBand === 'big') return level + 14
+  if (ageBand === 'master') return level + 24
   return level
 }
 
@@ -116,7 +127,9 @@ export function adventureCfg(level: number, settings?: ArcadeSettings): LevelCfg
             ? { kind: 'tech', mathLevel: 3, ops: 'mixed', maxAnswer: 20 }
             : level <= 38
               ? { kind: 'tech', mathLevel: 4, ops: 'mixed', maxAnswer: 50 }
-              : { kind: 'tech', mathLevel: 5, ops: 'mixed', maxAnswer: 50 }
+              : level <= 52
+                ? { kind: 'tech', mathLevel: 5, ops: 'mixed', maxAnswer: 50 }
+                : { kind: 'tech', mathLevel: 5, ops: 'mixed', maxAnswer: 100 }
 
   const baseEnemy: EnemyCfg = {
     count: level <= 2 ? 1 : level <= 8 ? 1 : level <= 16 ? 2 : 3,
@@ -219,6 +232,8 @@ export function pacWordsCfgForAge(level: number, ageBand: AgeBand): LevelCfg {
         ? level + 4
         : ageBand === 'big'
           ? level + 8
+          : ageBand === 'master'
+            ? level + 12
           : level
   return {
     problem: { kind: 'words', level: adjustedLevel },
@@ -244,7 +259,9 @@ export function pacTablesCfgForAge(level: number, ageBand: AgeBand): LevelCfg {
         ? Math.min(10, 2 + Math.ceil(level / 3))
         : ageBand === 'growing'
           ? Math.min(12, 4 + Math.ceil(adjustedLevel / 3))
-          : Math.min(12, 6 + Math.ceil(adjustedLevel / 3))
+          : ageBand === 'big'
+            ? Math.min(12, 6 + Math.ceil(adjustedLevel / 3))
+            : Math.min(15, 8 + Math.ceil(adjustedLevel / 3))
   return {
     problem: { kind: 'tables', maxFactor },
     rodCount: 2,
@@ -275,7 +292,11 @@ export function pacMathCfgForAge(level: number, ageBand: AgeBand): LevelCfg {
           ? adjustedLevel <= 14
             ? 20
             : 50
-          : 50
+          : ageBand === 'big'
+            ? 50
+            : adjustedLevel <= 34
+              ? 75
+              : 100
   const ops =
     ageBand === 'little' || level <= 5
       ? 'add'

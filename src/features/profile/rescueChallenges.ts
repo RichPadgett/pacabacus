@@ -60,6 +60,7 @@ export const AGE_BOSS_LEVELS: Record<AgeBand, number> = {
   early: 10,
   growing: 20,
   big: 35,
+  master: 50,
 }
 
 export function rescueForClear(world: LearningWorldId, level: number) {
