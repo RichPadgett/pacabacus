@@ -19,8 +19,6 @@ import {
 import { RESCUE_CHALLENGES, rescueForClear, secretCodeLevel } from './rescueChallenges'
 import { BADGES, type Badge } from './rewards'
 
-export type ProgressMode = 'adventure' | 'counting'
-
 export interface CompleteResult {
   newBuddies: HeroId[]
   newCharacters: HeroId[]
@@ -83,7 +81,6 @@ interface ProfileStore {
   setBuddy: (id: HeroId | null) => void
   toggleBuddy: (id: HeroId) => void
   buyBuddy: (id: HeroId) => boolean
-  completeLevel: (mode: ProgressMode, level: number, stars: number) => CompleteResult
   completeWorldLevel: (world: LearningWorldId, level: number, stars: number) => CompleteResult
   runTrainer: (world?: LearningWorldId) => void
   resetProgress: () => void
@@ -97,7 +94,7 @@ export function totalCompleted(s: { adventureLevel: number; countingLevel: numbe
 }
 
 export function totalWorldCompleted(s: { worldLevels?: Partial<Record<LearningWorldId, number>> }) {
-  const levels = { ...DEFAULT_WORLD_LEVELS, ...(s.worldLevels ?? {}) }
+  const levels = { ...DEFAULT_WORLD_LEVELS, ...s.worldLevels }
   return Object.values(levels).reduce((sum, level) => sum + Math.max(0, level - 1), 0)
 }
 
@@ -130,7 +127,7 @@ export function earnedBadges(total: number): Badge[] {
 }
 
 function normalizeWorldLevels(worldLevels?: Partial<Record<LearningWorldId, number>>) {
-  return { ...DEFAULT_WORLD_LEVELS, ...(worldLevels ?? {}) }
+  return { ...DEFAULT_WORLD_LEVELS, ...worldLevels }
 }
 
 function makeProfile(username: string, character: HeroId, dateOfBirth: string | null = null): PlayerProfile {
@@ -358,40 +355,6 @@ export const useProfile = create<ProfileStore>()(
         })
         return true
       },
-      completeLevel: (mode, level, starCount) => {
-        const s = get()
-        const before = totalCompleted(s)
-        const charactersBefore = new Set(s.ownedCharacters)
-        const key = `${mode === 'adventure' ? 'a' : 'c'}${level}`
-        const levelField = mode === 'adventure' ? 'adventureLevel' : 'countingLevel'
-        const nextLevel = Math.max(s[levelField], level + 1)
-        const firstClear = s.stars[key] == null
-        const coinsEarned = firstClear ? 10 + starCount * 5 : 2
-        const treasureCoins = s.treasureCoins + coinsEarned
-        const stars = { ...s.stars, [key]: Math.max(s.stars[key] ?? 0, starCount) }
-        const nextAdventureLevel = mode === 'adventure' ? nextLevel : s.adventureLevel
-        const ownedCharacters = Array.from(new Set([...s.ownedCharacters, ...unlockedCharacters(nextAdventureLevel)]))
-        const newCharacters = ownedCharacters.filter((id) => !charactersBefore.has(id))
-        const buddyUseCounts = bumpBuddyUses(s.buddyUseCounts, s.buddies)
-        const updates = { [levelField]: nextLevel, stars, treasureCoins, ownedCharacters, buddyUseCounts }
-        const after = totalCompleted({ ...s, [levelField]: nextLevel })
-        set((current) => ({
-          [levelField]: nextLevel,
-          stars,
-          treasureCoins,
-          ownedCharacters,
-          buddyUseCounts,
-          profiles: syncActive(current.profiles, current.activeProfileId, updates),
-        }))
-        return {
-          newBuddies: [],
-          newCharacters,
-          newBadges: earnedBadges(after).filter(
-            (b) => !earnedBadges(before).some((eb) => eb.id === b.id),
-          ),
-          coinsEarned,
-        }
-      },
       completeWorldLevel: (world, level, starCount) => {
         const s = get()
         const before = totalWorldCompleted(s)
@@ -542,7 +505,7 @@ export const useProfile = create<ProfileStore>()(
             )
             const buddyUseCounts = {
               ...Object.fromEntries(ownedBuddies.map((id) => [id, Math.max(1, (worldLevels.pacabacus ?? 1) - 1)])),
-              ...(p.buddyUseCounts ?? {}),
+              ...p.buddyUseCounts,
             }
             return {
               ...p,

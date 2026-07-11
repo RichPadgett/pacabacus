@@ -1,7 +1,6 @@
 import type { HeroId } from '@/features/arcade/sprites'
 
 export type LearningWorldId = 'pacabacus' | 'pacwords' | 'pactables' | 'pacmath'
-export type PlayStyle = 'adventure' | 'free' | 'rain'
 export type AgeBand = 'little' | 'early' | 'growing' | 'big' | 'master'
 
 export interface LearningWorldDef {

@@ -8,8 +8,9 @@ import {
 } from '@/features/drills/problemGenerator'
 import type { LearningWorldId } from '@/features/learning/learningWorlds'
 import { rescueForClear, type RescueChallenge } from '@/features/profile/rescueChallenges'
-import type { GhostSkill } from './characterGrowth'
 import type { LevelCfg } from './gameConfig'
+import { collisionOutcome, removeOneBaddieAt } from './collisionRules'
+import { generateBattleProblem } from './battleProblems'
 import {
   DIR_VECTORS,
   isWall,
@@ -27,10 +28,10 @@ export type Phase =
   | 'answer'
   | 'rescueFight'
   | 'rescueWall'
+  | 'collisionBattle'
   | 'move'
   | 'ghosts'
   | 'reveal'
-  | 'caught'
   | 'doorOpen'
   | 'travel'
   | 'levelClear'
@@ -72,16 +73,10 @@ const CLOAK_SAFE_DISTANCE = 4
 const QUICK_SOLVE_MS = 6_000
 const QUICK_METER_GAIN = 25
 const QUICK_BONUS_MOVES = 2
-const POWER_TICKS = 16
+const POWER_TICKS = 60
 const PATH_TREASURES = ['🍓', '🍒', '🍊', '🍌', '🍇', '💰']
 
-export const ANSWER_PHASES: Phase[] = ['answer', 'rescueFight', 'rescueWall']
-
-function guardChargesForSkill(skill: GhostSkill) {
-  if (skill === 'attack') return 2
-  if (skill === 'defend') return 3
-  return 0
-}
+export const ANSWER_PHASES: Phase[] = ['answer', 'rescueFight', 'rescueWall', 'collisionBattle']
 
 export interface GameState {
   level: number
@@ -101,6 +96,8 @@ export interface GameState {
   jailTurns: number
   vulnerableMovesLeft: number
   phase: Phase
+  battleGhost: Pos | null
+  battleResume: 'answer' | 'travel'
   movesLeft: number
   ghostStepsLeft: number
   afterGhosts: 'retry' | 'next'
@@ -118,7 +115,6 @@ export interface GameState {
   goalLabel: string
   quickMeter: number
   starReady: boolean
-  guardCharges: number
   powerBuddy: Pos | null
   powerTicksLeft: number
   exitDoor: Pos | null
@@ -141,7 +137,6 @@ type Action =
   | { type: 'GHOST_TICK' }
   | { type: 'TRAVEL_GHOST_TICK' }
   | { type: 'REVEAL_DONE' }
-  | { type: 'RESPAWN' }
   | { type: 'NEXT_LEVEL' }
   | { type: 'RESTART_LEVEL' }
 
@@ -289,16 +284,9 @@ function wanderWhileSolving(
   return current
 }
 
-function nearestTreasureStep(maze: MazeDef, from: Pos, treasures: Map<string, string>): Pos {
-  const targets = [...treasures.keys()].filter((k) => treasures.get(k) !== ROCK_EMOJI)
-  if (!targets.length) return from
-  const [targetKey] = targets.sort((a, b) => {
-    const [ar, ac] = a.split(',').map(Number)
-    const [br, bc] = b.split(',').map(Number)
-    return dist(from, { r: ar, c: ac }) - dist(from, { r: br, c: bc })
-  })
-  const [r, c] = targetKey.split(',').map(Number)
-  return nextStepToward(maze, from, { r, c })
+function nearestGhostStep(maze: MazeDef, from: Pos, ghosts: Pos[]): Pos {
+  const target = [...ghosts].sort((a, b) => dist(from, a) - dist(from, b))[0]
+  return target ? nextStepToward(maze, from, target) : from
 }
 
 function exitDoorForMaze(maze: MazeDef): Pos {
@@ -373,7 +361,6 @@ function makeReducer(
   cfgFor: (level: number) => LevelCfg,
   travelEnabled: boolean,
   travelMaxLevel: number,
-  ghostSkill: GhostSkill,
   learningWorld: LearningWorldId,
   ownedCharacters: string[],
 ) {
@@ -470,69 +457,18 @@ function makeReducer(
     return { ...state, ghosts, message, phase: 'ghosts', ghostStepsLeft: steps, afterGhosts: after }
   }
 
-  const defendedState = (state: GameState): GameState | null => {
-    if (
-      ghostSkill === 'none' ||
-      state.vulnerableMovesLeft > 0 ||
-      state.jailTurns > 0 ||
-      state.guardCharges <= 0
-    )
-      return null
-    const colliding = state.ghosts.filter((g) => samePos(g, state.pac))
-    if (!colliding.length) return null
-    if (ghostSkill === 'attack') {
-      return {
-        ...state,
-        ghosts: state.ghosts.filter((g) => !samePos(g, state.pac)),
-        ghostPrev: state.ghosts,
-        jailTurns: 0,
-        vulnerableMovesLeft: 0,
-        guardCharges: state.guardCharges - 1,
-        message: say(
-          state,
-          state.guardCharges > 1
-            ? `Legend power! The baddie poofed away! ${state.guardCharges - 1} left. ✨`
-            : 'Legend power used up! The baddie poofed away! ✨',
-          'good',
-        ),
-      }
-    }
-    const jail = state.maze.ghostSpawns[0] ?? state.maze.pacSpawn
-    return {
-      ...state,
-      ghosts: state.ghosts.map((g) => (samePos(g, state.pac) ? jail : g)),
-      ghostPrev: state.ghosts,
-      jailTurns: 1,
-      guardCharges: state.guardCharges - 1,
-      message: say(
-        state,
-        state.guardCharges > 1
-          ? `Guardian block! ${state.guardCharges - 1} blocks left. 🛡️`
-          : 'Guardian block used up! Stay sharp. 🛡️',
-        'good',
-      ),
-    }
-  }
-
-  const caughtState = (state: GameState): GameState => {
-    const defended = defendedState(state)
-    if (defended) return defended
-    const lives = state.lives - 1
-    if (lives <= 0) {
-      return {
-        ...state,
-        lives: 0,
-        phase: 'gameOver',
-        message: say(state, 'The baddies got you! 👻', 'bad'),
-      }
-    }
-    return {
-      ...state,
-      lives,
-      phase: 'caught',
-      message: say(state, 'A baddie got you! Back to start — keep going! ❤️', 'bad'),
-    }
-  }
+  const battleState = (state: GameState): GameState => ({
+    ...state,
+    phase: 'collisionBattle',
+    battleGhost: state.pac,
+    battleResume: state.phase === 'travel' ? 'travel' : 'answer',
+    problem: generateBattleProblem(learningWorld, state.level),
+    answerValue: 0,
+    answerText: '',
+    attempts: 0,
+    hint: '',
+    message: say(state, 'Baddie battle! Solve the three-part problem! ⚔️', 'bad'),
+  })
 
   const enterTravel = (state: GameState): GameState => {
     const maze = travelMazeForLevel(state.level)
@@ -603,7 +539,6 @@ function makeReducer(
       jailFruits,
       jailTurns: 0,
       vulnerableMovesLeft: 0,
-      guardCharges: guardChargesForSkill(ghostSkill),
       powerBuddy: null,
       powerTicksLeft: 0,
       exitDoor: null,
@@ -680,6 +615,46 @@ function makeReducer(
           p.answerText != null
             ? state.answerText.trim().toLowerCase() === p.answerText.toLowerCase()
             : state.answerValue === p.answer
+        if (state.phase === 'collisionBattle') {
+          const ghosts = state.battleGhost
+            ? removeOneBaddieAt(state.ghosts, state.battleGhost)
+            : state.ghosts
+          if (correct) {
+            const resume = state.battleResume
+            return {
+              ...state,
+              ghosts,
+              ghostPrev: state.ghosts,
+              battleGhost: null,
+              phase: resume,
+              ...(resume === 'answer' ? freshProblem(state.cfg) : {}),
+              stars: state.stars + 2,
+              message: say(state, 'Battle won! The baddie was defeated. ⚔️', 'good'),
+            }
+          }
+          const { livesRemaining, levelFailed } = collisionOutcome(state.lives)
+          if (levelFailed) {
+            return {
+              ...state,
+              ghosts,
+              battleGhost: null,
+              lives: 0,
+              phase: 'gameOver',
+              message: say(state, 'The battle cost your third heart. Restart the level.', 'bad'),
+            }
+          }
+          const resume = state.battleResume
+          return {
+            ...state,
+            ghosts,
+            ghostPrev: state.ghosts,
+            battleGhost: null,
+            lives: livesRemaining,
+            phase: resume,
+            ...(resume === 'answer' ? freshProblem(state.cfg) : {}),
+            message: say(state, `Battle lost, but the baddie is gone. ${livesRemaining} heart${livesRemaining === 1 ? '' : 's'} left.`, 'bad'),
+          }
+        }
         if (state.phase === 'rescueFight') {
           if (!state.rescue) return state
           if (correct) {
@@ -864,15 +839,8 @@ function makeReducer(
           if (state.travelExitDoor && samePos(target, state.travelExitDoor)) {
             return levelStart(moved, state.level + 1)
           }
-          if (state.ghosts.some((g) => samePos(g, target))) {
-            const defended = defendedState(moved)
-            return defended ?? {
-              ...moved,
-              pac: state.maze.pacSpawn,
-              buddy: state.maze.pacSpawn,
-              buddyTrail: [state.maze.pacSpawn, state.maze.pacSpawn, state.maze.pacSpawn],
-              message: say(state, 'A path baddie bumped you back to the door! Try again. 👀', 'bad'),
-            }
+          if (moved.ghosts.some((g) => samePos(g, target))) {
+            return battleState(moved)
           }
           return moved
         }
@@ -928,7 +896,7 @@ function makeReducer(
           }
         }
         if (state.jailTurns === 0 && moved.ghosts.some((g) => samePos(g, target))) {
-          return caughtState(moved)
+          return battleState(moved)
         }
         if (goalComplete(moved, treasures, goalProgress)) {
           return clearLevelState(
@@ -972,46 +940,36 @@ function makeReducer(
 
       case 'START_POWER': {
         if (!state.starReady || state.powerTicksLeft > 0) return state
+        if (!state.ghosts.length) {
+          return { ...state, message: say(state, 'No baddies to defeat right now — save Buddy Power!', 'good') }
+        }
         return {
           ...state,
           starReady: false,
           quickMeter: 0,
           powerBuddy: state.pac,
           powerTicksLeft: POWER_TICKS,
-          message: say(state, 'Star buddy power! Grab that fruit! ⭐', 'good'),
+          message: say(state, 'Buddy Power! Go defeat one baddie! ⭐', 'good'),
         }
       }
 
       case 'BUDDY_POWER_TICK': {
         if (!state.powerBuddy || state.powerTicksLeft <= 0) return state
-        const next = nearestTreasureStep(state.maze, state.powerBuddy, state.treasures)
-        const key = posKey(next)
-        const treasure = state.treasures.get(key)
-        const treasures = new Map(state.treasures)
-        const collectedFruit = treasure != null && treasure !== ROCK_EMOJI
-        if (collectedFruit) treasures.delete(key)
-        const goalProgress = collectedFruit ? state.goalProgress + 1 : state.goalProgress
-        const cleared = goalComplete(state, treasures, goalProgress)
-        const done = cleared || state.powerTicksLeft <= 1 || collectibleTreasureCount(treasures) === 0
+        const next = nearestGhostStep(state.maze, state.powerBuddy, state.ghosts)
+        const ghosts = removeOneBaddieAt(state.ghosts, next)
+        const hit = ghosts.length < state.ghosts.length
+        const done = hit || state.powerTicksLeft <= 1
         return {
           ...state,
-          treasures,
-          goalProgress,
+          ghosts,
+          ghostPrev: hit ? state.ghosts : state.ghostPrev,
           powerBuddy: done ? null : next,
           powerTicksLeft: done ? 0 : state.powerTicksLeft - 1,
-          phase: cleared
-            ? travelEnabled && state.level < travelMaxLevel
-              ? 'doorOpen'
-              : 'levelClear'
-            : state.phase,
-          exitDoor:
-            cleared && travelEnabled && state.level < travelMaxLevel
-              ? exitDoorForMaze(state.maze)
-              : state.exitDoor,
-          clearStars: cleared ? Math.max(1, state.lives) : state.clearStars,
-          message:
-            cleared && travelEnabled && state.level < travelMaxLevel
-              ? say(state, 'Goal reached! The exit door opened! 🚪', 'good')
+          stars: hit ? state.stars + 2 : state.stars,
+          message: hit
+            ? say(state, 'Buddy defeated a baddie! ⭐', 'good')
+            : done
+              ? say(state, 'Buddy came back safely. Try again next power-up!', 'good')
               : state.message,
         }
       }
@@ -1053,7 +1011,7 @@ function makeReducer(
               message: say(state, 'ZAP! Baddie poofed away! ⚡', 'good'),
             }
           }
-          return caughtState(stepped)
+          return battleState(stepped)
         }
         if (stepped.ghostStepsLeft <= 0) {
           return stepped.afterGhosts === 'next'
@@ -1076,14 +1034,7 @@ function makeReducer(
           ghostPrev: state.ghosts,
         }
         if (!ghosts.some((g) => samePos(g, state.pac))) return stepped
-        const defended = defendedState(stepped)
-        return defended ?? {
-          ...stepped,
-          pac: state.maze.pacSpawn,
-          buddy: state.maze.pacSpawn,
-          buddyTrail: [state.maze.pacSpawn, state.maze.pacSpawn, state.maze.pacSpawn],
-          message: say(state, 'A path baddie bumped you back to the door! Try again. 👀', 'bad'),
-        }
+        return battleState(stepped)
       }
 
       case 'REVEAL_DONE': {
@@ -1093,22 +1044,6 @@ function makeReducer(
           state.cfg.gentle ? 0 : state.cfg.enemy.wrongSteps,
           'next',
         )
-      }
-
-      case 'RESPAWN': {
-        if (state.phase !== 'caught') return state
-        return {
-          ...state,
-          pac: state.maze.pacSpawn,
-          buddy: state.maze.pacSpawn,
-          buddyTrail: [state.maze.pacSpawn, state.maze.pacSpawn, state.maze.pacSpawn],
-          facing: 'right',
-          ghosts: state.maze.ghostSpawns.slice(0, state.cfg.enemy.count),
-          ghostPrev: state.maze.ghostSpawns.slice(0, state.cfg.enemy.count),
-          jailTurns: 0,
-          vulnerableMovesLeft: 0,
-          ...freshProblem(state.cfg),
-        }
       }
 
       case 'NEXT_LEVEL': {
@@ -1130,7 +1065,6 @@ function makeReducer(
 function makeInitialState(
   cfgFor: (level: number) => LevelCfg,
   startLevel: number,
-  ghostSkill: GhostSkill,
 ): GameState {
   const cfg = cfgFor(startLevel)
   const maze = mazeForLevel(startLevel)
@@ -1154,6 +1088,8 @@ function makeInitialState(
     jailTurns: 0,
     vulnerableMovesLeft: 0,
     phase: 'answer',
+    battleGhost: null,
+    battleResume: 'answer',
     movesLeft: 0,
     ghostStepsLeft: 0,
     afterGhosts: 'next',
@@ -1169,7 +1105,6 @@ function makeInitialState(
     ...goal,
     quickMeter: 0,
     starReady: false,
-    guardCharges: guardChargesForSkill(ghostSkill),
     powerBuddy: null,
     powerTicksLeft: 0,
     exitDoor: null,
@@ -1185,18 +1120,17 @@ export function useArcadeGame(
   rockAgingEnabled: boolean,
   travelEnabled = false,
   travelMaxLevel = Infinity,
-  ghostSkill: GhostSkill = 'none',
   learningWorld: LearningWorldId = 'pacabacus',
   ownedCharacters: string[] = [],
 ) {
   const reducer = useMemo(
-    () => makeReducer(cfgFor, travelEnabled, travelMaxLevel, ghostSkill, learningWorld, ownedCharacters),
-    [cfgFor, travelEnabled, travelMaxLevel, ghostSkill, learningWorld, ownedCharacters],
+    () => makeReducer(cfgFor, travelEnabled, travelMaxLevel, learningWorld, ownedCharacters),
+    [cfgFor, travelEnabled, travelMaxLevel, learningWorld, ownedCharacters],
   )
   const [state, dispatch] = useReducer(
     reducer,
     null,
-    () => makeInitialState(cfgFor, startLevel, ghostSkill),
+    () => makeInitialState(cfgFor, startLevel),
   )
 
   useEffect(() => {
@@ -1218,10 +1152,6 @@ export function useArcadeGame(
     if (state.phase === 'travel') {
       const t = setInterval(() => dispatch({ type: 'TRAVEL_GHOST_TICK' }), Math.max(700, stepMs * 3))
       return () => clearInterval(t)
-    }
-    if (state.phase === 'caught') {
-      const t = setTimeout(() => dispatch({ type: 'RESPAWN' }), 1100)
-      return () => clearTimeout(t)
     }
     if (state.phase === 'reveal') {
       const t = setTimeout(() => dispatch({ type: 'REVEAL_DONE' }), 1900)

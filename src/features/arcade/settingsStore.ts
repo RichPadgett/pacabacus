@@ -1,7 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { MathLevel, OpsChoice } from '@/features/drills/problemGenerator'
-import type { HeroId } from './sprites'
 import type { ThemeId } from './themes'
 
 export type GhostDifficulty = 'off' | 'chill' | 'spooky' | 'scary'
@@ -17,7 +16,6 @@ export interface ArcadeSettings {
   speed: GameSpeed
   music: boolean
   theme: ThemeId
-  hero: HeroId
   mode: GameMode
   rockTimer: boolean
 }
@@ -52,7 +50,6 @@ const DEFAULT_SETTINGS: ArcadeSettings = {
   speed: 'relaxed',
   music: true,
   theme: 'stars',
-  hero: 'chomper',
   mode: 'maze',
   rockTimer: true,
 }

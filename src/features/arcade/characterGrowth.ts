@@ -1,7 +1,6 @@
 import type { AgeBand } from '@/features/learning/learningWorlds'
 
 export type CharacterGrowthStage = 'baby' | 'kid' | 'guardian' | 'legend' | 'master'
-export type GhostSkill = 'none' | 'defend' | 'attack'
 
 export interface CharacterGrowthProfile {
   stage: CharacterGrowthStage
@@ -11,7 +10,6 @@ export interface CharacterGrowthProfile {
   heroScale: number
   buddyScale: number
   powerBuddyScale: number
-  ghostSkill: GhostSkill
 }
 
 export const GROWTH_STAGE_LABELS: Record<CharacterGrowthStage, string> = {
@@ -22,18 +20,10 @@ export const GROWTH_STAGE_LABELS: Record<CharacterGrowthStage, string> = {
   master: 'Master',
 }
 
-export function ghostSkillForAgeBand(ageBand: AgeBand): GhostSkill {
-  if (ageBand === 'growing') return 'defend'
-  if (ageBand === 'big' || ageBand === 'master') return 'attack'
-  return 'none'
-}
-
 function profileForStage(
   stage: CharacterGrowthStage,
   buddyStage: CharacterGrowthStage,
-  ageBand: AgeBand,
 ): CharacterGrowthProfile {
-  const ghostSkill = ghostSkillForAgeBand(ageBand)
   if (stage === 'baby') {
     return {
       stage,
@@ -43,7 +33,6 @@ function profileForStage(
       heroScale: 0.72,
       buddyScale: 0.34,
       powerBuddyScale: 0.58,
-      ghostSkill,
     }
   }
   if (stage === 'kid') {
@@ -55,7 +44,6 @@ function profileForStage(
       heroScale: 0.88,
       buddyScale: 0.5,
       powerBuddyScale: 0.7,
-      ghostSkill,
     }
   }
   if (stage === 'guardian') {
@@ -67,7 +55,6 @@ function profileForStage(
       heroScale: 0.98,
       buddyScale: 0.6,
       powerBuddyScale: 0.82,
-      ghostSkill,
     }
   }
   if (stage === 'legend') {
@@ -79,7 +66,6 @@ function profileForStage(
       heroScale: 1.05,
       buddyScale: 0.68,
       powerBuddyScale: 0.9,
-      ghostSkill,
     }
   }
   return {
@@ -90,17 +76,16 @@ function profileForStage(
     heroScale: 1.12,
     buddyScale: 0.72,
     powerBuddyScale: 0.96,
-    ghostSkill,
   }
 }
 
-export function growthForProgress(ageBand: AgeBand, level: number): CharacterGrowthProfile {
-  if (level <= 5) return profileForStage('baby', 'baby', ageBand)
-  if (level <= 15) return profileForStage('kid', 'baby', ageBand)
-  if (level <= 25) return profileForStage('guardian', 'baby', ageBand)
-  if (level <= 35) return profileForStage('legend', 'kid', ageBand)
-  if (level <= 45) return profileForStage('legend', 'guardian', ageBand)
-  return profileForStage('master', 'legend', ageBand)
+export function growthForProgress(_ageBand: AgeBand, level: number): CharacterGrowthProfile {
+  if (level <= 5) return profileForStage('baby', 'baby')
+  if (level <= 15) return profileForStage('kid', 'baby')
+  if (level <= 25) return profileForStage('guardian', 'baby')
+  if (level <= 35) return profileForStage('legend', 'kid')
+  if (level <= 45) return profileForStage('legend', 'guardian')
+  return profileForStage('master', 'legend')
 }
 
 export function buddyStageForUses(uses: number): CharacterGrowthStage {
@@ -129,7 +114,6 @@ export function growthForAgeBand(ageBand: AgeBand): CharacterGrowthProfile {
       heroScale: 0.76,
       buddyScale: 0.38,
       powerBuddyScale: 0.62,
-      ghostSkill: 'none',
     }
   }
   if (ageBand === 'early') {
@@ -141,7 +125,6 @@ export function growthForAgeBand(ageBand: AgeBand): CharacterGrowthProfile {
       heroScale: 0.9,
       buddyScale: 0.52,
       powerBuddyScale: 0.72,
-      ghostSkill: 'none',
     }
   }
   if (ageBand === 'growing') {
@@ -153,7 +136,6 @@ export function growthForAgeBand(ageBand: AgeBand): CharacterGrowthProfile {
       heroScale: 0.98,
       buddyScale: 0.6,
       powerBuddyScale: 0.82,
-      ghostSkill: 'defend',
     }
   }
   if (ageBand === 'big') {
@@ -165,7 +147,6 @@ export function growthForAgeBand(ageBand: AgeBand): CharacterGrowthProfile {
       heroScale: 1.05,
       buddyScale: 0.68,
       powerBuddyScale: 0.9,
-      ghostSkill: 'attack',
     }
   }
   return {
@@ -176,6 +157,5 @@ export function growthForAgeBand(ageBand: AgeBand): CharacterGrowthProfile {
     heroScale: 1.12,
     buddyScale: 0.72,
     powerBuddyScale: 0.96,
-    ghostSkill: 'attack',
   }
 }

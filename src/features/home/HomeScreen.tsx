@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
+import { SlideOutMenu } from '@/components/SlideOutMenu'
 import { Twinkles } from '@/features/arcade/ArcadeGame'
 import { useArcadeSettings } from '@/features/arcade/settingsStore'
-import { HEROES, PixelSprite, SECRET_HERO_IDS, STARTER_HERO_IDS, type HeroId } from '@/features/arcade/sprites'
+import { PixelSprite } from '@/features/arcade/PixelSprite'
+import { HEROES, SECRET_HERO_IDS, STARTER_HERO_IDS, type HeroId } from '@/features/arcade/sprites'
 import { THEMES } from '@/features/arcade/themes'
 import { chiptune } from '@/features/audio/chiptune'
 import {
@@ -40,6 +42,7 @@ export function HomeScreen({
   const [starterHero, setStarterHero] = useState<HeroId>(STARTER_HERO_IDS[0])
   const [showProfiles, setShowProfiles] = useState(false)
   const [showTools, setShowTools] = useState(false)
+  const [showMenu, setShowMenu] = useState(false)
   const [secretCode, setSecretCode] = useState('')
   const { locale, t, ageBandLabel, worldText } = useTranslations()
   const setLocale = useI18n((state) => state.setLocale)
@@ -125,6 +128,15 @@ export function HomeScreen({
             >
               {t('button.tools')} {showTools ? '▲' : '▼'}
             </button>
+            <button
+              type="button"
+              onClick={() => setShowMenu(true)}
+              aria-label="Open menu"
+              aria-expanded={showMenu}
+              className="home-menu-trigger rounded-xl border-2 border-sky-300 bg-sky-500/15 px-3 py-2 text-sm font-black text-sky-100 hover:bg-sky-500/25"
+            >
+              ☰ Menu
+            </button>
           </div>
 
           <LearningWorlds
@@ -208,13 +220,16 @@ export function HomeScreen({
               ageBand={profile.ageBand}
               activeWorld={profile.learningWorld}
               onDateOfBirth={profile.setDateOfBirth}
-              onAgeBand={profile.setAgeBand}
+              onAgeBand={(band) => {
+                profile.setDateOfBirth(null)
+                profile.setAgeBand(band)
+              }}
               onTrainer={() => profile.runTrainer(profile.learningWorld)}
               t={t}
               ageBandLabel={ageBandLabel}
               worldText={worldText}
             />
-            <MenuButton onClick={onAdventure} big>
+            <MenuButton onClick={onAdventure} big className="home-adventure-button">
               <span className="home-adventure-label">
                 <span>🗺️ {activeWorldText.name}</span>
                 <span className="home-adventure-status">{adventureStatus}</span>
@@ -224,11 +239,11 @@ export function HomeScreen({
             <button
               type="button"
               onClick={() => settings.update({ rockTimer: !settings.rockTimer })}
-              className="rounded-2xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] px-4 py-3 text-sm font-bold transition hover:brightness-125 active:scale-95"
+              className="home-rock-button rounded-2xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] px-4 py-3 text-sm font-bold transition hover:brightness-125 active:scale-95"
             >
               🪨 {t('settings.rockTimer', { state: settings.rockTimer ? t('settings.on') : t('settings.off') })}
             </button>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="home-secondary-actions grid grid-cols-1 gap-3 sm:grid-cols-3">
               <MenuButton onClick={onCharacters}>🎭 {t('button.team')}</MenuButton>
               <MenuButton onClick={onRewards}>🏆 {t('button.rewards')}</MenuButton>
               <MenuButton onClick={onFreePlay}>⚙️ {t('button.settings')}</MenuButton>
@@ -340,6 +355,21 @@ export function HomeScreen({
               </div>
             )}
           </div>
+          <SlideOutMenu open={showMenu} onClose={() => setShowMenu(false)} label="Quick menu">
+                <div className="home-menu-drawer__header">
+                  <strong>Menu</strong>
+                  <button type="button" onClick={() => setShowMenu(false)} aria-label="Close menu">✕</button>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => settings.update({ rockTimer: !settings.rockTimer })}
+                >
+                  🪨 {t('settings.rockTimer', { state: settings.rockTimer ? t('settings.on') : t('settings.off') })}
+                </button>
+                <button type="button" onClick={() => { setShowMenu(false); onCharacters() }}>🎭 {t('button.team')}</button>
+                <button type="button" onClick={() => { setShowMenu(false); onRewards() }}>🏆 {t('button.rewards')}</button>
+                <button type="button" onClick={() => { setShowMenu(false); onFreePlay() }}>⚙️ {t('button.settings')}</button>
+          </SlideOutMenu>
         </div>
       )}
     </div>
@@ -561,10 +591,12 @@ function MenuButton({
   onClick,
   children,
   big,
+  className = '',
 }: {
   onClick: () => void
   children: React.ReactNode
   big?: boolean
+  className?: string
 }) {
   return (
     <button
@@ -573,6 +605,7 @@ function MenuButton({
       className={[
         'flex-1 rounded-2xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] font-bold transition hover:brightness-125 active:scale-95',
         big ? 'px-6 py-4 text-lg' : 'px-4 py-3 text-base',
+        className,
       ].join(' ')}
     >
       {children}

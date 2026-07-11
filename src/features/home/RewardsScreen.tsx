@@ -5,17 +5,18 @@ import {
   BUDDY_ORDER,
   CHARACTER_ORDER,
   HEROES,
-  PixelSprite,
   SECRET_HERO_IDS,
   STARTER_HERO_IDS,
   type HeroId,
 } from '@/features/arcade/sprites'
+import { PixelSprite } from '@/features/arcade/PixelSprite'
 import { THEMES } from '@/features/arcade/themes'
-import { ADVENTURE_WORLDS } from '@/features/arcade/worlds'
+import { ADD_ON_MAX, ADVENTURE_MAX } from '@/features/arcade/gameConfig'
+import { LEARNING_WORLDS } from '@/features/learning/learningWorlds'
 import { BADGES } from '@/features/profile/rewards'
 import {
   earnedBadges,
-  totalCompleted,
+  totalWorldCompleted,
   useProfile,
 } from '@/features/profile/profileStore'
 import { RESCUE_CHALLENGES } from '@/features/profile/rescueChallenges'
@@ -25,11 +26,11 @@ export function RewardsScreen({ onBack }: { onBack: () => void }) {
   const settings = useArcadeSettings()
   const theme = THEMES[settings.theme] ?? THEMES.stars
   const [page, setPage] = useState(0)
-  const total = totalCompleted(profile)
+  const total = totalWorldCompleted(profile)
   const unlockedBuddies = new Set(profile.ownedBuddies)
   const unlockedCharacters = new Set([...STARTER_HERO_IDS, ...profile.ownedCharacters])
   const earned = new Set(earnedBadges(total).map((b) => b.id))
-  const totalStars = Object.values(profile.stars).reduce((a, b) => a + b, 0)
+  const totalStars = Object.values(profile.worldStars).reduce((a, b) => a + b, 0)
   const pages = ['Characters', 'Buddies', 'Badges', 'Trophies']
   const rescueByHero = new Map(RESCUE_CHALLENGES.map((challenge) => [challenge.hero, challenge]))
   const buddyRewardOrder = [
@@ -39,14 +40,15 @@ export function RewardsScreen({ onBack }: { onBack: () => void }) {
   const nextPage = () => setPage((current) => Math.min(pages.length - 1, current + 1))
   const prevPage = () => setPage((current) => Math.max(0, current - 1))
 
-  const worldTrophies = ADVENTURE_WORLDS.map((world) => {
-    const levels = Array.from(
-      { length: world.levelEnd - world.levelStart + 1 },
-      (_, i) => world.levelStart + i,
+  const worldTrophies = LEARNING_WORLDS.map((world) => {
+    const maxLevel = world.id === 'pacabacus' ? ADVENTURE_MAX : ADD_ON_MAX
+    const levels = Array.from({ length: maxLevel }, (_, index) => index + 1)
+    const stars = levels.reduce(
+      (sum, level) => sum + (profile.worldStars[`${world.id}:${level}`] ?? 0),
+      0,
     )
-    const stars = levels.reduce((sum, level) => sum + (profile.stars[`a${level}`] ?? 0), 0)
-    const complete = levels.every((level) => profile.stars[`a${level}`] != null)
-    return { world, stars, complete, maxStars: levels.length * 3 }
+    const complete = (profile.worldLevels[world.id] ?? 1) > maxLevel
+    return { world, stars, complete, maxStars: maxLevel * 3, maxLevel }
   })
 
   return (
@@ -130,7 +132,7 @@ export function RewardsScreen({ onBack }: { onBack: () => void }) {
           <section className="paged-card">
             <h2 className="paged-title">WORLD TROPHIES</h2>
             <div className="trophy-grid">
-              {worldTrophies.map(({ world, stars, complete, maxStars }) => (
+              {worldTrophies.map(({ world, stars, complete, maxStars, maxLevel }) => (
                 <div
                   key={world.id}
                   className={[
@@ -138,10 +140,10 @@ export function RewardsScreen({ onBack }: { onBack: () => void }) {
                     complete ? 'border-amber-400 bg-amber-500/15' : 'border-[var(--c-border)] bg-black/25',
                   ].join(' ')}
                 >
-                  <div className="text-2xl">{complete ? world.emoji : '🔒'}</div>
+                  <div className="text-2xl">{complete ? world.icon : '🔒'}</div>
                   <div className="text-sm font-black">{world.name}</div>
                   <div className="text-xs text-[var(--c-soft)]">
-                    {complete ? `${stars}/${maxStars} stars` : `Levels ${world.levelStart}-${world.levelEnd}`}
+                    {complete ? `${stars}/${maxStars} stars` : `Complete all ${maxLevel} levels`}
                   </div>
                 </div>
               ))}

@@ -1,7 +1,9 @@
 import { useRef, type CSSProperties } from 'react'
 import type { CharacterGrowthProfile, CharacterGrowthStage } from './characterGrowth'
 import { isWall, posKey, type Dir, type MazeDef, type Pos } from './maze'
-import { ENEMIES, HEROES, PixelSprite, type HeroId } from './sprites'
+import { PixelSprite } from './PixelSprite'
+import { directionFromGesture } from './mazeGestures'
+import { ENEMIES, HEROES, type HeroId } from './sprites'
 import type { ThemeId } from './themes'
 
 const FACE_TRANSFORM: Record<Dir, string> = {
@@ -10,8 +12,6 @@ const FACE_TRANSFORM: Record<Dir, string> = {
   down: 'rotate(90deg)',
   up: 'rotate(-90deg)',
 }
-
-const SWIPE_MIN_PX = 24
 
 interface MazeBoardProps {
   maze: MazeDef
@@ -40,7 +40,7 @@ interface MazeBoardProps {
   themeId?: ThemeId
   growth: CharacterGrowthProfile
   cloaked?: boolean
-  onSwipe?: (dir: Dir) => void
+  onSteer?: (dir: Dir) => void
 }
 
 export function MazeBoard({
@@ -70,9 +70,10 @@ export function MazeBoard({
   themeId = 'stars',
   growth,
   cloaked,
-  onSwipe,
+  onSteer,
 }: MazeBoardProps) {
-  const touchStart = useRef<{ x: number; y: number } | null>(null)
+  const gestureStart = useRef<{ x: number; y: number } | null>(null)
+  const boardRef = useRef<HTMLDivElement>(null)
 
   const cells = []
   for (let r = 0; r < maze.rows; r++) {
@@ -185,18 +186,28 @@ export function MazeBoard({
 
   return (
     <div
-      className="relative touch-none"
-      onTouchStart={(e) => {
-        touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }
+      ref={boardRef}
+      className="relative touch-none cursor-pointer"
+      role="application"
+      aria-label="Maze playfield. Tap around the player or swipe to move."
+      onPointerDown={(event) => {
+        gestureStart.current = { x: event.clientX, y: event.clientY }
+        event.currentTarget.setPointerCapture(event.pointerId)
       }}
-      onTouchEnd={(e) => {
-        if (!touchStart.current || !onSwipe) return
-        const dx = e.changedTouches[0].clientX - touchStart.current.x
-        const dy = e.changedTouches[0].clientY - touchStart.current.y
-        touchStart.current = null
-        if (Math.max(Math.abs(dx), Math.abs(dy)) < SWIPE_MIN_PX) return
-        if (Math.abs(dx) > Math.abs(dy)) onSwipe(dx > 0 ? 'right' : 'left')
-        else onSwipe(dy > 0 ? 'down' : 'up')
+      onPointerUp={(event) => {
+        if (!gestureStart.current || !onSteer || !boardRef.current) return
+        const start = gestureStart.current
+        gestureStart.current = null
+        const bounds = boardRef.current.getBoundingClientRect()
+        const direction = directionFromGesture(
+          start,
+          { x: event.clientX, y: event.clientY },
+          {
+            x: bounds.left + 4 + (pac.c + 0.5) * tile,
+            y: bounds.top + 4 + (pac.r + 0.5) * tile,
+          },
+        )
+        if (direction) onSteer(direction)
       }}
     >
       <div

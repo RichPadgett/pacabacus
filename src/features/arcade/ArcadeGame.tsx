@@ -21,13 +21,13 @@ import {
 import {
   buddyScaleForStage,
   buddyStageForUses,
-  ghostSkillForAgeBand,
   growthForProgress,
 } from './characterGrowth'
 import { characterDetailFor } from './characterDetails'
 import type { Dir } from './maze'
 import { MazeBoard } from './MazeBoard'
-import { HEROES, PixelSprite, SECRET_HERO_IDS, type HeroId } from './sprites'
+import { PixelSprite } from './PixelSprite'
+import { HEROES, SECRET_HERO_IDS, type HeroId } from './sprites'
 import { SPEED_MS, useArcadeSettings } from './settingsStore'
 import { THEMES } from './themes'
 import { ANSWER_PHASES, collectibleTreasureCount, useArcadeGame } from './useArcadeGame'
@@ -51,13 +51,11 @@ const ANSWER_INPUT_GUARD_MS = 700
 function useTileSize(cols: number, rows: number) {
   const calc = () => {
     const isLandscape = window.innerWidth > window.innerHeight
-    const shortScreen = Math.min(window.innerWidth, window.innerHeight) < 430
-    const sidePanelWidth = isLandscape ? Math.min(336, window.innerWidth * 0.36) : 0
-    const boardWidth = isLandscape ? window.innerWidth - sidePanelWidth - 36 : window.innerWidth - 24
+    const boardWidth = window.innerWidth - (isLandscape ? 20 : 12)
     const widthFit = Math.floor(boardWidth / cols)
-    const reservedHeight = isLandscape ? 92 : shortScreen ? 246 : 270
+    const reservedHeight = isLandscape ? 14 : 104
     const heightFit = Math.floor((window.innerHeight - reservedHeight) / rows)
-    return Math.max(18, Math.min(46, widthFit, heightFit))
+    return Math.max(10, Math.min(96, widthFit, heightFit))
   }
   const [tile, setTile] = useState(calc)
   useEffect(() => {
@@ -218,7 +216,6 @@ export function ArcadeGame({
     profile.ageBand !== 'little' && settings.rockTimer,
     !isFreePlay,
     maxLevel,
-    ghostSkillForAgeBand(profile.ageBand),
     activeWorld,
     profile.ownedCharacters,
   )
@@ -246,6 +243,7 @@ export function ArcadeGame({
   const [rewards, setRewards] = useState<CompleteResult | null>(null)
   const [powerBuddyId, setPowerBuddyId] = useState<HeroId | null>(null)
   const [answerInputReady, setAnswerInputReady] = useState(false)
+  const [showLearningPanel, setShowLearningPanel] = useState(true)
   const completedLevelRef = useRef(0)
 
   // record progress + unlocks the moment a level is cleared
@@ -306,7 +304,7 @@ export function ArcadeGame({
   const { phase } = state
   useEffect(() => {
     if (phase === 'levelClear') chiptune.sfx('fanfare')
-    if (phase === 'caught' || phase === 'gameOver') chiptune.sfx('caught')
+    if (phase === 'gameOver') chiptune.sfx('caught')
   }, [phase])
 
   const msgId = state.message?.id
@@ -351,8 +349,14 @@ export function ArcadeGame({
   )
   const canAnswer = ANSWER_PHASES.includes(phase) && answerInputReady
 
+  useEffect(() => {
+    setShowLearningPanel(ANSWER_PHASES.includes(phase))
+  }, [phase, problem])
+
   const goalText =
-    phase === 'rescueFight'
+    phase === 'collisionBattle'
+      ? 'Baddie battle! Solve all three numbers to win safely.'
+      : phase === 'rescueFight'
       ? `Rescue fight! Solve hard problems to beat ${state.rescue?.badGuysLeft ?? 0} baddie${state.rescue?.badGuysLeft === 1 ? '' : 's'}.`
       : phase === 'rescueWall'
         ? `Break the rescue wall: ${state.rescue?.wallHits ?? 0}/${state.rescue?.wallTarget ?? 0} cracks.`
@@ -380,19 +384,17 @@ export function ArcadeGame({
             : 'The baddies are moving… 👀'
           : phase === 'reveal'
             ? 'Watch the beads show the answer…'
-            : phase === 'caught'
-              ? 'Ouch! Back to the start…'
-              : ''
+            : ''
 
   return (
     <div
-      className="relative flex min-h-svh flex-col items-center gap-1.5 overflow-x-hidden overflow-y-auto bg-[radial-gradient(circle_at_50%_20%,var(--c-bg1),var(--c-bg2)_70%)] p-1.5 text-slate-50 sm:gap-2 sm:p-2"
+      className="game-shell relative flex min-h-svh flex-col items-center gap-1.5 overflow-hidden bg-[radial-gradient(circle_at_50%_20%,var(--c-bg1),var(--c-bg2)_70%)] p-1.5 text-slate-50 sm:gap-2 sm:p-2"
       style={theme.vars as React.CSSProperties}
     >
       {theme.id === 'stars' && <Twinkles />}
 
       {/* HUD */}
-      <div className="z-10 grid w-full grid-cols-[1fr_auto_auto] items-center gap-1 rounded-xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] px-2 py-1 shadow-lg shadow-black/20 sm:flex sm:w-auto sm:flex-wrap sm:justify-center sm:gap-2 sm:rounded-2xl sm:px-3">
+      <div className="game-hud z-20 grid w-full grid-cols-[1fr_auto_auto] items-center gap-1 rounded-xl border border-white/20 bg-slate-950/55 px-2 py-1 shadow-lg shadow-black/20 backdrop-blur-md sm:flex sm:w-auto sm:flex-wrap sm:justify-center sm:gap-2 sm:rounded-2xl sm:px-3">
         <div className="min-w-0">
           <div className="truncate text-xs font-black text-amber-200 sm:text-sm">
             {modeLabel} · Level {state.level}
@@ -412,11 +414,6 @@ export function ArcadeGame({
           <span className={`growth-pill growth-pill--${growth.stage}`}>
             {growth.shortLabel}
           </span>
-          {growth.ghostSkill !== 'none' && (
-            <span className="growth-charge-pill">
-              {growth.ghostSkill === 'attack' ? '✨' : '🛡️'} {state.guardCharges}
-            </span>
-          )}
           {state.vulnerableMovesLeft > 0 && (
             <span className="growth-charge-pill">⚡ {state.vulnerableMovesLeft}</span>
           )}
@@ -440,7 +437,7 @@ export function ArcadeGame({
           <button
             type="button"
             onClick={() => settings.update({ music: !settings.music })}
-            className="h-8 w-8 rounded-lg border-2 border-[var(--c-border)] bg-black/20 text-base hover:brightness-125"
+            className="h-11 w-11 rounded-lg border-2 border-[var(--c-border)] bg-black/20 text-base hover:brightness-125"
             aria-label={settings.music ? 'Mute music' : 'Play music'}
           >
             {settings.music ? '🔊' : '🔇'}
@@ -448,18 +445,18 @@ export function ArcadeGame({
           <button
             type="button"
             onClick={onExit}
-            className="h-8 rounded-lg border-2 border-[var(--c-border)] bg-black/20 px-2 text-xs font-bold hover:brightness-125"
+            className="h-11 rounded-lg border-2 border-[var(--c-border)] bg-black/20 px-3 text-xs font-bold hover:brightness-125"
           >
             🏠
           </button>
         </div>
       </div>
 
-      <div className="z-10 max-w-[98vw] rounded-full border border-emerald-400 bg-[var(--c-panel)] px-3 py-0.5 text-center text-xs font-bold text-emerald-300 sm:border-2 sm:px-4 sm:py-1 sm:text-sm">
+      <div className="game-goal z-20 max-w-[96vw] rounded-full border border-emerald-400/70 bg-slate-950/55 px-3 py-0.5 text-center text-xs font-bold text-emerald-300 backdrop-blur-md sm:px-4 sm:py-1 sm:text-sm">
         {goalText}
       </div>
       {state.rescue && ['rescueFight', 'rescueWall'].includes(phase) && (
-        <div className="z-10 flex max-w-[98vw] items-center gap-2 rounded-2xl border-2 border-amber-300 bg-amber-500/15 px-3 py-1 text-xs font-black text-amber-100">
+        <div className="game-rescue-status z-20 flex max-w-[98vw] items-center gap-2 rounded-2xl border border-amber-300 bg-slate-950/60 px-3 py-1 text-xs font-black text-amber-100 backdrop-blur-md">
           <span>🔒 {HEROES[state.rescue.challenge.hero]?.name}</span>
           <span className="text-lg tracking-tight">
             {'🧱'.repeat(Math.max(0, state.rescue.wallTarget - state.rescue.wallHits))}
@@ -469,7 +466,7 @@ export function ArcadeGame({
         </div>
       )}
 
-      <div className="flex min-h-0 w-full flex-1 flex-col items-center justify-center gap-1.5 landscape:flex-row landscape:items-center landscape:justify-center landscape:gap-2">
+      <div className="flex min-h-0 w-full flex-1 items-center justify-center">
         <div className="flex min-h-0 flex-1 items-center justify-center">
           <MazeBoard
             maze={state.maze}
@@ -498,17 +495,31 @@ export function ArcadeGame({
             themeId={theme.id}
             growth={growth}
             cloaked={ANSWER_PHASES.includes(phase) && state.ghosts.length > 0}
-            onSwipe={(dir) => dispatch({ type: 'MOVE', dir })}
+            onSteer={(dir) => dispatch({ type: 'MOVE', dir })}
           />
         </div>
 
-        <div className="z-10 flex w-full max-w-[29rem] shrink-0 flex-col items-center gap-1.5 landscape:w-[min(21rem,36vw)]">
-          <div className="flex w-full flex-col items-center rounded-2xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] p-2 shadow-lg shadow-black/20 sm:p-3 landscape:flex-row landscape:justify-center landscape:gap-2 landscape:p-2">
+        <button
+          type="button"
+          onClick={() => setShowLearningPanel((visible) => !visible)}
+          aria-expanded={showLearningPanel}
+          aria-controls="learning-panel"
+          className="game-learning-tab"
+        >
+          {showLearningPanel ? '✕' : '🧮 Math & beads'}
+        </button>
+        <aside
+          id="learning-panel"
+          aria-hidden={!showLearningPanel}
+          inert={!showLearningPanel}
+          className={showLearningPanel ? 'game-learning-drawer game-learning-drawer--open' : 'game-learning-drawer'}
+        >
+          <div className="flex w-full flex-col items-center rounded-2xl border border-white/20 bg-slate-950/55 p-2 shadow-lg shadow-black/20 backdrop-blur-md sm:p-3 landscape:flex-row landscape:justify-center landscape:gap-2 landscape:p-2">
             {state.powerTicksLeft > 0 ? (
               <div className="buddy-power-panel flex w-full flex-col items-center justify-center rounded-xl border border-amber-300 bg-amber-500/15 p-3 text-center landscape:min-h-24">
                 <div className="text-xl font-black text-amber-200">⭐ Buddy power!</div>
                 <div className="mt-1 text-sm font-bold text-[var(--c-soft)]">
-                  Watch your buddy grab fruit.
+                  Watch your buddy chase down one baddie.
                 </div>
                 <div className="mt-2 h-2 w-full max-w-52 overflow-hidden rounded-full bg-black/30">
                   <div
@@ -518,12 +529,16 @@ export function ArcadeGame({
                 </div>
               </div>
             ) : canSteer ? (
-              <SteeringControls
-                embedded
-                canMove
-                onMove={(dir) => dispatch({ type: 'MOVE', dir })}
-                onStay={() => dispatch({ type: 'END_MOVE' })}
-              />
+              <div className="flex w-full items-center justify-between gap-3 p-2 text-center">
+                <p className="text-sm font-bold text-slate-100">Tap around your player or swipe anywhere on the maze.</p>
+                <button
+                  type="button"
+                  onClick={() => dispatch({ type: 'END_MOVE' })}
+                  className="shrink-0 rounded-xl border border-white/30 bg-white/10 px-4 py-2 text-sm font-black"
+                >
+                  End turn
+                </button>
+              </div>
             ) : (
               <>
                 <div
@@ -535,7 +550,9 @@ export function ArcadeGame({
                   ].join(' ')}
                 >
                   <h3 className="text-[11px] font-bold tracking-wide text-[var(--c-soft)] sm:text-xs">
-                    {isChallenge
+                    {phase === 'collisionBattle'
+                      ? '⚔️ BADDIE BATTLE! ⚔️'
+                      : isChallenge
                       ? phase === 'rescueFight'
                         ? '⚡ RESCUE FIGHT! ⚡'
                         : phase === 'rescueWall'
@@ -551,6 +568,8 @@ export function ArcadeGame({
                   <div className="mb-0.5 rounded-full border border-emerald-500 bg-emerald-500/15 px-2.5 py-0 text-[10px] font-bold text-emerald-300 sm:text-xs">
                     {ANSWER_PHASES.includes(phase) && !answerInputReady
                       ? 'ready...'
+                      : phase === 'collisionBattle'
+                        ? 'correct = defeat it · wrong = lose a heart'
                       : phase === 'rescueFight'
                         ? 'correct = zap a baddie'
                         : phase === 'rescueWall'
@@ -560,7 +579,7 @@ export function ArcadeGame({
                   <p className="min-h-4 max-w-64 text-center text-[10px] text-[var(--c-soft)] sm:min-h-6 sm:text-xs">
                     {state.hint}
                   </p>
-                  <div className="mt-0.5 grid w-full max-w-64 grid-cols-[0.9fr_1.35fr_auto] items-center gap-1.5 landscape:max-w-44 landscape:grid-cols-[0.75fr_1fr]">
+                  <div className="mt-0.5 grid w-full max-w-64 grid-cols-[0.9fr_1.35fr] items-center gap-1.5 landscape:max-w-44">
                     <button
                       type="button"
                       onClick={() => {
@@ -581,10 +600,6 @@ export function ArcadeGame({
                     >
                       Go ▶
                     </button>
-                    <MiniSteer
-                      canMove={false}
-                      onMove={(dir) => dispatch({ type: 'MOVE', dir })}
-                    />
                   </div>
                   {phase === 'answer' && state.cfg.allowChallenge && !isChallenge && (
                     <button
@@ -661,7 +676,7 @@ export function ArcadeGame({
               </>
             )}
           </div>
-        </div>
+        </aside>
       </div>
 
       {/* toast */}
@@ -728,13 +743,13 @@ export function ArcadeGame({
         </Overlay>
       )}
       {phase === 'gameOver' && (
-        <Overlay title="The baddies win this time! 👻">
+        <Overlay title="Ouch — you lost all three hearts! ❤️">
           <p className="text-lg">
-            You solved <b>{state.stars}</b> problems — great practice!
+            A baddie hurt your player. Restart this level and try again.
           </p>
           <div className="flex justify-center gap-3">
             <OverlayButton onClick={() => dispatch({ type: 'RESTART_LEVEL' })}>
-              Try again 💪
+              Restart level ▶
             </OverlayButton>
             <button
               type="button"
@@ -863,125 +878,6 @@ function WordChoices({
         ))}
       </div>
     </div>
-  )
-}
-
-const DIR_ARROWS: Record<Dir, string> = { up: '⬆️', down: '⬇️', left: '⬅️', right: '➡️' }
-
-function MiniSteer({
-  canMove,
-  onMove,
-}: {
-  canMove: boolean
-  onMove: (dir: Dir) => void
-}) {
-  return (
-    <div className="grid grid-cols-3 grid-rows-2 gap-0.5 opacity-80 landscape:hidden">
-      <span />
-      <MiniDirButton dir="up" canMove={canMove} onMove={onMove} />
-      <span />
-      <MiniDirButton dir="left" canMove={canMove} onMove={onMove} />
-      <MiniDirButton dir="down" canMove={canMove} onMove={onMove} />
-      <MiniDirButton dir="right" canMove={canMove} onMove={onMove} />
-    </div>
-  )
-}
-
-function MiniDirButton({
-  dir,
-  canMove,
-  onMove,
-}: {
-  dir: Dir
-  canMove: boolean
-  onMove: (dir: Dir) => void
-}) {
-  return (
-    <button
-      type="button"
-      disabled={!canMove}
-      onClick={() => onMove(dir)}
-      className="h-6 w-6 rounded-md border border-[var(--c-border)] bg-black/25 text-[11px] disabled:opacity-35"
-      aria-label={`Move ${dir}`}
-    >
-      {DIR_ARROWS[dir]}
-    </button>
-  )
-}
-
-function SteeringControls({
-  className,
-  compact,
-  embedded,
-  canMove,
-  onMove,
-  onStay,
-}: {
-  className?: string
-  compact?: boolean
-  embedded?: boolean
-  canMove: boolean
-  onMove: (dir: Dir) => void
-  onStay: () => void
-}) {
-  return (
-    <div
-      className={[
-        'flex flex-col items-center gap-2',
-        embedded ? 'p-0' : 'border-2 border-[var(--c-border)] bg-[var(--c-panel)] p-3',
-        compact || embedded ? '' : 'rounded-2xl p-4',
-        className ?? '',
-      ].join(' ')}
-    >
-      <h3 className="text-xs font-bold tracking-wide text-[var(--c-soft)]">STEER</h3>
-      {!compact && !embedded && (
-        <p className="max-w-40 text-center text-xs text-[var(--c-soft)]">
-          Swipe the maze on a tablet, or:
-        </p>
-      )}
-      <div className="grid grid-cols-3 grid-rows-2 gap-1.5">
-        <div />
-        <DirBtn dir="up" onMove={onMove} disabled={!canMove} compact={compact} />
-        <div />
-        <DirBtn dir="left" onMove={onMove} disabled={!canMove} compact={compact} />
-        <DirBtn dir="down" onMove={onMove} disabled={!canMove} compact={compact} />
-        <DirBtn dir="right" onMove={onMove} disabled={!canMove} compact={compact} />
-      </div>
-      <button
-        type="button"
-        onClick={onStay}
-        disabled={!canMove}
-        className="mt-1 rounded-xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] px-4 py-1.5 text-sm font-bold brightness-110 disabled:opacity-40"
-      >
-        Stay here
-      </button>
-    </div>
-  )
-}
-
-function DirBtn({
-  dir,
-  onMove,
-  disabled,
-  compact,
-}: {
-  dir: Dir
-  onMove: (dir: Dir) => void
-  disabled: boolean
-  compact?: boolean
-}) {
-  return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={() => onMove(dir)}
-      className={[
-        compact ? 'h-14 w-16' : 'h-16 w-16',
-        'rounded-xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] text-2xl brightness-110 active:brightness-150 disabled:opacity-30',
-      ].join(' ')}
-    >
-      {DIR_ARROWS[dir]}
-    </button>
   )
 }
 

@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { Twinkles } from '@/features/arcade/ArcadeGame'
 import { useArcadeSettings } from '@/features/arcade/settingsStore'
-import { BUDDY_ORDER, HEROES, PixelSprite, SECRET_HERO_IDS } from '@/features/arcade/sprites'
+import { PixelSprite } from '@/features/arcade/PixelSprite'
+import { BUDDY_ORDER, HEROES, SECRET_HERO_IDS } from '@/features/arcade/sprites'
 import { THEMES } from '@/features/arcade/themes'
 import {
   buddyCost,
