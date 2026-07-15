@@ -991,6 +991,22 @@ body {
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
 }
 
+.game-board-stage {
+  display: flex;
+  width: 100%;
+  min-height: 0;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  transition: padding 180ms ease;
+}
+
+@media (orientation: portrait) {
+  .game-board-stage--panel-open {
+    padding-bottom: min(52svh, 31rem);
+  }
+}
+
 .game-hud,
 .game-goal,
 .game-rescue-status {
@@ -1040,6 +1056,10 @@ body {
 }
 
 @media (orientation: landscape) {
+  .game-board-stage--panel-open {
+    padding-right: min(25rem, 44vw);
+  }
+
   .game-learning-tab {
     top: 50%;
     right: 0.35rem;

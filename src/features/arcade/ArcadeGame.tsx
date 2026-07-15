@@ -48,22 +48,25 @@ const KEY_DIRS: Record<string, Dir> = {
 
 const ANSWER_INPUT_GUARD_MS = 700
 
-function useTileSize(cols: number, rows: number) {
+function useTileSize(cols: number, rows: number, panelOpen: boolean) {
   const calc = () => {
     const isLandscape = window.innerWidth > window.innerHeight
-    const boardWidth = window.innerWidth - (isLandscape ? 20 : 12)
+    const panelWidth = panelOpen && isLandscape ? Math.min(400, window.innerWidth * 0.44) : 0
+    const boardWidth = window.innerWidth - panelWidth - (isLandscape ? 20 : 12)
     const widthFit = Math.floor(boardWidth / cols)
-    const reservedHeight = isLandscape ? 14 : 104
+    const panelHeight = panelOpen && !isLandscape ? Math.min(window.innerHeight * 0.52, 496) : 0
+    const reservedHeight = (isLandscape ? 14 : 104) + panelHeight
     const heightFit = Math.floor((window.innerHeight - reservedHeight) / rows)
     return Math.max(10, Math.min(96, widthFit, heightFit))
   }
   const [tile, setTile] = useState(calc)
   useEffect(() => {
     const onResize = () => setTile(calc())
+    onResize()
     window.addEventListener('resize', onResize)
     return () => window.removeEventListener('resize', onResize)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cols, rows])
+  }, [cols, rows, panelOpen])
   return tile
 }
 
@@ -170,6 +173,13 @@ function ProblemPrompt({ problem }: { problem: ArcadeProblem }) {
     )
   }
   if (problem.kind === 'tables') return <VerticalProblem problem={problem} />
+  if (problem.prompt) {
+    return (
+      <div className="my-1 rounded-xl bg-black/20 px-4 py-2 text-center text-xl font-black text-amber-300 sm:px-5 sm:py-3 sm:text-2xl">
+        {problem.prompt}
+      </div>
+    )
+  }
   if (problem.kind === 'count' || (problem.emoji != null && problem.kind === 'equation')) {
     return <VisualProblem problem={problem} />
   }
@@ -219,9 +229,10 @@ export function ArcadeGame({
     activeWorld,
     profile.ownedCharacters,
   )
+  const [showLearningPanel, setShowLearningPanel] = useState(true)
   const visualGrowthLevel = isFreePlay ? worldLevels[activeWorld] : state.level
   const growth = growthForProgress(profile.ageBand, visualGrowthLevel)
-  const tile = useTileSize(state.maze.cols, state.maze.rows)
+  const tile = useTileSize(state.maze.cols, state.maze.rows, showLearningPanel)
   const world = !isFreePlay ? worldForAdventureLevel(state.level) : null
   const chapter = !isFreePlay ? chapterForLevel(activeWorld, state.level) : null
   const nextWorld = world && state.level < maxLevel ? worldForAdventureLevel(state.level + 1) : null
@@ -243,7 +254,6 @@ export function ArcadeGame({
   const [rewards, setRewards] = useState<CompleteResult | null>(null)
   const [powerBuddyId, setPowerBuddyId] = useState<HeroId | null>(null)
   const [answerInputReady, setAnswerInputReady] = useState(false)
-  const [showLearningPanel, setShowLearningPanel] = useState(true)
   const completedLevelRef = useRef(0)
 
   // record progress + unlocks the moment a level is cleared
@@ -356,11 +366,13 @@ export function ArcadeGame({
   const goalText =
     phase === 'collisionBattle'
       ? 'Baddie battle! Solve all three numbers to win safely.'
+      : phase === 'levelQuiz'
+        ? `Level test ${state.quizIndex + 1}/${state.quizTotal}: answer to open the next door.`
       : phase === 'rescueFight'
       ? `Rescue fight! Solve hard problems to beat ${state.rescue?.badGuysLeft ?? 0} baddie${state.rescue?.badGuysLeft === 1 ? '' : 's'}.`
       : phase === 'rescueWall'
         ? `Break the rescue wall: ${state.rescue?.wallHits ?? 0}/${state.rescue?.wallTarget ?? 0} cracks.`
-        : phase === 'answer'
+      : phase === 'answer'
       ? problem.kind === 'word'
         ? `Choose the missing letter to earn ${payout} moves!`
         : problem.kind === 'tables'
@@ -371,7 +383,7 @@ export function ArcadeGame({
       : phase === 'move'
         ? state.vulnerableMovesLeft > 0
           ? `Power chase! ${state.vulnerableMovesLeft} zap move${state.vulnerableMovesLeft === 1 ? '' : 's'} — catch baddies!`
-          : `Steer! ${state.movesLeft} move${state.movesLeft === 1 ? '' : 's'} left — ${state.goalLabel}.`
+          : `Explore the room, collect fruit, and avoid baddies — ${state.goalLabel}.`
         : phase === 'doorOpen'
           ? 'The door is open! Steer to the top door, then press up.'
           : phase === 'travel'
@@ -466,7 +478,7 @@ export function ArcadeGame({
         </div>
       )}
 
-      <div className="flex min-h-0 w-full flex-1 items-center justify-center">
+      <div className={showLearningPanel ? 'game-board-stage game-board-stage--panel-open' : 'game-board-stage'}>
         <div className="flex min-h-0 flex-1 items-center justify-center">
           <MazeBoard
             maze={state.maze}
@@ -534,9 +546,10 @@ export function ArcadeGame({
                 <button
                   type="button"
                   onClick={() => dispatch({ type: 'END_MOVE' })}
+                  disabled={state.movesLeft <= 0}
                   className="shrink-0 rounded-xl border border-white/30 bg-white/10 px-4 py-2 text-sm font-black"
                 >
-                  End turn
+                  {state.movesLeft > 0 ? 'End turn' : 'Keep going'}
                 </button>
               </div>
             ) : (
@@ -552,6 +565,8 @@ export function ArcadeGame({
                   <h3 className="text-[11px] font-bold tracking-wide text-[var(--c-soft)] sm:text-xs">
                     {phase === 'collisionBattle'
                       ? '⚔️ BADDIE BATTLE! ⚔️'
+                      : phase === 'levelQuiz'
+                        ? `🧠 LEVEL TEST ${state.quizIndex + 1}/${state.quizTotal}`
                       : isChallenge
                       ? phase === 'rescueFight'
                         ? '⚡ RESCUE FIGHT! ⚡'
@@ -570,6 +585,10 @@ export function ArcadeGame({
                       ? 'ready...'
                       : phase === 'collisionBattle'
                         ? 'correct = defeat it · wrong = lose a heart'
+                      : phase === 'levelQuiz'
+                        ? state.quizIndex < 2
+                          ? 'memory check'
+                          : 'pass question'
                       : phase === 'rescueFight'
                         ? 'correct = zap a baddie'
                         : phase === 'rescueWall'
