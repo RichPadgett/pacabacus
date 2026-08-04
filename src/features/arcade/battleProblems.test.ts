@@ -10,6 +10,16 @@ describe('RPG battle problems', () => {
     expect(problem.answer).toBe(problem.a + problem.b + second)
   })
 
+  it('keeps gentle battles to one simple addition problem', () => {
+    for (let index = 0; index < 50; index += 1) {
+      const problem = generateBattleProblem('pacabacus', 1, true)
+      expect(problem.c).toBeUndefined()
+      expect(problem.op).toBe('add')
+      expect(problem.answer).toBeLessThanOrEqual(8)
+      expect(problem.technique).toBe('direct')
+    }
+  })
+
   it('scales number size across later worlds and levels', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.99)
     const early = generateBattleProblem('pacabacus', 1)

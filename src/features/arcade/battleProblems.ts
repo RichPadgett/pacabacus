@@ -8,7 +8,22 @@ const WORLD_RANK: Record<LearningWorldId, number> = {
   pacmath: 3,
 }
 
-export function generateBattleProblem(world: LearningWorldId, level: number): ArcadeProblem {
+export function generateBattleProblem(world: LearningWorldId, level: number, gentle = false): ArcadeProblem {
+  if (gentle) {
+    const ceiling = Math.min(8, 4 + Math.floor(level / 4))
+    const a = 1 + Math.floor(Math.random() * Math.max(1, ceiling - 1))
+    const b = 1 + Math.floor(Math.random() * Math.max(1, ceiling - a))
+    return {
+      a,
+      b,
+      op: 'add',
+      answer: a + b,
+      technique: 'direct',
+      kind: 'equation',
+      emoji: '🍓',
+    }
+  }
+
   const rank = WORLD_RANK[world]
   const ceiling = Math.min(50, 12 + rank * 6 + Math.floor(level / 5) * 3)
   const a = 4 + Math.floor(Math.random() * Math.max(1, ceiling - 6))

@@ -335,6 +335,9 @@ function travelGhostCount(level: number, cfgCount: number, spawnCount: number) {
 
 function rescueProblem(cfg: LevelCfg): ArcadeProblem {
   const problem = cfg.problem
+  if (cfg.gentle || problem.kind === 'early') {
+    return generateFromCfg(problem)
+  }
   if (problem.kind === 'tech') {
     return generateChallenge({
       mathLevel: problem.mathLevel,
@@ -474,7 +477,7 @@ function makeReducer(
     phase: 'collisionBattle',
     battleGhost: state.pac,
     battleResume: state.phase === 'travel' ? 'travel' : 'move',
-    problem: generateBattleProblem(learningWorld, state.level),
+    problem: generateBattleProblem(learningWorld, state.level, state.cfg.gentle),
     answerValue: 0,
     answerText: '',
     attempts: 0,
