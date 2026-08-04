@@ -579,6 +579,255 @@ body {
   }
 }
 
+@media (min-width: 700px) and (max-width: 1180px) and (max-height: 1100px) {
+  .home-shell {
+    gap: 0.65rem !important;
+    padding: 0.65rem 0.85rem calc(0.75rem + env(safe-area-inset-bottom)) !important;
+  }
+
+  .home-header h1 {
+    font-size: 2.6rem !important;
+    line-height: 1 !important;
+  }
+
+  .home-header p {
+    display: none !important;
+  }
+
+  .home-menu-grid {
+    display: grid !important;
+    width: 100%;
+    max-width: 64rem;
+    min-height: 0;
+    flex: 1;
+    gap: 0.55rem !important;
+  }
+
+  .home-profile {
+    max-width: none !important;
+    gap: 0.55rem !important;
+    padding: 0.55rem 0.75rem !important;
+  }
+
+  .home-profile > :first-child {
+    width: 2.5rem !important;
+    height: 2.5rem !important;
+  }
+
+  .home-profile .text-xl {
+    font-size: 1rem !important;
+    line-height: 1.08 !important;
+  }
+
+  .home-profile .text-sm {
+    font-size: 0.72rem !important;
+    line-height: 1.08 !important;
+  }
+
+  .home-profile button {
+    border-radius: 0.7rem !important;
+    padding: 0.35rem 0.55rem !important;
+    font-size: 0.72rem !important;
+  }
+
+  .home-worlds {
+    max-width: none !important;
+    padding: 0.5rem !important;
+  }
+
+  .home-worlds__header {
+    margin-bottom: 0.3rem !important;
+  }
+
+  .home-worlds__header h2 {
+    font-size: 0.76rem !important;
+  }
+
+  .home-worlds__header span,
+  .home-world-card .text-\[11px\] {
+    display: none !important;
+  }
+
+  .home-worlds__grid {
+    gap: 0.35rem !important;
+  }
+
+  .home-world-card {
+    min-height: 0 !important;
+    padding: 0.5rem !important;
+  }
+
+  .home-world-card .text-2xl {
+    font-size: 1.15rem !important;
+  }
+
+  .home-world-card .text-sm {
+    font-size: 0.76rem !important;
+    line-height: 1 !important;
+  }
+
+  .home-actions {
+    max-width: none !important;
+    gap: 0.4rem !important;
+  }
+
+  .home-age-panel {
+    padding: 0.48rem !important;
+  }
+
+  .home-age-panel__header {
+    margin-bottom: 0.3rem !important;
+  }
+
+  .home-age-panel__header h2 {
+    font-size: 0.72rem !important;
+  }
+
+  .home-age-panel__birthday input {
+    margin-top: 0.15rem !important;
+    padding: 0.35rem 0.5rem !important;
+    font-size: 0.72rem !important;
+  }
+
+  .home-age-panel__bands {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 0.25rem !important;
+    margin-top: 0.3rem !important;
+  }
+
+  .home-age-panel__bands button {
+    border-radius: 0.65rem !important;
+    padding: 0.35rem 0.2rem !important;
+    font-size: 0.6rem !important;
+  }
+
+  .home-age-panel__trainer {
+    margin-top: 0.3rem !important;
+    border-radius: 0.7rem !important;
+    padding: 0.38rem 0.55rem !important;
+    font-size: 0.7rem !important;
+  }
+
+  .home-actions > button {
+    border-radius: 0.8rem !important;
+    padding: 0.45rem 0.65rem !important;
+    font-size: 0.78rem !important;
+    line-height: 1 !important;
+  }
+
+  .home-adventure-button {
+    font-size: 0.9rem !important;
+  }
+
+  .home-adventure-label {
+    align-items: center;
+    gap: 0.35rem;
+    justify-content: center;
+  }
+
+  .home-secondary-actions {
+    gap: 0.3rem !important;
+  }
+
+  .home-secondary-actions button {
+    border-radius: 0.75rem !important;
+    padding: 0.42rem 0.25rem !important;
+    font-size: 0.7rem !important;
+    line-height: 1 !important;
+  }
+}
+
+@media (min-width: 700px) and (max-width: 1180px) and (max-height: 1100px) and (orientation: portrait) {
+  .home-menu-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: auto minmax(0, 1fr);
+    align-items: stretch !important;
+  }
+
+  .home-profile {
+    grid-column: 1 / -1;
+  }
+
+  .home-worlds {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .home-worlds__grid {
+    flex: 1;
+    grid-auto-rows: 1fr;
+  }
+
+  .home-actions {
+    display: flex !important;
+    min-height: 0;
+  }
+
+  .home-age-panel {
+    flex: 1;
+  }
+}
+
+@media (min-width: 700px) and (max-width: 1180px) and (max-height: 1100px) and (orientation: landscape) {
+  .home-menu-grid {
+    grid-template-columns: minmax(13rem, 0.9fr) minmax(15rem, 1.05fr) minmax(13rem, 0.9fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    align-items: stretch !important;
+    height: calc(100svh - 3.4rem);
+  }
+
+  .home-profile {
+    grid-column: 1 / -1;
+  }
+
+  .home-worlds {
+    grid-column: 1;
+    grid-row: 2;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .home-worlds__grid {
+    flex: 1;
+    grid-auto-rows: 1fr;
+  }
+
+  .home-actions {
+    grid-column: 2 / -1;
+    grid-row: 2;
+    display: grid !important;
+    grid-template-columns: minmax(15rem, 1fr) minmax(12rem, 0.82fr);
+    grid-template-rows: auto auto auto;
+    align-content: start;
+    align-items: start;
+    min-height: 0;
+  }
+
+  .home-age-panel {
+    grid-column: 1;
+    grid-row: 1 / 4;
+    align-self: stretch;
+  }
+
+  .home-adventure-button {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .home-rock-button {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  .home-secondary-actions {
+    grid-column: 2;
+    grid-row: 3;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+}
+
 @media (orientation: landscape) and (max-height: 520px), (orientation: portrait) and (max-width: 520px) {
   .paged-shell {
     padding: 0.55rem !important;
