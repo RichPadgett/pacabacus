@@ -30,21 +30,17 @@ export interface LevelCfg {
   goal?: LevelGoal
 }
 
-function goalForLevel(level: number, treasureCount: number, ageBand: AgeBand): LevelGoal {
-  const gentleTarget = Math.max(8, Math.ceil(treasureCount * 0.55))
-  const sprintTarget = Math.max(10, Math.ceil(treasureCount * 0.5))
-  const trailTarget = Math.max(12, Math.ceil(treasureCount * 0.7))
-
-  if (ageBand === 'little' && level % 3 !== 0) {
-    return { kind: 'collectFruit', target: gentleTarget, label: `Collect ${gentleTarget} fruit` }
-  }
-  if (level % 5 === 2) {
-    return { kind: 'collectFruit', target: sprintTarget, label: `Snack sprint: collect ${sprintTarget}` }
-  }
-  if (level % 5 === 4) {
-    return { kind: 'collectFruit', target: trailTarget, label: `Treasure trail: collect ${trailTarget}` }
-  }
-  return { kind: 'collectAll', label: 'Rescue every fruit' }
+function goalForLevel(_level: number, treasureCount: number, ageBand: AgeBand): LevelGoal {
+  const ratio =
+    ageBand === 'little'
+      ? 0.45
+      : ageBand === 'early'
+        ? 0.5
+        : ageBand === 'growing'
+          ? 0.58
+          : 0.65
+  const target = Math.max(ageBand === 'little' ? 6 : 8, Math.ceil(treasureCount * ratio))
+  return { kind: 'collectFruit', target, label: `Collect ${target} fruit` }
 }
 
 function withGoal(cfg: LevelCfg, level: number, ageBand: AgeBand): LevelCfg {
@@ -269,7 +265,7 @@ export function pacTablesCfgForAge(level: number, ageBand: AgeBand): LevelCfg {
     treasureCount: Math.min(40, 24 + Math.ceil(level / 2)),
     gentle: ageBand === 'little',
     allowChallenge: false,
-    intro: level === 1 ? 'Practice times tables to earn moves! ✖️' : undefined,
+    intro: level === 1 ? 'Practice times tables after collecting fruit! ✖️' : undefined,
   }
 }
 
@@ -316,7 +312,7 @@ export function pacMathCfgForAge(level: number, ageBand: AgeBand): LevelCfg {
     treasureCount: Math.min(42, 24 + Math.ceil(level / 2)),
     gentle: ageBand === 'little',
     allowChallenge: false,
-    intro: level === 1 ? 'Regular math mode: type the answer to earn moves! ➕' : undefined,
+    intro: level === 1 ? 'Regular math mode: collect fruit, then type the answer! ➕' : undefined,
   }
 }
 

@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Abacus } from '@/components/Abacus'
 import { chiptune } from '@/features/audio/chiptune'
 import {
-  movesForProblem,
   type ArcadeProblem,
 } from '@/features/drills/problemGenerator'
 import { useProfile, type CompleteResult } from '@/features/profile/profileStore'
@@ -337,7 +336,6 @@ export function ArcadeGame({
 
   const { problem } = state
   const isChallenge = problem.technique === 'challenge'
-  const payout = movesForProblem(problem)
   const canSteer = phase === 'move' || phase === 'doorOpen' || phase === 'travel'
   const answerMode =
     problem.kind === 'word'
@@ -366,20 +364,18 @@ export function ArcadeGame({
   const goalText =
     phase === 'collisionBattle'
       ? 'Baddie battle! Solve all three numbers to win safely.'
-      : phase === 'levelQuiz'
-        ? `Level test ${state.quizIndex + 1}/${state.quizTotal}: answer to open the next door.`
       : phase === 'rescueFight'
       ? `Rescue fight! Solve hard problems to beat ${state.rescue?.badGuysLeft ?? 0} baddie${state.rescue?.badGuysLeft === 1 ? '' : 's'}.`
       : phase === 'rescueWall'
         ? `Break the rescue wall: ${state.rescue?.wallHits ?? 0}/${state.rescue?.wallTarget ?? 0} cracks.`
       : phase === 'answer'
       ? problem.kind === 'word'
-        ? `Choose the missing letter to earn ${payout} moves!`
+        ? 'Choose the missing letter to open the door!'
         : problem.kind === 'tables'
-          ? `Solve the times table to earn ${payout} moves!`
+          ? 'Solve the times table to open the door!'
           : problem.kind === 'count'
-        ? `Count the ${problem.emoji}s and make the beads match!`
-        : `Solve it to earn ${payout} moves!`
+        ? `Count the ${problem.emoji}s to open the door!`
+        : 'Solve one puzzle to open the door!'
       : phase === 'move'
         ? state.vulnerableMovesLeft > 0
           ? `Power chase! ${state.vulnerableMovesLeft} zap move${state.vulnerableMovesLeft === 1 ? '' : 's'} — catch baddies!`
@@ -565,8 +561,6 @@ export function ArcadeGame({
                   <h3 className="text-[11px] font-bold tracking-wide text-[var(--c-soft)] sm:text-xs">
                     {phase === 'collisionBattle'
                       ? '⚔️ BADDIE BATTLE! ⚔️'
-                      : phase === 'levelQuiz'
-                        ? `🧠 LEVEL TEST ${state.quizIndex + 1}/${state.quizTotal}`
                       : isChallenge
                       ? phase === 'rescueFight'
                         ? '⚡ RESCUE FIGHT! ⚡'
@@ -585,15 +579,11 @@ export function ArcadeGame({
                       ? 'ready...'
                       : phase === 'collisionBattle'
                         ? 'correct = defeat it · wrong = lose a heart'
-                      : phase === 'levelQuiz'
-                        ? state.quizIndex < 2
-                          ? 'memory check'
-                          : 'pass question'
                       : phase === 'rescueFight'
                         ? 'correct = zap a baddie'
                         : phase === 'rescueWall'
                           ? 'correct = crack the wall'
-                          : `worth +${payout} moves`}
+                          : 'correct = open the door'}
                   </div>
                   <p className="min-h-4 max-w-64 text-center text-[10px] text-[var(--c-soft)] sm:min-h-6 sm:text-xs">
                     {state.hint}
@@ -620,16 +610,6 @@ export function ArcadeGame({
                       Go ▶
                     </button>
                   </div>
-                  {phase === 'answer' && state.cfg.allowChallenge && !isChallenge && (
-                    <button
-                      type="button"
-                      onClick={() => dispatch({ type: 'CHALLENGE' })}
-                      disabled={!canAnswer}
-                      className="mt-1 rounded-lg border border-amber-500 bg-amber-500/20 px-2.5 py-0.5 text-[10px] font-bold text-amber-300 hover:bg-amber-500/30 disabled:opacity-40 sm:text-xs"
-                    >
-                      ⚡ 10-move challenge
-                    </button>
-                  )}
                   {state.starReady && state.powerTicksLeft === 0 && buddies.length > 0 && (
                     <div className="mt-2 flex max-w-64 flex-wrap justify-center gap-2 rounded-xl border border-amber-300 bg-amber-500/15 p-2">
                       <div className="w-full text-center text-xs font-black text-amber-200">

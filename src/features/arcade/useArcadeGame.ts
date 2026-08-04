@@ -3,7 +3,6 @@ import {
   beadHint,
   generateChallenge,
   generateFromCfg,
-  movesForProblem,
   type ArcadeProblem,
 } from '@/features/drills/problemGenerator'
 import type { LearningWorldId } from '@/features/learning/learningWorlds'
@@ -26,7 +25,6 @@ import {
 
 export type Phase =
   | 'answer'
-  | 'levelQuiz'
   | 'rescueFight'
   | 'rescueWall'
   | 'collisionBattle'
@@ -71,16 +69,11 @@ const POWER_STRAWBERRY_MOVES = 20
 const ROCK_DELAY_MIN_MS = 10_000
 const ROCK_DELAY_MAX_MS = 20_000
 const CLOAK_SAFE_DISTANCE = 4
-const QUICK_SOLVE_MS = 6_000
-const QUICK_METER_GAIN = 25
-const QUICK_BONUS_MOVES = 2
 const POWER_TICKS = 60
 const PATH_TREASURES = ['🍓', '🍒', '🍊', '🍌', '🍇', '💰']
-const LEVEL_QUIZ_TOTAL = 4
 
 export const ANSWER_PHASES: Phase[] = [
   'answer',
-  'levelQuiz',
   'rescueFight',
   'rescueWall',
   'collisionBattle',
@@ -110,9 +103,6 @@ export interface GameState {
   ghostStepsLeft: number
   afterGhosts: 'retry' | 'next'
   problem: ArcadeProblem
-  quizIndex: number
-  quizTotal: number
-  quizMistakes: number
   attempts: number
   answerTicks: number
   hint: string
@@ -124,7 +114,6 @@ export interface GameState {
   goalProgress: number
   goalTarget: number
   goalLabel: string
-  collectedCounts: Record<string, number>
   quickMeter: number
   starReady: boolean
   powerBuddy: Pos | null
@@ -153,7 +142,6 @@ type Action =
   | { type: 'NEXT_LEVEL' }
   | { type: 'RESTART_LEVEL' }
 
-const PRAISE = ['Great thinking! 🌟', 'You got it! 🎉', 'Super math brain! 💪', 'Zoom zoom! ✨']
 const GENTLE_RETRY = [
   'Almost! Count again — you can do it! 🍓',
   'So close! Try counting one more time! 💛',
@@ -214,7 +202,7 @@ function goalStateFor(cfg: LevelCfg, treasures: Map<string, string>) {
   return {
     goalProgress: 0,
     goalTarget: total,
-    goalLabel: cfg.goal?.label ?? 'Rescue every fruit',
+    goalLabel: cfg.goal?.label ?? 'Collect fruit',
   }
 }
 
@@ -300,21 +288,6 @@ function wanderWhileSolving(
 function nearestGhostStep(maze: MazeDef, from: Pos, ghosts: Pos[]): Pos {
   const target = [...ghosts].sort((a, b) => dist(from, a) - dist(from, b))[0]
   return target ? nextStepToward(maze, from, target) : from
-}
-
-function fruitMemoryProblem(collectedCounts: Record<string, number>): ArcadeProblem | null {
-  const seen = Object.entries(collectedCounts).filter(([, count]) => count > 0)
-  if (!seen.length) return null
-  const [emoji, count] = seen[Math.floor(Math.random() * seen.length)]
-  return {
-    a: count,
-    b: 0,
-    op: 'add',
-    answer: count,
-    technique: 'direct',
-    kind: 'equation',
-    prompt: `How many ${emoji} did you collect?`,
-  }
 }
 
 function exitDoorForMaze(maze: MazeDef): Pos {
@@ -409,24 +382,15 @@ function makeReducer(
     phase: 'move',
   })
 
-  const quizProblem = (state: GameState, quizIndex: number): ArcadeProblem =>
-    quizIndex < 2
-      ? fruitMemoryProblem(state.collectedCounts) ?? generateFromCfg(state.cfg.problem)
-      : quizIndex === LEVEL_QUIZ_TOTAL - 1
-        ? rescueProblem(state.cfg)
-        : generateFromCfg(state.cfg.problem)
-
-  const freshQuizProblem = (state: GameState, quizIndex: number): Partial<GameState> => ({
-    problem: quizProblem(state, quizIndex),
-    quizIndex,
-    quizTotal: LEVEL_QUIZ_TOTAL,
+  const freshPassPuzzle = (state: GameState): Partial<GameState> => ({
+    problem: generateFromCfg(state.cfg.problem),
     attempts: 0,
     answerTicks: 0,
     hint: '',
     answerValue: 0,
     answerText: '',
     answerStartedAt: Date.now(),
-    phase: 'levelQuiz',
+    phase: 'answer',
   })
 
   const freshRescueProblem = (state: GameState): Partial<GameState> => ({
@@ -592,12 +556,8 @@ function makeReducer(
       exitDoor: null,
       travelExitDoor: null,
       rescue: null,
-      collectedCounts: {},
       ...goal,
       problem: generateFromCfg(cfg.problem),
-      quizIndex: 0,
-      quizTotal: LEVEL_QUIZ_TOTAL,
-      quizMistakes: 0,
       attempts: 0,
       answerTicks: 0,
       hint: '',
@@ -633,16 +593,15 @@ function makeReducer(
     return { ...state, phase: 'levelClear', clearStars: Math.max(1, state.lives) }
   }
 
-  const startLevelQuiz = (state: GameState): GameState => ({
+  const startPassPuzzle = (state: GameState): GameState => ({
     ...state,
     movesLeft: 0,
     ghosts: [],
     ghostPrev: [],
     powerBuddy: null,
     powerTicksLeft: 0,
-    quizMistakes: 0,
-    ...freshQuizProblem(state, 0),
-    message: say(state, 'Level test! Remember your fruit, then solve a few problems to pass. 🧠', 'good'),
+    ...freshPassPuzzle(state),
+    message: say(state, 'Fruit goal reached! Solve one puzzle to open the door. 🧩', 'good'),
   })
 
   return function reducer(state: GameState, action: Action): GameState {
@@ -724,52 +683,6 @@ function makeReducer(
             message: say(state, `Battle lost, but the baddie is gone. ${livesRemaining} heart${livesRemaining === 1 ? '' : 's'} left.`, 'bad'),
           }
         }
-        if (state.phase === 'levelQuiz') {
-          if (correct) {
-            const nextIndex = state.quizIndex + 1
-            if (nextIndex >= state.quizTotal) {
-              return clearLevelState({
-                ...state,
-                stars: state.stars + 3,
-                message: say(state, 'Test passed! The next door is opening. 🚪', 'good'),
-              })
-            }
-            return {
-              ...state,
-              stars: state.stars + 1,
-              ...freshQuizProblem(state, nextIndex),
-              message: say(state, nextIndex < 2 ? 'Good memory! Next fruit question. 🍓' : pickFrom(PRAISE), 'good'),
-            }
-          }
-          const attempts = state.attempts + 1
-          const quizMistakes = state.quizMistakes + 1
-          if (attempts < 2) {
-            return {
-              ...state,
-              attempts,
-              quizMistakes,
-              hint: beadHint(p),
-              message: say(state, 'Try that one again before the door opens. 💡', 'bad'),
-            }
-          }
-          const lives = state.lives - 1
-          if (lives <= 0) {
-            return {
-              ...state,
-              lives: 0,
-              quizMistakes,
-              phase: 'gameOver',
-              message: say(state, 'The level test used your last heart. Try the room again.', 'bad'),
-            }
-          }
-          return {
-            ...state,
-            lives,
-            quizMistakes,
-            ...freshQuizProblem(state, state.quizIndex),
-            message: say(state, `One heart used for help. ${lives} heart${lives === 1 ? '' : 's'} left.`, 'bad'),
-          }
-        }
         if (state.phase === 'rescueFight') {
           if (!state.rescue) return state
           if (correct) {
@@ -849,37 +762,23 @@ function makeReducer(
           }
         }
         if (correct) {
-          const isChallenge = p.technique === 'challenge'
-          const quickSolve = !isChallenge && Date.now() - state.answerStartedAt <= QUICK_SOLVE_MS
-          const quickMeter = quickSolve
-            ? Math.min(100, state.quickMeter + QUICK_METER_GAIN)
-            : state.quickMeter
-          const starReady = state.starReady || quickMeter >= 100
-          const moves = movesForProblem(p) + (quickSolve ? QUICK_BONUS_MOVES : 0)
-          return {
+          return clearLevelState({
             ...state,
-            stars: state.stars + (isChallenge ? 3 : 1),
+            stars: state.stars + 3,
             streak: state.streak + 1,
-            movesLeft: moves,
-            quickMeter,
-            starReady,
-            phase: 'move',
             hint: '',
-            message: say(
-              state,
-              isChallenge
-                ? '⚡ CHALLENGE SMASHED! 10 moves! ⚡'
-                : quickSolve
-                  ? `Quick solve! +${QUICK_BONUS_MOVES} moves! ⭐`
-                  : pickFrom(PRAISE),
-              'good',
-            ),
-          }
+            message: say(state, 'Puzzle solved! The door is opening. 🚪', 'good'),
+          })
         }
         const attempts = state.attempts + 1
         if (state.cfg.gentle) {
-          // unlimited kind retries; show the answer on the beads after 3 tries
-          if (attempts >= 3) return revealState({ ...state, attempts })
+          if (attempts >= 3) {
+            return {
+              ...state,
+              ...freshPassPuzzle(state),
+              message: say(state, 'Good trying! Here is a fresh puzzle. 🍓', 'bad'),
+            }
+          }
           return {
             ...state,
             attempts,
@@ -891,19 +790,30 @@ function makeReducer(
           return revealState({ ...state, attempts })
         }
         if (attempts === 1) {
-          return enterGhostPhase(
-            {
-              ...state,
-              attempts,
-              streak: 0,
-              hint: beadHint(p),
-              message: say(state, 'Almost! Try again — check the hint. 💡', 'bad'),
-            },
-            state.cfg.enemy.wrongSteps,
-            'retry',
-          )
+          return {
+            ...state,
+            attempts,
+            streak: 0,
+            hint: beadHint(p),
+            message: say(state, 'Almost! Try again — check the hint. 💡', 'bad'),
+          }
         }
-        return revealState({ ...state, attempts })
+        const lives = state.lives - 1
+        if (lives <= 0) {
+          return {
+            ...state,
+            attempts,
+            lives: 0,
+            phase: 'gameOver',
+            message: say(state, 'That puzzle used your last heart. Try the level again.', 'bad'),
+          }
+        }
+        return {
+          ...state,
+          lives,
+          ...freshPassPuzzle(state),
+          message: say(state, `Let's try a fresh puzzle. ${lives} heart${lives === 1 ? '' : 's'} left.`, 'bad'),
+        }
       }
 
       case 'MOVE': {
@@ -978,13 +888,6 @@ function makeReducer(
         const collectedFruit = treasure != null && treasure !== ROCK_EMOJI
         if (collectedFruit) treasures.delete(key)
         const goalProgress = collectedFruit ? state.goalProgress + 1 : state.goalProgress
-        const collectedCounts =
-          collectedFruit && treasure
-            ? {
-                ...state.collectedCounts,
-                [treasure]: (state.collectedCounts[treasure] ?? 0) + 1,
-              }
-            : state.collectedCounts
         const vulnerableMovesLeft = Math.max(0, state.vulnerableMovesLeft - 1)
         let moved: GameState = {
           ...state,
@@ -994,7 +897,6 @@ function makeReducer(
           facing: action.dir,
           treasures,
           goalProgress,
-          collectedCounts,
           movesLeft: state.movesLeft > 0 ? state.movesLeft - 1 : 0,
           vulnerableMovesLeft,
         }
@@ -1022,9 +924,7 @@ function makeReducer(
           return battleState(moved)
         }
         if (goalComplete(moved, treasures, goalProgress)) {
-          return startLevelQuiz(
-            moved,
-          )
+          return startPassPuzzle(moved)
         }
         return moved
       }
@@ -1240,9 +1140,6 @@ function makeInitialState(
     ghostStepsLeft: 0,
     afterGhosts: 'next',
     problem: generateFromCfg(cfg.problem),
-    quizIndex: 0,
-    quizTotal: LEVEL_QUIZ_TOTAL,
-    quizMistakes: 0,
     attempts: 0,
     answerTicks: 0,
     hint: '',
@@ -1252,7 +1149,6 @@ function makeInitialState(
     rescue: null,
     answerStartedAt: Date.now(),
     ...goal,
-    collectedCounts: {},
     quickMeter: 0,
     starReady: false,
     powerBuddy: null,
