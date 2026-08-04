@@ -61,8 +61,8 @@ function ageTuneEnemy(enemy: EnemyCfg, ageBand: AgeBand): EnemyCfg {
   if (ageBand === 'early') {
     return {
       ...enemy,
-      chaseChance: Math.min(0.65, enemy.chaseChance + 0.06),
-      spawnChance: Math.min(0.18, enemy.spawnChance + 0.03),
+      chaseChance: Math.min(0.72, enemy.chaseChance + 0.12),
+      spawnChance: Math.min(0.2, enemy.spawnChance + 0.04),
     }
   }
   if (ageBand === 'growing') {
@@ -131,7 +131,7 @@ export function adventureCfg(level: number, settings?: ArcadeSettings): LevelCfg
     count: level <= 2 ? 1 : level <= 8 ? 1 : level <= 16 ? 2 : 3,
     correctSteps: level <= 14 ? 1 : level <= 30 ? 1 : 2,
     wrongSteps: Math.min(3, 1 + Math.floor(level / 15)),
-    chaseChance: Math.min(0.85, 0.3 + level * 0.012),
+    chaseChance: Math.min(0.88, 0.38 + level * 0.014),
     spawnChance: level <= 10 ? 0 : Math.min(0.35, (level - 10) * 0.012),
   }
   const tuned = settings ? GHOST_CONFIG[settings.ghosts] : null

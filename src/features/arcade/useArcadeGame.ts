@@ -1198,7 +1198,7 @@ export function useArcadeGame(
     if ((state.phase === 'move' || state.phase === 'doorOpen') && state.ghosts.length > 0) {
       const t = setInterval(
         () => dispatch({ type: 'MOVE_GHOST_TICK' }),
-        Math.max(620, stepMs * 4),
+        state.cfg.gentle ? Math.max(820, stepMs * 5) : Math.max(560, stepMs * 3.5),
       )
       return () => clearInterval(t)
     }
@@ -1210,7 +1210,15 @@ export function useArcadeGame(
       const t = setTimeout(() => dispatch({ type: 'REVEAL_DONE' }), 1900)
       return () => clearTimeout(t)
     }
-  }, [state.phase, state.answerTicks, state.powerTicksLeft, state.ghosts.length, stepMs, rockAgingEnabled])
+  }, [
+    state.phase,
+    state.answerTicks,
+    state.powerTicksLeft,
+    state.ghosts.length,
+    state.cfg.gentle,
+    stepMs,
+    rockAgingEnabled,
+  ])
 
   useEffect(() => {
     if (state.phase !== 'answer' || state.ghosts.length === 0 || state.jailTurns > 0) return
