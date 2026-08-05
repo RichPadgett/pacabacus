@@ -896,10 +896,10 @@ function WordChoices({
 
 function Overlay({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 p-4">
-      <div className="w-full max-w-md rounded-3xl border-4 border-[var(--c-border)] bg-[var(--c-panel)] p-7 text-center">
-        <h2 className="mb-3 text-2xl font-black text-amber-300">{title}</h2>
-        <div className="flex flex-col gap-4">{children}</div>
+    <div className="fixed inset-0 z-40 flex items-start justify-center overflow-y-auto bg-black/70 p-3 py-6 sm:items-center sm:p-4">
+      <div className="flex max-h-[calc(100svh-2rem)] w-full max-w-md flex-col rounded-3xl border-4 border-[var(--c-border)] bg-[var(--c-panel)] p-5 text-center shadow-2xl shadow-black/35 sm:p-7">
+        <h2 className="mb-3 shrink-0 text-2xl font-black text-amber-300">{title}</h2>
+        <div className="flex min-h-0 flex-col gap-4 overflow-y-auto pr-1">{children}</div>
       </div>
     </div>
   )
