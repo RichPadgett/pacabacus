@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { SlideOutMenu } from '@/components/SlideOutMenu'
 import { Twinkles } from '@/features/arcade/ArcadeGame'
 import { useArcadeSettings } from '@/features/arcade/settingsStore'
 import { PixelSprite } from '@/features/arcade/PixelSprite'
@@ -16,20 +15,19 @@ import { RESCUE_CHALLENGES, rescueForAgeBand } from '@/features/profile/rescueCh
 import {
   LEARNING_WORLDS,
   ageFromDateOfBirth,
-  type AgeBand,
   type LearningWorldId,
 } from '@/features/learning/learningWorlds'
 import { LOCALE_OPTIONS, useI18n, useTranslations, type LocaleId } from '@/features/i18n/i18nStore'
 
 interface HomeScreenProps {
-  onAdventure: () => void
+  onPreGame: () => void
   onCharacters: () => void
   onRewards: () => void
   onFreePlay: () => void
 }
 
 export function HomeScreen({
-  onAdventure,
+  onPreGame,
   onCharacters,
   onRewards,
   onFreePlay,
@@ -42,7 +40,6 @@ export function HomeScreen({
   const [starterHero, setStarterHero] = useState<HeroId>(STARTER_HERO_IDS[0])
   const [showProfiles, setShowProfiles] = useState(false)
   const [showTools, setShowTools] = useState(false)
-  const [showMenu, setShowMenu] = useState(false)
   const [secretCode, setSecretCode] = useState('')
   const { locale, t, ageBandLabel, worldText } = useTranslations()
   const setLocale = useI18n((state) => state.setLocale)
@@ -59,7 +56,7 @@ export function HomeScreen({
   const rescuedCount = SECRET_HERO_IDS.filter((id) => profile.ownedCharacters.includes(id)).length
   const ageRescue = rescueForAgeBand(profile.ageBand)
   const age = ageFromDateOfBirth(profile.dateOfBirth)
-  const adventureStatus =
+  const playStatus =
     worldLevel > maxWorldLevel
       ? `Replay ${maxWorldLevel}`
       : worldLevel > 1
@@ -127,15 +124,6 @@ export function HomeScreen({
               className="rounded-xl border-2 border-amber-300 bg-amber-500/15 px-3 py-2 text-sm font-black text-amber-100 hover:bg-amber-500/25"
             >
               {t('button.tools')} {showTools ? '▲' : '▼'}
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowMenu(true)}
-              aria-label="Open menu"
-              aria-expanded={showMenu}
-              className="home-menu-trigger rounded-xl border-2 border-sky-300 bg-sky-500/15 px-3 py-2 text-sm font-black text-sky-100 hover:bg-sky-500/25"
-            >
-              ☰ Menu
             </button>
           </div>
 
@@ -215,34 +203,24 @@ export function HomeScreen({
           )}
 
           <div className="home-actions flex w-full max-w-md flex-col gap-3">
-            <AgeTrainerPanel
-              dateOfBirth={profile.dateOfBirth}
-              ageBand={profile.ageBand}
-              activeWorld={profile.learningWorld}
-              onDateOfBirth={profile.setDateOfBirth}
-              onAgeBand={(band) => {
-                profile.setDateOfBirth(null)
-                profile.setAgeBand(band)
-              }}
-              onTrainer={() => profile.runTrainer(profile.learningWorld)}
-              t={t}
-              ageBandLabel={ageBandLabel}
-              worldText={worldText}
-            />
-            <MenuButton onClick={onAdventure} big className="home-adventure-button">
+            <div className="rounded-2xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] px-4 py-3 text-center">
+              <div className="text-xs font-black uppercase tracking-wide text-[var(--c-soft)]">
+                Skill path
+              </div>
+              <div className="mt-1 text-lg font-black text-amber-200">
+                {age != null ? t('profile.yearsOld', { count: age }) : ageBandLabel(profile.ageBand)}
+              </div>
+              <div className="text-xs font-bold text-[var(--c-soft)]">
+                Complete levels to unlock the next skill step.
+              </div>
+            </div>
+            <MenuButton onClick={onPreGame} big className="home-adventure-button">
               <span className="home-adventure-label">
-                <span>🗺️ {activeWorldText.name}</span>
-                <span className="home-adventure-status">{adventureStatus}</span>
+                <span>▶ Start Adventure</span>
+                <span className="home-adventure-status">{activeWorldText.name} · {playStatus}</span>
                 <span>▶</span>
               </span>
             </MenuButton>
-            <button
-              type="button"
-              onClick={() => settings.update({ rockTimer: !settings.rockTimer })}
-              className="home-rock-button rounded-2xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] px-4 py-3 text-sm font-bold transition hover:brightness-125 active:scale-95"
-            >
-              🪨 {t('settings.rockTimer', { state: settings.rockTimer ? t('settings.on') : t('settings.off') })}
-            </button>
             <div className="home-secondary-actions grid grid-cols-1 gap-3 sm:grid-cols-3">
               <MenuButton onClick={onCharacters}>🎭 {t('button.team')}</MenuButton>
               <MenuButton onClick={onRewards}>🏆 {t('button.rewards')}</MenuButton>
@@ -355,21 +333,6 @@ export function HomeScreen({
               </div>
             )}
           </div>
-          <SlideOutMenu open={showMenu} onClose={() => setShowMenu(false)} label="Quick menu">
-                <div className="home-menu-drawer__header">
-                  <strong>Menu</strong>
-                  <button type="button" onClick={() => setShowMenu(false)} aria-label="Close menu">✕</button>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => settings.update({ rockTimer: !settings.rockTimer })}
-                >
-                  🪨 {t('settings.rockTimer', { state: settings.rockTimer ? t('settings.on') : t('settings.off') })}
-                </button>
-                <button type="button" onClick={() => { setShowMenu(false); onCharacters() }}>🎭 {t('button.team')}</button>
-                <button type="button" onClick={() => { setShowMenu(false); onRewards() }}>🏆 {t('button.rewards')}</button>
-                <button type="button" onClick={() => { setShowMenu(false); onFreePlay() }}>⚙️ {t('button.settings')}</button>
-          </SlideOutMenu>
         </div>
       )}
     </div>
@@ -432,72 +395,6 @@ function LearningWorlds({
           )
         })}
       </div>
-    </section>
-  )
-}
-
-function AgeTrainerPanel({
-  dateOfBirth,
-  ageBand,
-  activeWorld,
-  onDateOfBirth,
-  onAgeBand,
-  onTrainer,
-  t,
-  ageBandLabel,
-  worldText,
-}: {
-  dateOfBirth: string | null
-  ageBand: AgeBand
-  activeWorld: LearningWorldId
-  onDateOfBirth: (dateOfBirth: string | null) => void
-  onAgeBand: (ageBand: AgeBand) => void
-  onTrainer: () => void
-  t: ReturnType<typeof useTranslations>['t']
-  ageBandLabel: ReturnType<typeof useTranslations>['ageBandLabel']
-  worldText: ReturnType<typeof useTranslations>['worldText']
-}) {
-  const active = LEARNING_WORLDS.find((world) => world.id === activeWorld) ?? LEARNING_WORLDS[0]
-  const activeText = worldText(active.id)
-  return (
-    <section className="home-age-panel rounded-2xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] p-4">
-      <div className="home-age-panel__header mb-3 flex items-center justify-between gap-3">
-        <h2 className="text-sm font-black tracking-wide text-amber-200">{t('age.title')}</h2>
-        <span className="text-xs font-bold text-[var(--c-soft)]">{ageBandLabel(ageBand)}</span>
-      </div>
-      <label className="home-age-panel__birthday block text-xs font-bold tracking-wide text-[var(--c-soft)]">
-        {t('age.birthday')}
-        <input
-          type="date"
-          value={dateOfBirth ?? ''}
-          onChange={(e) => onDateOfBirth(e.target.value || null)}
-          className="mt-1 w-full rounded-xl border-2 border-[var(--c-border)] bg-black/25 px-3 py-2 text-slate-50 outline-none focus:border-emerald-400"
-        />
-      </label>
-      <div className="home-age-panel__bands mt-3 grid grid-cols-2 gap-2">
-        {(['little', 'early', 'growing', 'big', 'master'] as AgeBand[]).map((band) => (
-          <button
-            key={band}
-            type="button"
-            onClick={() => onAgeBand(band)}
-            className={[
-              'rounded-xl border-2 px-3 py-2 text-xs font-black',
-              ageBand === band
-                ? 'border-emerald-300 bg-emerald-500/20 text-emerald-100'
-                : 'border-[var(--c-border)] bg-black/20 text-[var(--c-soft)] hover:brightness-125',
-            ].join(' ')}
-          >
-            {ageBandLabel(band)}
-          </button>
-        ))}
-      </div>
-      <button
-        type="button"
-        onClick={onTrainer}
-        className="home-age-panel__trainer mt-3 w-full rounded-xl border-2 border-amber-300 bg-amber-500/15 px-4 py-2 text-sm font-black text-amber-100 hover:bg-amber-500/25"
-      >
-        {t('age.trainer', { world: activeText.name })}
-      </button>
     </section>
   )
 }

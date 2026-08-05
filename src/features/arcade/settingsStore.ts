@@ -51,7 +51,7 @@ const DEFAULT_SETTINGS: ArcadeSettings = {
   music: true,
   theme: 'stars',
   mode: 'maze',
-  rockTimer: true,
+  rockTimer: false,
 }
 
 export const useArcadeSettings = create<SettingsStore>()(

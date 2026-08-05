@@ -222,7 +222,7 @@ export function ArcadeGame({
     cfgFor,
     startLevel,
     stepMs,
-    profile.ageBand !== 'little' && settings.rockTimer,
+    false,
     !isFreePlay,
     maxLevel,
     activeWorld,
