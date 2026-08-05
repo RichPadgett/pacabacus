@@ -19,37 +19,14 @@ import {
 } from '@/features/learning/learningWorlds'
 import { LOCALE_OPTIONS, useI18n, useTranslations, type LocaleId } from '@/features/i18n/i18nStore'
 
-const BIRTH_MONTHS = [
-  { value: '01', label: 'Jan' },
-  { value: '02', label: 'Feb' },
-  { value: '03', label: 'Mar' },
-  { value: '04', label: 'Apr' },
-  { value: '05', label: 'May' },
-  { value: '06', label: 'Jun' },
-  { value: '07', label: 'Jul' },
-  { value: '08', label: 'Aug' },
-  { value: '09', label: 'Sep' },
-  { value: '10', label: 'Oct' },
-  { value: '11', label: 'Nov' },
-  { value: '12', label: 'Dec' },
-]
-
 const currentYear = new Date().getFullYear()
-const BIRTH_YEARS = Array.from({ length: 18 }, (_, index) => String(currentYear - index))
+const AGE_OPTIONS = Array.from({ length: 15 }, (_, index) => index + 3)
 
-function daysInMonth(year: string, month: string) {
-  if (!year || !month) return 31
-  return new Date(Number(year), Number(month), 0).getDate()
-}
-
-function birthParts(dateOfBirth: string) {
-  const [year = '', month = '', day = ''] = dateOfBirth.split('-')
-  return { year, month, day }
-}
-
-function composeBirthDate(year: string, month: string, day: string) {
-  if (!year || !month || !day) return ''
-  return `${year}-${month}-${day.padStart(2, '0')}`
+function dateForAge(age: number) {
+  const now = new Date()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  return `${currentYear - age}-${month}-${day}`
 }
 
 interface HomeScreenProps {
@@ -468,7 +445,7 @@ function SignupCard({
         placeholder={t('signup.namePlaceholder')}
         className="w-full rounded-xl border-2 border-[var(--c-border)] bg-black/30 px-4 py-3 text-center text-xl font-bold text-slate-50 outline-none focus:border-emerald-400"
       />
-      <BirthdayPicker value={dateOfBirth} onChange={setDateOfBirth} label={t('age.birthday')} />
+      <AgePicker value={dateOfBirth} onChange={setDateOfBirth} />
       <div className="w-full">
         <h3 className="mb-3 text-center text-sm font-bold tracking-wide text-[var(--c-soft)]">
           {t('signup.firstFriend')}
@@ -512,61 +489,30 @@ function SignupCard({
   )
 }
 
-function BirthdayPicker({
+function AgePicker({
   value,
   onChange,
-  label,
 }: {
   value: string
   onChange: (dateOfBirth: string) => void
-  label: string
 }) {
-  const { year, month, day } = birthParts(value)
-  const maxDay = daysInMonth(year || String(currentYear), month || '01')
-  const selectedDay = day && Number(day) > maxDay ? String(maxDay).padStart(2, '0') : day
-  const setPart = (part: 'year' | 'month' | 'day', next: string) => {
-    const parts = { year, month, day: selectedDay, [part]: next }
-    const cappedDay = parts.day && Number(parts.day) > daysInMonth(parts.year || String(currentYear), parts.month || '01')
-      ? String(daysInMonth(parts.year || String(currentYear), parts.month || '01')).padStart(2, '0')
-      : parts.day
-    onChange(composeBirthDate(parts.year, parts.month, cappedDay))
-  }
+  const selectedAge = value ? ageFromDateOfBirth(value) : null
 
   return (
     <label className="w-full text-center text-xs font-black tracking-wide text-[var(--c-soft)]">
-      {label}
-      <div className="mt-1 grid grid-cols-[1fr_0.8fr_1fr] gap-2">
-        <select
-          value={month}
-          onChange={(e) => setPart('month', e.target.value)}
-          className="rounded-xl border-2 border-[var(--c-border)] bg-black/30 px-2 py-3 text-center text-base font-bold text-slate-50 outline-none focus:border-emerald-400"
-        >
-          <option value="">Month</option>
-          {BIRTH_MONTHS.map((item) => (
-            <option key={item.value} value={item.value}>{item.label}</option>
-          ))}
-        </select>
-        <select
-          value={selectedDay}
-          onChange={(e) => setPart('day', e.target.value)}
-          className="rounded-xl border-2 border-[var(--c-border)] bg-black/30 px-2 py-3 text-center text-base font-bold text-slate-50 outline-none focus:border-emerald-400"
-        >
-          <option value="">Day</option>
-          {Array.from({ length: maxDay }, (_, index) => String(index + 1).padStart(2, '0')).map((item) => (
-            <option key={item} value={item}>{Number(item)}</option>
-          ))}
-        </select>
-        <select
-          value={year}
-          onChange={(e) => setPart('year', e.target.value)}
-          className="rounded-xl border-2 border-[var(--c-border)] bg-black/30 px-2 py-3 text-center text-base font-bold text-slate-50 outline-none focus:border-emerald-400"
-        >
-          <option value="">Year</option>
-          {BIRTH_YEARS.map((item) => (
-            <option key={item} value={item}>{item}</option>
-          ))}
-        </select>
-      </div>
+      Player age
+      <select
+        value={selectedAge ?? ''}
+        onChange={(e) => onChange(e.target.value ? dateForAge(Number(e.target.value)) : '')}
+        className="mt-1 w-full rounded-xl border-2 border-[var(--c-border)] bg-black/30 px-4 py-3 text-center text-lg font-black text-slate-50 outline-none focus:border-emerald-400"
+      >
+        <option value="">Pick age</option>
+        {AGE_OPTIONS.map((age) => (
+          <option key={age} value={age}>
+            Age {age}
+          </option>
+        ))}
+      </select>
     </label>
   )
 }
