@@ -241,13 +241,16 @@ export function ArcadeGame({
   const theme = world ? THEMES[world.theme] : (THEMES[settings.theme] ?? THEMES.stars)
   const hero = HEROES[profile.character] ? profile.character : 'kitty'
   const buddies = profile.buddies.filter((id) => HEROES[id]).slice(0, 3)
+  const rescuedBuddy = state.rescue?.saved && HEROES[state.rescue.challenge.hero] ? state.rescue.challenge.hero : null
+  const visibleBuddies =
+    rescuedBuddy && !buddies.includes(rescuedBuddy) ? [rescuedBuddy, ...buddies].slice(0, 3) : buddies
   const buddyGrowths = Object.fromEntries(
-    buddies.map((id) => {
+    visibleBuddies.map((id) => {
       const stage = buddyStageForUses(profile.buddyUseCounts[id] ?? 0)
       return [id, { stage, scale: buddyScaleForStage(stage) }]
     }),
   )
-  const buddy = buddies[0] ?? (profile.buddy && HEROES[profile.buddy] ? profile.buddy : null)
+  const buddy = visibleBuddies[0] ?? (profile.buddy && HEROES[profile.buddy] ? profile.buddy : null)
   const touched = useRef(false)
 
   const [rewards, setRewards] = useState<CompleteResult | null>(null)
@@ -381,7 +384,9 @@ export function ArcadeGame({
           ? `Power chase! ${state.vulnerableMovesLeft} zap move${state.vulnerableMovesLeft === 1 ? '' : 's'} — catch baddies!`
           : `Explore the room, collect fruit, and avoid baddies — ${state.goalLabel}.`
         : phase === 'doorOpen'
-          ? 'The door is open! Steer to the top door, then press up.'
+          ? state.rescue?.saved
+            ? 'Rescue complete! Collect more fruit or lead your new friend to the door.'
+            : 'The door is open! Steer to the top door, then press up.'
           : phase === 'travel'
             ? crossingWorld
               ? `Cross the world gate: ${nextWorld?.emoji ?? '🚪'} ${nextWorld?.name ?? 'next land'}`
@@ -491,10 +496,10 @@ export function ArcadeGame({
             buddy={state.buddy}
             buddyTrail={state.buddyTrail}
             buddyId={buddy}
-            buddyIds={buddies}
+            buddyIds={visibleBuddies}
             buddyGrowths={buddyGrowths}
             powerBuddy={state.powerBuddy}
-            powerBuddyId={powerBuddyId ?? buddies[0] ?? null}
+            powerBuddyId={powerBuddyId ?? visibleBuddies[0] ?? null}
             exitDoor={state.exitDoor}
             travelExitDoor={state.travelExitDoor}
             rescueHeroId={state.rescue && !state.rescue.saved ? state.rescue.challenge.hero : null}

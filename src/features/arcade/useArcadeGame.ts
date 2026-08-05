@@ -433,13 +433,31 @@ function makeReducer(
     }
   }
 
-  const clearRescueState = (state: GameState): GameState => ({
-    ...state,
-    phase: 'levelClear',
-    clearStars: Math.max(1, state.lives),
-    rescue: state.rescue ? { ...state.rescue, saved: true } : null,
-    message: say(state, 'Rescue complete! The wall crumbled away. 🔓', 'good'),
-  })
+  const clearRescueState = (state: GameState): GameState => {
+    const savedRescue = state.rescue ? { ...state.rescue, saved: true } : null
+    const clearStars = Math.max(1, state.lives)
+    if (travelEnabled && state.level < travelMaxLevel) {
+      return {
+        ...state,
+        phase: 'doorOpen',
+        clearStars,
+        rescue: savedRescue,
+        exitDoor: exitDoorForMaze(state.maze),
+        ghosts: [],
+        ghostPrev: [],
+        message: say(state, 'Rescue complete! Lead your new friend to the door. 🔓', 'good'),
+      }
+    }
+    return {
+      ...state,
+      phase: 'levelClear',
+      clearStars,
+      rescue: savedRescue,
+      ghosts: [],
+      ghostPrev: [],
+      message: say(state, 'Rescue complete! The wall crumbled away. 🔓', 'good'),
+    }
+  }
 
   const enterGhostPhase = (
     state: GameState,
