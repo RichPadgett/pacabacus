@@ -873,17 +873,50 @@ function makeReducer(
           return moved
         }
         if (state.phase === 'doorOpen') {
-          return {
+          const key = posKey(target)
+          const treasure = state.treasures.get(key)
+          const treasures = new Map(state.treasures)
+          const collectedFruit = treasure != null && treasure !== ROCK_EMOJI
+          if (collectedFruit) treasures.delete(key)
+          let moved: GameState = {
             ...state,
             pac: target,
             buddy: state.pac,
             buddyTrail: [state.pac, ...state.buddyTrail].slice(0, 3),
             facing: action.dir,
+            treasures,
+            goalProgress: collectedFruit ? state.goalProgress + 1 : state.goalProgress,
             message:
               state.exitDoor && samePos(target, state.exitDoor)
                 ? say(state, 'Press up at the door to enter the path! 🚪', 'good')
+                : collectedFruit
+                  ? say(state, 'Bonus fruit! Keep collecting or head to the door. 🍓', 'good')
                 : state.message,
           }
+          if (state.jailFruits.has(key) && state.ghosts.length) {
+            const jailFruits = new Set(state.jailFruits)
+            jailFruits.delete(key)
+            moved = {
+              ...moved,
+              jailFruits,
+              movesLeft: moved.movesLeft + POWER_STRAWBERRY_MOVES,
+              vulnerableMovesLeft: POWER_STRAWBERRY_MOVES,
+              message: say(state, `Power strawberry! +${POWER_STRAWBERRY_MOVES} moves — zap baddies! ⚡`, 'good'),
+            }
+          }
+          if (moved.vulnerableMovesLeft > 0 && moved.ghosts.some((g) => samePos(g, target))) {
+            return {
+              ...moved,
+              ghosts: moved.ghosts.filter((g) => !samePos(g, target)),
+              ghostPrev: moved.ghosts,
+              stars: moved.stars + 2,
+              message: say(state, 'ZAP! Baddie poofed away! ⚡', 'good'),
+            }
+          }
+          if (state.jailTurns === 0 && moved.ghosts.some((g) => samePos(g, target))) {
+            return battleState(moved)
+          }
+          return moved
         }
         const key = posKey(target)
         const treasure = state.treasures.get(key)
