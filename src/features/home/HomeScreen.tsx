@@ -79,6 +79,13 @@ export function HomeScreen({
     return () => chiptune.stopMusic()
   }, [settings.music])
 
+  const createProfileFromDraft = () => {
+    profile.createProfile(nameInput.trim(), starterHero, dateOfBirthInput || null)
+    setNameInput('')
+    setDateOfBirthInput('')
+    setStarterHero(STARTER_HERO_IDS[0])
+  }
+
   return (
     <div
       className="home-shell relative flex min-h-svh flex-col items-center gap-6 overflow-x-hidden overflow-y-auto bg-[radial-gradient(circle_at_50%_20%,var(--c-bg1),var(--c-bg2)_70%)] p-6 py-8 text-slate-50"
@@ -102,7 +109,7 @@ export function HomeScreen({
           setStarterHero={setStarterHero}
           dateOfBirth={dateOfBirthInput}
           setDateOfBirth={setDateOfBirthInput}
-          onCreate={() => profile.createProfile(nameInput.trim(), starterHero, dateOfBirthInput || null)}
+          onCreate={createProfileFromDraft}
           t={t}
         />
       ) : (
@@ -202,9 +209,7 @@ export function HomeScreen({
                 dateOfBirth={dateOfBirthInput}
                 setDateOfBirth={setDateOfBirthInput}
                 onCreate={() => {
-                  profile.createProfile(nameInput.trim(), starterHero, dateOfBirthInput || null)
-                  setNameInput('')
-                  setDateOfBirthInput('')
+                  createProfileFromDraft()
                   setShowProfiles(false)
                 }}
                 t={t}
