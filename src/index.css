@@ -1176,7 +1176,7 @@ body {
 
 @media (orientation: landscape) {
   .game-board-stage--panel-open {
-    padding-right: min(25rem, 44vw);
+    padding-right: min(30rem, 50vw);
   }
 
   .game-learning-tab {
@@ -1192,7 +1192,7 @@ body {
     right: 0;
     bottom: 0;
     left: auto;
-    width: min(25rem, 44vw);
+    width: min(30rem, 50vw);
     max-height: none;
     padding: 0.55rem 3.4rem 0.55rem 0.55rem;
     background: linear-gradient(to left, rgba(15, 23, 42, 0.6), rgba(15, 23, 42, 0.14));

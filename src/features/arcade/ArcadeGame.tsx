@@ -346,6 +346,7 @@ export function ArcadeGame({
       : activeWorld === 'pacmath' || activeWorld === 'pactables'
         ? 'keypad'
         : 'abacus'
+  const learningTabLabel = answerMode === 'word' ? '🔤 Words' : answerMode === 'keypad' ? '🔢 Numbers' : '🧮 Math & beads'
   const modeLabel = isFreePlay
     ? 'Free Play'
     : LEARNING_WORLDS.find((learning) => learning.id === activeWorld)?.name ?? 'Adventure'
@@ -519,7 +520,7 @@ export function ArcadeGame({
           aria-controls="learning-panel"
           className="game-learning-tab"
         >
-          {showLearningPanel ? '✕' : '🧮 Math & beads'}
+          {showLearningPanel ? '✕' : learningTabLabel}
         </button>
         <aside
           id="learning-panel"
@@ -555,12 +556,15 @@ export function ArcadeGame({
               </div>
             ) : (
               <>
-                <div
-                  className={[
-                    'flex w-full flex-col items-center rounded-xl border p-1.5 sm:p-2 landscape:w-[min(11rem,17vw)] landscape:shrink-0 landscape:p-1.5',
-                    isChallenge
-                      ? 'border-amber-400 bg-amber-950/50'
-                      : 'border-white/10 bg-black/10',
+                  <div
+                    className={[
+                      'flex w-full flex-col items-center rounded-xl border p-1.5 sm:p-2 landscape:shrink-0 landscape:p-1.5',
+                      answerMode === 'keypad'
+                        ? 'landscape:w-[min(15rem,25vw)]'
+                        : 'landscape:w-[min(12rem,19vw)]',
+                      isChallenge
+                        ? 'border-amber-400 bg-amber-950/50'
+                        : 'border-white/10 bg-black/10',
                   ].join(' ')}
                 >
                   <h3 className="text-[11px] font-bold tracking-wide text-[var(--c-soft)] sm:text-xs">
@@ -579,7 +583,7 @@ export function ArcadeGame({
                           : 'SOLVE ME!'}
                   </h3>
                   <ProblemPrompt problem={problem} />
-                  <div className="mb-0.5 rounded-full border border-emerald-500 bg-emerald-500/15 px-2.5 py-0 text-[10px] font-bold text-emerald-300 sm:text-xs">
+                  <div className="mb-0.5 max-w-full rounded-full border border-emerald-500 bg-emerald-500/15 px-2 py-0 text-center text-[10px] font-bold leading-tight text-emerald-300 sm:text-xs">
                     {ANSWER_PHASES.includes(phase) && !answerInputReady
                       ? 'ready...'
                       : phase === 'collisionBattle'
@@ -588,7 +592,7 @@ export function ArcadeGame({
                         ? 'correct = zap a baddie'
                         : phase === 'rescueWall'
                           ? 'correct = crack the wall'
-                          : 'correct = open the door'}
+                          : 'correct = open door'}
                   </div>
                   <p className="min-h-4 max-w-64 text-center text-[10px] text-[var(--c-soft)] sm:min-h-6 sm:text-xs">
                     {state.hint}
@@ -637,7 +641,12 @@ export function ArcadeGame({
                   )}
                 </div>
 
-                <div className="flex w-full flex-col items-center p-0.5 landscape:w-auto landscape:shrink-0">
+                <div
+                  className={[
+                    'flex w-full flex-col items-center p-0.5 landscape:w-auto landscape:shrink-0',
+                    answerMode === 'keypad' ? 'landscape:min-w-[13.5rem]' : '',
+                  ].join(' ')}
+                >
                   {answerMode === 'word' ? (
                     <WordChoices
                       choices={problem.choices ?? []}
