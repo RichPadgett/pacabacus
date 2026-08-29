@@ -11,8 +11,7 @@ import {
 } from '@/features/arcade/sprites'
 import { PixelSprite } from '@/features/arcade/PixelSprite'
 import { THEMES } from '@/features/arcade/themes'
-import { ADD_ON_MAX, ADVENTURE_MAX } from '@/features/arcade/gameConfig'
-import { LEARNING_WORLDS } from '@/features/learning/learningWorlds'
+import { ADVENTURE_MAX } from '@/features/arcade/gameConfig'
 import { BADGES } from '@/features/profile/rewards'
 import {
   earnedBadges,
@@ -40,16 +39,12 @@ export function RewardsScreen({ onBack }: { onBack: () => void }) {
   const nextPage = () => setPage((current) => Math.min(pages.length - 1, current + 1))
   const prevPage = () => setPage((current) => Math.max(0, current - 1))
 
-  const worldTrophies = LEARNING_WORLDS.map((world) => {
-    const maxLevel = world.id === 'pacabacus' ? ADVENTURE_MAX : ADD_ON_MAX
-    const levels = Array.from({ length: maxLevel }, (_, index) => index + 1)
-    const stars = levels.reduce(
-      (sum, level) => sum + (profile.worldStars[`${world.id}:${level}`] ?? 0),
-      0,
-    )
-    const complete = (profile.worldLevels[world.id] ?? 1) > maxLevel
-    return { world, stars, complete, maxStars: maxLevel * 3, maxLevel }
-  })
+  const pacabacusLevels = Array.from({ length: ADVENTURE_MAX }, (_, index) => index + 1)
+  const pacabacusStars = pacabacusLevels.reduce(
+    (sum, level) => sum + (profile.worldStars[`pacabacus:${level}`] ?? 0),
+    0,
+  )
+  const pacabacusComplete = (profile.worldLevels.pacabacus ?? 1) > ADVENTURE_MAX
 
   return (
     <div
@@ -130,23 +125,20 @@ export function RewardsScreen({ onBack }: { onBack: () => void }) {
 
         {page === 3 && (
           <section className="paged-card">
-            <h2 className="paged-title">WORLD TROPHIES</h2>
+            <h2 className="paged-title">PACABACUS TROPHY</h2>
             <div className="trophy-grid">
-              {worldTrophies.map(({ world, stars, complete, maxStars, maxLevel }) => (
-                <div
-                  key={world.id}
-                  className={[
-                    'rounded-xl border-2 p-3 text-center',
-                    complete ? 'border-amber-400 bg-amber-500/15' : 'border-[var(--c-border)] bg-black/25',
-                  ].join(' ')}
-                >
-                  <div className="text-2xl">{complete ? world.icon : '🔒'}</div>
-                  <div className="text-sm font-black">{world.name}</div>
-                  <div className="text-xs text-[var(--c-soft)]">
-                    {complete ? `${stars}/${maxStars} stars` : `Complete all ${maxLevel} levels`}
-                  </div>
+              <div
+                className={[
+                  'rounded-xl border-2 p-3 text-center',
+                  pacabacusComplete ? 'border-amber-400 bg-amber-500/15' : 'border-[var(--c-border)] bg-black/25',
+                ].join(' ')}
+              >
+                <div className="text-2xl">{pacabacusComplete ? '🧮' : '🔒'}</div>
+                <div className="text-sm font-black">PacAbacus</div>
+                <div className="text-xs text-[var(--c-soft)]">
+                  {pacabacusComplete ? `${pacabacusStars}/${ADVENTURE_MAX * 3} stars` : `Complete all ${ADVENTURE_MAX} levels`}
                 </div>
-              ))}
+              </div>
             </div>
           </section>
         )}

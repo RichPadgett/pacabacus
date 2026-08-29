@@ -206,8 +206,9 @@ export function RainGame({ onExit }: { onExit: () => void }) {
   useEffect(() => {
     if (settings.music) chiptune.playSong(state.level - 1)
     else chiptune.stopMusic()
-    return () => chiptune.stopMusic()
   }, [settings.music, state.level])
+
+  useEffect(() => () => chiptune.stopMusic(), [])
 
   const msgId = state.message?.id
   useEffect(() => {

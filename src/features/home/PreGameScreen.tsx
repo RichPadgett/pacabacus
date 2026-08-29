@@ -4,8 +4,8 @@ import { PixelSprite } from '@/features/arcade/PixelSprite'
 import { HEROES } from '@/features/arcade/sprites'
 import { useArcadeSettings } from '@/features/arcade/settingsStore'
 import { THEMES } from '@/features/arcade/themes'
-import { ADD_ON_MAX, ADVENTURE_MAX } from '@/features/arcade/gameConfig'
-import { LEARNING_WORLDS, ageFromDateOfBirth } from '@/features/learning/learningWorlds'
+import { ADVENTURE_MAX } from '@/features/arcade/gameConfig'
+import { ageFromDateOfBirth } from '@/features/learning/learningWorlds'
 import { useProfile } from '@/features/profile/profileStore'
 import { useTranslations } from '@/features/i18n/i18nStore'
 
@@ -20,11 +20,10 @@ export function PreGameScreen({ onStart, onLineup, onBack }: PreGameScreenProps)
   const settings = useArcadeSettings()
   const { ageBandLabel, t, worldText } = useTranslations()
   const theme = THEMES[settings.theme] ?? THEMES.stars
-  const world = LEARNING_WORLDS.find((item) => item.id === profile.learningWorld) ?? LEARNING_WORLDS[0]
-  const worldCopy = worldText(world.id)
-  const maxLevel = profile.learningWorld === 'pacabacus' ? ADVENTURE_MAX : ADD_ON_MAX
-  const unlockedLevel = profile.worldLevels?.[profile.learningWorld] ?? 1
-  const playLevel = Math.min(profile.playWorldLevels?.[profile.learningWorld] ?? unlockedLevel, maxLevel)
+  const worldCopy = worldText('pacabacus')
+  const maxLevel = ADVENTURE_MAX
+  const unlockedLevel = profile.worldLevels?.pacabacus ?? 1
+  const playLevel = Math.min(profile.playWorldLevels?.pacabacus ?? unlockedLevel, maxLevel)
   const heroId = HEROES[profile.character] ? profile.character : 'kitty'
   const hero = HEROES[heroId]
   const buddies = profile.buddies.filter((id) => HEROES[id]).slice(0, 3)
@@ -51,7 +50,7 @@ export function PreGameScreen({ onStart, onLineup, onBack }: PreGameScreenProps)
         </div>
 
         <div className="mt-5 text-center">
-          <div className="text-4xl">{world.icon}</div>
+          <div className="text-4xl">🧮</div>
           <h1 className="mt-1 text-3xl font-black text-amber-300">{worldCopy.name}</h1>
           <p className="text-sm font-bold text-[var(--c-soft)]">
             Level {playLevel} · {worldCopy.subtitle}

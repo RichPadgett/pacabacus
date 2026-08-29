@@ -30,7 +30,7 @@ import { HEROES, SECRET_HERO_IDS, type HeroId } from './sprites'
 import { SPEED_MS, useArcadeSettings } from './settingsStore'
 import { THEMES } from './themes'
 import { ANSWER_PHASES, collectibleTreasureCount, useArcadeGame } from './useArcadeGame'
-import { worldForAdventureLevel } from './worlds'
+import { worldForAdventureLevel, type AdventureWorld } from './worlds'
 
 export type PlayMode = 'adventure' | 'counting' | 'free' | 'pacwords' | 'pactables' | 'pacmath'
 
@@ -46,15 +46,16 @@ const KEY_DIRS: Record<string, Dir> = {
 }
 
 const ANSWER_INPUT_GUARD_MS = 700
+const NEXT_LEVEL_DELAY_MS = 900
+const NEXT_WORLD_DELAY_MS = 2800
 
 function useTileSize(cols: number, rows: number, panelOpen: boolean) {
   const calc = () => {
     const isLandscape = window.innerWidth > window.innerHeight
-    const panelWidth = panelOpen && isLandscape ? Math.min(400, window.innerWidth * 0.44) : 0
-    const boardWidth = window.innerWidth - panelWidth - (isLandscape ? 20 : 12)
+    const boardWidth = window.innerWidth - (isLandscape ? 20 : 12)
     const widthFit = Math.floor(boardWidth / cols)
-    const panelHeight = panelOpen && !isLandscape ? Math.min(window.innerHeight * 0.52, 496) : 0
-    const reservedHeight = (isLandscape ? 14 : 104) + panelHeight
+    const statusHeight = document.querySelector<HTMLElement>('.game-status-bar')?.offsetHeight ?? 104
+    const reservedHeight = statusHeight + (isLandscape ? 12 : 8)
     const heightFit = Math.floor((window.innerHeight - reservedHeight) / rows)
     return Math.max(10, Math.min(96, widthFit, heightFit))
   }
@@ -63,7 +64,11 @@ function useTileSize(cols: number, rows: number, panelOpen: boolean) {
     const onResize = () => setTile(calc())
     onResize()
     window.addEventListener('resize', onResize)
-    return () => window.removeEventListener('resize', onResize)
+    window.visualViewport?.addEventListener('resize', onResize)
+    return () => {
+      window.removeEventListener('resize', onResize)
+      window.visualViewport?.removeEventListener('resize', onResize)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cols, rows, panelOpen])
   return tile
@@ -256,7 +261,10 @@ export function ArcadeGame({
   const [rewards, setRewards] = useState<CompleteResult | null>(null)
   const [powerBuddyId, setPowerBuddyId] = useState<HeroId | null>(null)
   const [answerInputReady, setAnswerInputReady] = useState(false)
+  const [nextLevelLoading, setNextLevelLoading] = useState(false)
+  const [worldTransition, setWorldTransition] = useState(false)
   const completedLevelRef = useRef(0)
+  const nextLevelTimerRef = useRef<number | null>(null)
 
   // record progress + unlocks the moment a level is cleared
   useEffect(() => {
@@ -308,10 +316,11 @@ export function ArcadeGame({
 
   // music + sfx
   useEffect(() => {
-    if (settings.music) chiptune.playSong(songIndex)
+    if (settings.music) chiptune.playSong(songIndex, settings.currentBpm[String(songIndex)])
     else chiptune.stopMusic()
-    return () => chiptune.stopMusic()
-  }, [settings.music, songIndex])
+  }, [settings.music, settings.currentBpm, songIndex])
+
+  useEffect(() => () => chiptune.stopMusic(), [])
 
   const { phase } = state
   useEffect(() => {
@@ -350,6 +359,7 @@ export function ArcadeGame({
   const modeLabel = isFreePlay
     ? 'Free Play'
     : LEARNING_WORLDS.find((learning) => learning.id === activeWorld)?.name ?? 'Adventure'
+  const roomLabel = phase === 'travel' ? 'Travel Path' : 'Level Room'
 
   const setAnswer = useCallback(
     (value: number) => {
@@ -360,6 +370,35 @@ export function ArcadeGame({
     [dispatch, answerInputReady],
   )
   const canAnswer = ANSWER_PHASES.includes(phase) && answerInputReady
+
+  const goNextLevel = () => {
+    if (nextLevelLoading) return
+    const isWorldTransition = Boolean(crossingWorld && world && nextWorld)
+    setNextLevelLoading(true)
+    setWorldTransition(isWorldTransition)
+    nextLevelTimerRef.current = window.setTimeout(() => {
+      setRewards(null)
+      setNextLevelLoading(false)
+      setWorldTransition(false)
+      dispatch({ type: 'NEXT_LEVEL' })
+      nextLevelTimerRef.current = null
+    }, isWorldTransition ? NEXT_WORLD_DELAY_MS : NEXT_LEVEL_DELAY_MS)
+  }
+
+  useEffect(() => () => {
+    if (nextLevelTimerRef.current != null) window.clearTimeout(nextLevelTimerRef.current)
+  }, [])
+
+  const toggleMusic = () => {
+    const nextMusic = !settings.music
+    settings.update({ music: nextMusic })
+    if (nextMusic) {
+      chiptune.previewSound()
+      chiptune.playSong(songIndex, settings.currentBpm[String(songIndex)])
+    } else {
+      chiptune.stopMusic()
+    }
+  }
 
   useEffect(() => {
     setShowLearningPanel(ANSWER_PHASES.includes(phase))
@@ -407,78 +446,83 @@ export function ArcadeGame({
     >
       {theme.id === 'stars' && <Twinkles />}
 
-      {/* HUD */}
-      <div className="game-hud z-20 grid w-full grid-cols-[1fr_auto_auto] items-center gap-1 rounded-xl border border-white/20 bg-slate-950/55 px-2 py-1 shadow-lg shadow-black/20 backdrop-blur-md sm:flex sm:w-auto sm:flex-wrap sm:justify-center sm:gap-2 sm:rounded-2xl sm:px-3">
-        <div className="min-w-0">
-          <div className="truncate text-xs font-black text-amber-200 sm:text-sm">
-            {modeLabel} · Level {state.level}
-          </div>
-          <div className="truncate text-[11px] font-bold text-[var(--c-soft)]">
-            {chapter ? `${chapter.emoji} ${chapter.name}` : world ? `${world.emoji} ${world.name}` : 'Practice room'}
-          </div>
-        </div>
-        <div className="flex items-center gap-1.5 text-xs font-black sm:text-sm">
-          <span>{'❤️'.repeat(state.lives) || '💔'}</span>
-          <span className="rounded-full bg-black/25 px-2 py-0.5 text-amber-200">
-            {state.rescue && ['rescueFight', 'rescueWall', 'levelClear'].includes(phase)
-              ? `🧱 ${state.rescue.wallHits}/${state.rescue.wallTarget}`
-              : `${Math.min(state.goalProgress, state.goalTarget)}/${state.goalTarget}`}
-          </span>
-          <span className="hidden sm:inline">⭐ {state.stars}</span>
-          <span className={`growth-pill growth-pill--${growth.stage}`}>
-            {growth.shortLabel}
-          </span>
-          {state.vulnerableMovesLeft > 0 && (
-            <span className="growth-charge-pill">⚡ {state.vulnerableMovesLeft}</span>
-          )}
-        </div>
-        <div className="flex items-center gap-1">
-          <div className="hidden min-w-20 text-center sm:block">
-            <div className="text-[10px] text-[var(--c-soft)]">Quick</div>
-            <div className="mt-1 h-2 overflow-hidden rounded-full bg-black/30">
-              <div
-                className="h-full rounded-full bg-amber-300 transition-all"
-                style={{ width: `${state.starReady ? 100 : state.quickMeter}%` }}
-              />
+      <div className="game-status-bar z-20 flex w-full max-w-[min(58rem,96vw)] flex-col items-center gap-1">
+        {/* HUD */}
+        <div className="game-hud grid w-full grid-cols-[1fr_auto_auto] items-center gap-1 rounded-xl border border-white/20 bg-slate-950/55 px-2 py-1 shadow-lg shadow-black/20 backdrop-blur-md sm:flex sm:w-auto sm:max-w-full sm:flex-wrap sm:justify-center sm:gap-2 sm:rounded-2xl sm:px-3">
+          <div className="min-w-0">
+            <div className="truncate text-xs font-black text-amber-200 sm:text-sm">
+              {modeLabel} · Level {state.level}
+            </div>
+            <div className="truncate text-[11px] font-bold text-[var(--c-soft)]">
+              {roomLabel} · {chapter ? `${chapter.emoji} ${chapter.name}` : world ? `${world.emoji} ${world.name}` : 'Practice room'}
             </div>
           </div>
-          <div className="h-8 w-2 overflow-hidden rounded-full bg-black/30 sm:hidden">
-            <div
-              className="w-full rounded-full bg-amber-300 transition-all"
-              style={{ height: `${state.starReady ? 100 : state.quickMeter}%`, marginTop: `${100 - (state.starReady ? 100 : state.quickMeter)}%` }}
-            />
+          <div className="flex items-center gap-1.5 text-xs font-black sm:text-sm">
+            <span>{'❤️'.repeat(state.lives) || '💔'}</span>
+            <span className="rounded-full bg-black/25 px-2 py-0.5 text-amber-200">
+              {state.rescue && ['rescueFight', 'rescueWall', 'levelClear'].includes(phase)
+                ? `🧱 ${state.rescue.wallHits}/${state.rescue.wallTarget}`
+                : `${Math.min(state.goalProgress, state.goalTarget)}/${state.goalTarget}`}
+            </span>
+            <span className="hidden sm:inline">⭐ {state.stars}</span>
+            <span className={`growth-pill growth-pill--${growth.stage}`}>
+              {growth.shortLabel}
+            </span>
+            {state.vulnerableMovesLeft > 0 && (
+              <span className="growth-charge-pill">⚡ {state.vulnerableMovesLeft}</span>
+            )}
           </div>
-          <button
-            type="button"
-            onClick={() => settings.update({ music: !settings.music })}
-            className="h-11 w-11 rounded-lg border-2 border-[var(--c-border)] bg-black/20 text-base hover:brightness-125"
-            aria-label={settings.music ? 'Mute music' : 'Play music'}
-          >
-            {settings.music ? '🔊' : '🔇'}
-          </button>
-          <button
-            type="button"
-            onClick={onExit}
-            className="h-11 rounded-lg border-2 border-[var(--c-border)] bg-black/20 px-3 text-xs font-bold hover:brightness-125"
-          >
-            🏠
-          </button>
+          <div className="flex items-center gap-1">
+            <div className="hidden min-w-20 text-center sm:block">
+              <div className="text-[10px] text-[var(--c-soft)]">Quick</div>
+              <div className="mt-1 h-2 overflow-hidden rounded-full bg-black/30">
+                <div
+                  className="h-full rounded-full bg-amber-300 transition-all"
+                  style={{ width: `${state.starReady ? 100 : state.quickMeter}%` }}
+                />
+              </div>
+            </div>
+            <div className="h-8 w-2 overflow-hidden rounded-full bg-black/30 sm:hidden">
+              <div
+                className="w-full rounded-full bg-amber-300 transition-all"
+                style={{ height: `${state.starReady ? 100 : state.quickMeter}%`, marginTop: `${100 - (state.starReady ? 100 : state.quickMeter)}%` }}
+              />
+            </div>
+            <button
+              type="button"
+              onClick={toggleMusic}
+              className="h-11 w-11 rounded-lg border-2 border-[var(--c-border)] bg-black/20 text-base hover:brightness-125"
+              aria-label={settings.music ? 'Mute music' : 'Play music'}
+            >
+              {settings.music ? '🔊' : '🔇'}
+            </button>
+            <button
+              type="button"
+              onClick={onExit}
+              className="h-11 rounded-lg border-2 border-[var(--c-border)] bg-black/20 px-3 text-xs font-bold hover:brightness-125"
+            >
+              🏠
+            </button>
+          </div>
         </div>
-      </div>
 
-      <div className="game-goal z-20 max-w-[96vw] rounded-full border border-emerald-400/70 bg-slate-950/55 px-3 py-0.5 text-center text-xs font-bold text-emerald-300 backdrop-blur-md sm:px-4 sm:py-1 sm:text-sm">
-        {goalText}
-      </div>
-      {state.rescue && ['rescueFight', 'rescueWall'].includes(phase) && (
-        <div className="game-rescue-status z-20 flex max-w-[98vw] items-center gap-2 rounded-2xl border border-amber-300 bg-slate-950/60 px-3 py-1 text-xs font-black text-amber-100 backdrop-blur-md">
-          <span>🔒 {HEROES[state.rescue.challenge.hero]?.name}</span>
-          <span className="text-lg tracking-tight">
-            {'🧱'.repeat(Math.max(0, state.rescue.wallTarget - state.rescue.wallHits))}
-            {'💥'.repeat(state.rescue.wallHits)}
+        <div className="game-goal max-w-full rounded-full border border-emerald-400/70 bg-slate-950/55 px-3 py-0.5 text-center text-xs font-bold text-emerald-300 backdrop-blur-md sm:px-4 sm:py-1 sm:text-sm">
+          <span className={phase === 'travel' ? 'game-room-pill game-room-pill--travel' : 'game-room-pill'}>
+            {roomLabel}
           </span>
-          <span>👀 {state.rescue.badGuysLeft}</span>
+          {goalText}
         </div>
-      )}
+        {state.rescue && ['rescueFight', 'rescueWall'].includes(phase) && (
+          <div className="game-rescue-status flex max-w-full items-center gap-2 rounded-2xl border border-amber-300 bg-slate-950/60 px-3 py-1 text-xs font-black text-amber-100 backdrop-blur-md">
+            <span>🔒 {HEROES[state.rescue.challenge.hero]?.name}</span>
+            <span className="text-lg tracking-tight">
+              {'🧱'.repeat(Math.max(0, state.rescue.wallTarget - state.rescue.wallHits))}
+              {'💥'.repeat(state.rescue.wallHits)}
+            </span>
+            <span>👀 {state.rescue.badGuysLeft}</span>
+          </div>
+        )}
+      </div>
 
       <div className={showLearningPanel ? 'game-board-stage game-board-stage--panel-open' : 'game-board-stage'}>
         <div className="flex min-h-0 flex-1 items-center justify-center">
@@ -749,11 +793,21 @@ export function ArcadeGame({
               <OverlayButton onClick={onExit}>Back home 🏠</OverlayButton>
             </>
           ) : (
-            <OverlayButton onClick={() => { setRewards(null); dispatch({ type: 'NEXT_LEVEL' }) }}>
-              Next level ▶
+            <OverlayButton onClick={goNextLevel} disabled={nextLevelLoading}>
+              {nextLevelLoading
+                ? crossingWorld ? 'Traveling...' : 'Getting next room...'
+                : crossingWorld ? 'Walk to next world ▶' : 'Next level ▶'}
             </OverlayButton>
           )}
         </Overlay>
+      )}
+      {worldTransition && world && nextWorld && (
+        <WorldTransitionOverlay
+          from={world}
+          to={nextWorld}
+          hero={hero}
+          buddies={visibleBuddies}
+        />
       )}
       {phase === 'gameOver' && (
         <Overlay title="Ouch — you lost all three hearts! ❤️">
@@ -774,6 +828,53 @@ export function ArcadeGame({
           </div>
         </Overlay>
       )}
+    </div>
+  )
+}
+
+function WorldTransitionOverlay({
+  from,
+  to,
+  hero,
+  buddies,
+}: {
+  from: AdventureWorld
+  to: AdventureWorld
+  hero: HeroId
+  buddies: HeroId[]
+}) {
+  const party = [hero, ...buddies].slice(0, 4)
+  return (
+    <div className="world-transition-overlay">
+      <div className="world-transition-scene">
+        <div className="world-transition-copy">
+          <div className="text-sm font-black uppercase tracking-wide text-[var(--c-soft)]">
+            World complete
+          </div>
+          <h2 className="mt-1 text-3xl font-black text-amber-300">
+            {from.emoji} {from.name}
+          </h2>
+          <div className="mt-2 text-lg font-black text-emerald-200">
+            Walking to {to.emoji} {to.name}
+          </div>
+        </div>
+        <div className="world-transition-road" />
+        <div className="world-transition-party">
+          {party.map((id, index) => {
+            const def = HEROES[id]
+            return (
+              <PixelSprite
+                key={`${id}-${index}`}
+                map={def.frames[index % 2]}
+                palette={def.palette}
+                size={index === 0 ? 72 : 54}
+                className="world-transition-sprite"
+                style={{ animationDelay: `${index * 120}ms` }}
+              />
+            )
+          })}
+        </div>
+      </div>
     </div>
   )
 }
@@ -908,15 +1009,18 @@ function Overlay({ title, children }: { title: string; children: React.ReactNode
 function OverlayButton({
   onClick,
   children,
+  disabled,
 }: {
   onClick: () => void
   children: React.ReactNode
+  disabled?: boolean
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="mx-auto rounded-xl border-4 border-emerald-600 bg-emerald-400 px-8 py-2 text-lg font-black text-emerald-950 active:scale-95"
+      disabled={disabled}
+      className="mx-auto rounded-xl border-4 border-emerald-600 bg-emerald-400 px-8 py-2 text-lg font-black text-emerald-950 active:scale-95 disabled:opacity-60"
     >
       {children}
     </button>

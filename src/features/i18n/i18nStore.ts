@@ -28,7 +28,6 @@ type TranslationKey =
   | 'button.pick'
   | 'button.team'
   | 'button.rewards'
-  | 'button.settings'
   | 'button.jump'
   | 'button.startOver'
   | 'button.deletePlayer'
@@ -78,7 +77,6 @@ const packs: Record<LocaleId, LocalePack> = {
     'button.pick': 'Pick',
     'button.team': 'Team',
     'button.rewards': 'Rewards',
-    'button.settings': 'Settings',
     'button.jump': 'Jump',
     'button.startOver': 'Start this player over',
     'button.deletePlayer': 'Delete this player',
@@ -155,7 +153,6 @@ const packs: Record<LocaleId, LocalePack> = {
     'button.pick': 'Elegir',
     'button.team': 'Equipo',
     'button.rewards': 'Premios',
-    'button.settings': 'Ajustes',
     'button.jump': 'Saltar',
     'button.startOver': 'Empezar de nuevo',
     'button.deletePlayer': 'Borrar jugador',
@@ -212,7 +209,6 @@ const packs: Record<LocaleId, LocalePack> = {
     'button.pick': 'えらぶ',
     'button.team': 'チーム',
     'button.rewards': 'ごほうび',
-    'button.settings': 'せってい',
     'button.jump': 'ジャンプ',
     'button.startOver': 'さいしょから',
     'button.deletePlayer': 'プレイヤーをけす',
@@ -269,7 +265,6 @@ const packs: Record<LocaleId, LocalePack> = {
     'button.pick': 'Choisir',
     'button.team': 'Equipe',
     'button.rewards': 'Recompenses',
-    'button.settings': 'Reglages',
     'button.jump': 'Aller',
     'button.startOver': 'Recommencer',
     'button.deletePlayer': 'Supprimer joueur',
@@ -326,7 +321,6 @@ const packs: Record<LocaleId, LocalePack> = {
     'button.pick': 'Wahlen',
     'button.team': 'Team',
     'button.rewards': 'Belohnungen',
-    'button.settings': 'Einstellungen',
     'button.jump': 'Springen',
     'button.startOver': 'Neu starten',
     'button.deletePlayer': 'Spieler loschen',
@@ -383,7 +377,6 @@ const packs: Record<LocaleId, LocalePack> = {
     'button.pick': 'चुनें',
     'button.team': 'टीम',
     'button.rewards': 'इनाम',
-    'button.settings': 'सेटिंग',
     'button.jump': 'जाएं',
     'button.startOver': 'फिर से शुरू करें',
     'button.deletePlayer': 'खिलाड़ी हटाएं',
@@ -433,12 +426,18 @@ interface I18nStore {
 }
 
 function detectLocale(): LocaleId {
-  const language = globalThis.navigator?.language?.toLowerCase() ?? ''
-  if (language.startsWith('es')) return 'es-ES'
-  if (language.startsWith('ja')) return 'ja-JP'
-  if (language.startsWith('fr')) return 'fr-FR'
-  if (language.startsWith('de')) return 'de-DE'
-  if (language.startsWith('hi')) return 'hi-IN'
+  const languages = [
+    ...(globalThis.navigator?.languages ?? []),
+    globalThis.navigator?.language,
+  ]
+  for (const language of languages) {
+    const normalized = language?.toLowerCase() ?? ''
+    if (normalized.startsWith('es')) return 'es-ES'
+    if (normalized.startsWith('ja')) return 'ja-JP'
+    if (normalized.startsWith('fr')) return 'fr-FR'
+    if (normalized.startsWith('de')) return 'de-DE'
+    if (normalized.startsWith('hi')) return 'hi-IN'
+  }
   return 'en-US'
 }
 

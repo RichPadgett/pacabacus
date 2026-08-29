@@ -10,12 +10,10 @@ import {
   totalWorldCompleted,
   useProfile,
 } from '@/features/profile/profileStore'
-import { ADD_ON_MAX, ADVENTURE_MAX } from '@/features/arcade/gameConfig'
+import { ADVENTURE_MAX } from '@/features/arcade/gameConfig'
 import { RESCUE_CHALLENGES, rescueForAgeBand } from '@/features/profile/rescueChallenges'
 import {
-  LEARNING_WORLDS,
   ageFromDateOfBirth,
-  type LearningWorldId,
 } from '@/features/learning/learningWorlds'
 import { LOCALE_OPTIONS, useI18n, useTranslations, type LocaleId } from '@/features/i18n/i18nStore'
 
@@ -33,14 +31,14 @@ interface HomeScreenProps {
   onPreGame: () => void
   onCharacters: () => void
   onRewards: () => void
-  onFreePlay: () => void
+  onSoundtrack: () => void
 }
 
 export function HomeScreen({
   onPreGame,
   onCharacters,
   onRewards,
-  onFreePlay,
+  onSoundtrack,
 }: HomeScreenProps) {
   const profile = useProfile()
   const settings = useArcadeSettings()
@@ -58,11 +56,10 @@ export function HomeScreen({
   const buddyNames = profile.buddies.map((id) => HEROES[id]?.name).filter(Boolean)
   const total = totalWorldCompleted(profile)
   const badges = earnedBadges(total)
-  const activeWorld = LEARNING_WORLDS.find((world) => world.id === profile.learningWorld) ?? LEARNING_WORLDS[0]
-  const activeWorldText = worldText(activeWorld.id)
-  const unlockedWorldLevel = profile.worldLevels?.[profile.learningWorld] ?? 1
-  const worldLevel = profile.playWorldLevels?.[profile.learningWorld] ?? unlockedWorldLevel
-  const maxWorldLevel = profile.learningWorld === 'pacabacus' ? ADVENTURE_MAX : ADD_ON_MAX
+  const activeWorldText = worldText('pacabacus')
+  const unlockedWorldLevel = profile.worldLevels?.pacabacus ?? 1
+  const worldLevel = profile.playWorldLevels?.pacabacus ?? unlockedWorldLevel
+  const maxWorldLevel = ADVENTURE_MAX
   const rescuedCount = SECRET_HERO_IDS.filter((id) => profile.ownedCharacters.includes(id)).length
   const ageRescue = rescueForAgeBand(profile.ageBand)
   const age = ageFromDateOfBirth(profile.dateOfBirth)
@@ -76,8 +73,9 @@ export function HomeScreen({
   useEffect(() => {
     if (settings.music) chiptune.playMenuSong()
     else chiptune.stopMusic()
-    return () => chiptune.stopMusic()
   }, [settings.music])
+
+  useEffect(() => () => chiptune.stopMusic(), [])
 
   const createProfileFromDraft = () => {
     profile.createProfile(nameInput.trim(), starterHero, dateOfBirthInput || null)
@@ -144,19 +142,22 @@ export function HomeScreen({
             </button>
           </div>
 
-          <LearningWorlds
-            current={profile.learningWorld}
-            onPick={profile.setLearningWorld}
-            t={t}
-            worldText={worldText}
+          <AdventureFocus
+            level={Math.min(worldLevel, maxWorldLevel)}
+            maxLevel={maxWorldLevel}
+            completed={Math.max(0, Math.min(unlockedWorldLevel, maxWorldLevel + 1) - 1)}
+            rescues={rescuedCount}
+            rescueTotal={SECRET_HERO_IDS.length}
+            badgeCount={badges.length}
+            ageLabel={age != null ? t('profile.yearsOld', { count: age }) : ageBandLabel(profile.ageBand)}
           />
 
           {showProfiles && (
-            <div className="flex w-full max-w-md flex-col gap-3 rounded-2xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] p-4">
+            <div className="home-profiles-panel flex w-full max-w-3xl flex-col gap-4 rounded-2xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] p-5">
               <h2 className="text-center text-sm font-bold tracking-wide text-[var(--c-soft)]">
                 {t('profiles.title')}
               </h2>
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 {profile.profiles.map((p) => {
                   const pHero = HEROES[p.character] ?? HEROES.kitty
                   const selected = p.id === profile.activeProfileId
@@ -164,7 +165,7 @@ export function HomeScreen({
                     <div
                       key={p.id}
                       className={[
-                        'flex items-center gap-3 rounded-2xl border-2 p-3 text-left active:scale-95',
+                        'home-player-card flex items-center gap-3 rounded-2xl border-2 p-3 text-left active:scale-95',
                         selected
                           ? 'border-emerald-400 bg-emerald-500/20'
                           : 'border-[var(--c-border)] bg-black/20 hover:brightness-125',
@@ -192,9 +193,9 @@ export function HomeScreen({
                           if (!confirm(`Delete ${p.username}'s profile? This cannot be undone.`)) return
                           profile.deleteProfile(p.id)
                         }}
-                        className="rounded-lg border border-rose-300 bg-rose-500/20 px-2 py-1 text-xs font-black text-rose-100 hover:bg-rose-500/35"
+                        className="home-delete-player rounded-lg border border-rose-300 bg-rose-500/20 px-3 py-2 text-xs font-black text-rose-100 hover:bg-rose-500/35"
                       >
-                        {t('button.deletePlayer')}
+                        Delete
                       </button>
                     </div>
                   )
@@ -218,28 +219,15 @@ export function HomeScreen({
           )}
 
           <div className="home-actions flex w-full max-w-md flex-col gap-3">
-            <div className="rounded-2xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] px-4 py-3 text-center">
-              <div className="text-xs font-black uppercase tracking-wide text-[var(--c-soft)]">
-                Skill path
-              </div>
-              <div className="mt-1 text-lg font-black text-amber-200">
-                {age != null ? t('profile.yearsOld', { count: age }) : ageBandLabel(profile.ageBand)}
-              </div>
-              <div className="text-xs font-bold text-[var(--c-soft)]">
-                Complete levels to unlock the next skill step.
-              </div>
-            </div>
             <MenuButton onClick={onPreGame} big className="home-adventure-button">
               <span className="home-adventure-label">
                 <span>▶ Start Adventure</span>
                 <span className="home-adventure-status">{activeWorldText.name} · {playStatus}</span>
-                <span>▶</span>
               </span>
             </MenuButton>
-            <div className="home-secondary-actions grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="home-secondary-actions grid grid-cols-1 gap-3 sm:grid-cols-2">
               <MenuButton onClick={onCharacters}>🎭 {t('button.team')}</MenuButton>
               <MenuButton onClick={onRewards}>🏆 {t('button.rewards')}</MenuButton>
-              <MenuButton onClick={onFreePlay}>⚙️ {t('button.settings')}</MenuButton>
             </div>
             {showTools && (
               <div className="home-tools-panel flex flex-col gap-2 rounded-2xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] p-4">
@@ -288,11 +276,23 @@ export function HomeScreen({
                   </div>
                 </div>
                 <div className="rounded-xl border border-[var(--c-border)] bg-black/20 p-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowTools(false)
+                      onSoundtrack()
+                    }}
+                    className="w-full rounded-xl border-2 border-cyan-300 bg-cyan-500/15 px-4 py-2 text-sm font-black text-cyan-100 hover:bg-cyan-500/25"
+                  >
+                    🎵 Soundtrack preview
+                  </button>
+                </div>
+                <div className="rounded-xl border border-[var(--c-border)] bg-black/20 p-3">
                   <label className="text-xs font-black text-[var(--c-soft)]">
                     {t('tools.replayUnlocked')}
                     <select
                       value={worldLevel}
-                      onChange={(e) => profile.setWorldLevel(profile.learningWorld, Number(e.target.value))}
+                      onChange={(e) => profile.setWorldLevel('pacabacus', Number(e.target.value))}
                       className="mt-1 w-full rounded-lg border border-[var(--c-border)] bg-black/30 px-3 py-2 text-sm font-bold text-white"
                     >
                       {Array.from(
@@ -300,7 +300,7 @@ export function HomeScreen({
                         (_, i) => i + 1,
                       ).map((level) => {
                         const rescue = RESCUE_CHALLENGES.find(
-                          (challenge) => challenge.world === profile.learningWorld && challenge.level === level,
+                          (challenge) => challenge.world === 'pacabacus' && challenge.level === level,
                         )
                         return (
                           <option key={level} value={level}>
@@ -354,63 +354,54 @@ export function HomeScreen({
   )
 }
 
-function LearningWorlds({
-  current,
-  onPick,
-  t,
-  worldText,
+function AdventureFocus({
+  level,
+  maxLevel,
+  completed,
+  rescues,
+  rescueTotal,
+  badgeCount,
+  ageLabel,
 }: {
-  current: LearningWorldId
-  onPick: (world: LearningWorldId) => void
-  t: ReturnType<typeof useTranslations>['t']
-  worldText: ReturnType<typeof useTranslations>['worldText']
+  level: number
+  maxLevel: number
+  completed: number
+  rescues: number
+  rescueTotal: number
+  badgeCount: number
+  ageLabel: string
 }) {
+  const progress = Math.round((completed / maxLevel) * 100)
   return (
-    <section className="home-worlds w-full max-w-md rounded-2xl border-2 border-[var(--c-border)] bg-black/20 p-3">
-      <div className="home-worlds__header mb-2 flex items-center justify-between gap-3">
-        <h2 className="text-sm font-black tracking-wide text-amber-200">{t('worlds.title')}</h2>
-        <span className="rounded-full border border-amber-300 bg-amber-500/15 px-2 py-0.5 text-[11px] font-black text-amber-100">
-          {t('worlds.choose')}
+    <section className="home-focus-panel w-full max-w-md rounded-2xl border-2 border-[var(--c-border)] bg-black/20 p-4">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div>
+          <h2 className="text-sm font-black tracking-wide text-amber-200">Soroban Adventure</h2>
+          <p className="text-xs font-bold text-[var(--c-soft)]">One focused math path built around bead thinking.</p>
+        </div>
+        <span className="rounded-full border border-emerald-300 bg-emerald-500/15 px-3 py-1 text-xs font-black text-emerald-100">
+          Level {level}
         </span>
       </div>
-      <div className="home-worlds__grid grid grid-cols-2 gap-2">
-        {LEARNING_WORLDS.map((world) => {
-          const selected = current === world.id
-          const copy = worldText(world.id)
-          return (
-            <button
-              key={world.id}
-              type="button"
-              onClick={() => onPick(world.id)}
-              className={[
-                'home-world-card min-h-28 rounded-xl border-2 p-3 text-left transition active:scale-95',
-                selected
-                  ? 'border-emerald-400 bg-emerald-500/20 hover:brightness-125'
-                  : 'border-[var(--c-border)] bg-[var(--c-panel)] hover:brightness-125',
-              ].join(' ')}
-            >
-              <span className="flex items-center justify-between gap-2">
-                <span className="text-2xl">{world.icon}</span>
-                <span
-                  className={[
-                    'rounded-full px-2 py-0.5 text-[10px] font-black',
-                    selected
-                      ? 'bg-emerald-300 text-emerald-950'
-                      : 'bg-amber-300 text-amber-950',
-                  ].join(' ')}
-                >
-                  {selected ? t('button.active') : t('button.pick')}
-                </span>
-              </span>
-              <span className="mt-1 block text-sm font-black">{copy.name}</span>
-              <span className="mt-0.5 block text-[11px] leading-snug text-[var(--c-soft)]">
-                {copy.detail}
-              </span>
-            </button>
-          )
-        })}
+      <div className="mb-3 h-3 overflow-hidden rounded-full border border-[var(--c-border)] bg-black/30">
+        <div className="h-full rounded-full bg-emerald-400" style={{ width: `${progress}%` }} />
+      </div>
+      <div className="home-focus-stats grid grid-cols-2 gap-2">
+        <FocusStat label="Skill path" value={ageLabel} />
+        <FocusStat label="Cleared" value={`${completed}/${maxLevel}`} />
+        <FocusStat label="Rescues" value={`${rescues}/${rescueTotal}`} />
+        <FocusStat label="Badges" value={String(badgeCount)} />
       </div>
     </section>
+  )
+}
+
+function FocusStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="home-focus-stat rounded-xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] p-3 text-center">
+      <div className="text-[11px] font-black uppercase tracking-wide text-[var(--c-soft)]">{label}</div>
+      <div className="mt-1 text-sm font-black text-amber-100">{value}</div>
+    </div>
   )
 }
 

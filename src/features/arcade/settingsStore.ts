@@ -6,7 +6,6 @@ import type { ThemeId } from './themes'
 export type GhostDifficulty = 'off' | 'chill' | 'spooky' | 'scary'
 export type GameSpeed = 'relaxed' | 'normal' | 'speedy'
 export type MaxAnswer = 10 | 20 | 50
-export type GameMode = 'maze' | 'rain'
 
 export interface ArcadeSettings {
   mathLevel: MathLevel
@@ -15,8 +14,9 @@ export interface ArcadeSettings {
   ghosts: GhostDifficulty
   speed: GameSpeed
   music: boolean
+  currentBpm: Record<string, number>
+  scorebookBpm: Record<string, number>
   theme: ThemeId
-  mode: GameMode
   rockTimer: boolean
 }
 
@@ -49,8 +49,9 @@ const DEFAULT_SETTINGS: ArcadeSettings = {
   ghosts: 'chill',
   speed: 'relaxed',
   music: true,
+  currentBpm: {},
+  scorebookBpm: {},
   theme: 'stars',
-  mode: 'maze',
   rockTimer: false,
 }
 
