@@ -22,6 +22,23 @@ describe('age-tuned game config', () => {
     }
   })
 
+  it('starts fresh soroban players with pure bead-count matching', () => {
+    for (let level = 1; level <= 10; level += 1) {
+      const cfg = countingCfg(level)
+
+      expect(cfg.problem.kind).toBe('early')
+      if (cfg.problem.kind !== 'early') return
+      expect(cfg.problem.countChance).toBe(1)
+      expect(cfg.problem.sumCap).toBe(0)
+
+      for (let sample = 0; sample < 40; sample += 1) {
+        const problem = generateFromCfg(cfg.problem)
+        expect(problem.kind).toBe('count')
+        expect(problem.b).toBe(0)
+      }
+    }
+  })
+
   it('uses the protected counting path for the little age band at any adventure level', () => {
     const cfg = learningWorldCfg('pacabacus', 50, 'little')
 

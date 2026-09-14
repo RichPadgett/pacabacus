@@ -351,10 +351,10 @@ export function beadHint(p: ArcadeProblem, techniqueHints = true): string {
   const friendOfFive = 5 - p.b
   const friendOfTen = 10 - p.b
   if (p.kind === 'count') {
-    return `Count them one by one — slide one blue bead up for each ${p.emoji ?? 'one'}!${p.answer > 5 ? ' The gold bead counts as 5!' : ''}`
+    return `Touch the beads while you count: one ${p.emoji ?? 'fruit'}, one bead.${p.answer > 5 ? ' The gold bead counts as 5, then add blue beads.' : ''}`
   }
   if (p.emoji) {
-    return `Count all the ${p.emoji} together — slide a bead for each one!`
+    return `Use the beads, not fingers: show the first group, then add the second group on the abacus.`
   }
   if (p.technique === 'challenge' && p.c != null && p.op2) {
     const mid = p.op === 'add' ? p.a + p.b : p.a - p.b
