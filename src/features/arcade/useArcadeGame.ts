@@ -107,7 +107,6 @@ export interface GameState {
   answerTicks: number
   hint: string
   answerValue: number
-  answerText: string
   message: GameMessage | null
   rescue: RescueRun | null
   answerStartedAt: number
@@ -126,7 +125,6 @@ export interface GameState {
 
 type Action =
   | { type: 'SET_ANSWER'; value: number }
-  | { type: 'SET_TEXT_ANSWER'; value: string }
   | { type: 'SUBMIT' }
   | { type: 'CHALLENGE' }
   | { type: 'MOVE'; dir: Dir }
@@ -345,15 +343,6 @@ function rescueProblem(cfg: LevelCfg): ArcadeProblem {
       maxAnswer: problem.maxAnswer,
     })
   }
-  if (problem.kind === 'tables') {
-    return generateFromCfg({ ...problem, maxFactor: Math.min(15, problem.maxFactor + 2) })
-  }
-  if (problem.kind === 'standard') {
-    return generateFromCfg({ ...problem, maxAnswer: Math.min(100, problem.maxAnswer + 25) })
-  }
-  if (problem.kind === 'words') {
-    return generateFromCfg({ ...problem, level: problem.level + 3 })
-  }
   return generateChallenge({ mathLevel: 3, ops: 'add', maxAnswer: 20 })
 }
 
@@ -380,7 +369,6 @@ function makeReducer(
     answerTicks: 0,
     hint: '',
     answerValue: 0,
-    answerText: '',
     answerStartedAt: Date.now(),
     phase: 'move',
   })
@@ -391,7 +379,6 @@ function makeReducer(
     answerTicks: 0,
     hint: '',
     answerValue: 0,
-    answerText: '',
     answerStartedAt: Date.now(),
     phase: 'answer',
   })
@@ -402,7 +389,6 @@ function makeReducer(
     answerTicks: 0,
     hint: '',
     answerValue: 0,
-    answerText: '',
     answerStartedAt: Date.now(),
   })
 
@@ -497,7 +483,6 @@ function makeReducer(
     battleResume: state.phase === 'travel' ? 'travel' : 'move',
     problem: generateBattleProblem(learningWorld, state.level, state.cfg.gentle),
     answerValue: 0,
-    answerText: '',
     attempts: 0,
     hint: '',
     message: say(state, 'Baddie battle! Solve the three-part problem! ⚔️', 'bad'),
@@ -583,7 +568,6 @@ function makeReducer(
       answerTicks: 0,
       hint: '',
       answerValue: 0,
-      answerText: '',
       answerStartedAt: Date.now(),
       phase: 'move',
       message: cfg.intro ? say(state, cfg.intro, 'good') : state.message,
@@ -632,11 +616,6 @@ function makeReducer(
         return { ...state, answerValue: action.value }
       }
 
-      case 'SET_TEXT_ANSWER': {
-        if (!ANSWER_PHASES.includes(state.phase)) return state
-        return { ...state, answerText: action.value }
-      }
-
       case 'CHALLENGE': {
         if (
           state.phase !== 'answer' ||
@@ -662,10 +641,7 @@ function makeReducer(
       case 'SUBMIT': {
         if (!ANSWER_PHASES.includes(state.phase)) return state
         const p = state.problem
-        const correct =
-          p.answerText != null
-            ? state.answerText.trim().toLowerCase() === p.answerText.toLowerCase()
-            : state.answerValue === p.answer
+        const correct = state.answerValue === p.answer
         if (state.phase === 'collisionBattle') {
           const ghosts = state.battleGhost
             ? removeOneBaddieAt(state.ghosts, state.battleGhost)
@@ -1198,7 +1174,6 @@ function makeInitialState(
     answerTicks: 0,
     hint: '',
     answerValue: 0,
-    answerText: '',
     message: cfg.intro ? { text: cfg.intro, tone: 'good', id: 1 } : null,
     rescue: null,
     answerStartedAt: Date.now(),

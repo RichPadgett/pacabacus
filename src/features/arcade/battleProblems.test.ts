@@ -20,10 +20,10 @@ describe('RPG battle problems', () => {
     }
   })
 
-  it('scales number size across later worlds and levels', () => {
+  it('scales number size across later levels', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.99)
     const early = generateBattleProblem('pacabacus', 1)
-    const late = generateBattleProblem('pacmath', 20)
+    const late = generateBattleProblem('pacabacus', 20)
     expect(late.a + late.b + (late.c ?? 0)).toBeGreaterThan(early.a + early.b + (early.c ?? 0))
     vi.restoreAllMocks()
   })

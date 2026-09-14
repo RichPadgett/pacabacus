@@ -1,15 +1,7 @@
 import type { HeroId } from '@/features/arcade/sprites'
 
-export type LearningWorldId = 'pacabacus' | 'pacwords' | 'pactables' | 'pacmath'
+export type LearningWorldId = 'pacabacus'
 export type AgeBand = 'little' | 'early' | 'growing' | 'big' | 'master'
-
-export interface LearningWorldDef {
-  id: LearningWorldId
-  name: string
-  icon: string
-  detail: string
-  shortDetail: string
-}
 
 export interface LearningChapter {
   name: string
@@ -17,42 +9,8 @@ export interface LearningChapter {
   detail: string
 }
 
-export const LEARNING_WORLDS: LearningWorldDef[] = [
-  {
-    id: 'pacabacus',
-    name: 'PacAbacus',
-    icon: '🧮',
-    detail: 'Soroban, counting, and bead thinking',
-    shortDetail: 'Abacus adventure',
-  },
-  {
-    id: 'pacwords',
-    name: 'PacWords',
-    icon: '🔤',
-    detail: 'Letters, spelling, and sight words',
-    shortDetail: 'Words and letters',
-  },
-  {
-    id: 'pactables',
-    name: 'PacTables',
-    icon: '✖️',
-    detail: 'Times tables and skip counting',
-    shortDetail: 'Multiplication facts',
-  },
-  {
-    id: 'pacmath',
-    name: 'PacMath',
-    icon: '➕',
-    detail: 'Standard math without abacus controls',
-    shortDetail: 'Regular math',
-  },
-]
-
 export const DEFAULT_WORLD_LEVELS: Record<LearningWorldId, number> = {
   pacabacus: 1,
-  pacwords: 1,
-  pactables: 1,
-  pacmath: 1,
 }
 
 export const WORLD_CHAPTERS: Record<LearningWorldId, LearningChapter[]> = {
@@ -61,24 +19,6 @@ export const WORLD_CHAPTERS: Record<LearningWorldId, LearningChapter[]> = {
     { name: 'Friendship Forest', emoji: '🌲', detail: '5-friends and 10-friends with gentle pressure' },
     { name: 'Moon Bridge', emoji: '🌙', detail: 'Mixed moves and bigger bead patterns' },
     { name: 'Crystal Castle', emoji: '🏰', detail: 'Longer rooms with stronger soroban thinking' },
-  ],
-  pacwords: [
-    { name: 'Letter Garden', emoji: '🌼', detail: 'Missing letters and simple word shapes' },
-    { name: 'Rhyme River', emoji: '🌊', detail: 'Short vowels and familiar sounds' },
-    { name: 'Story Woods', emoji: '📖', detail: 'Sight words and quick recognition' },
-    { name: 'Library Tower', emoji: '🗼', detail: 'Longer words and trickier choices' },
-  ],
-  pactables: [
-    { name: 'Skip-Hop Meadow', emoji: '🌿', detail: 'Early skip counting patterns' },
-    { name: 'Factor Factory', emoji: '⚙️', detail: 'Core multiplication facts' },
-    { name: 'Comet Kitchen', emoji: '☄️', detail: 'Mixed tables with faster choices' },
-    { name: 'Times Temple', emoji: '🏛️', detail: 'All facts with stronger recall' },
-  ],
-  pacmath: [
-    { name: 'Number Nook', emoji: '🔢', detail: 'Friendly addition and counting' },
-    { name: 'Plus Plaza', emoji: '➕', detail: 'Addition and subtraction rooms' },
-    { name: 'Puzzle Port', emoji: '🧩', detail: 'Mixed problems and bigger numbers' },
-    { name: 'Logic Lighthouse', emoji: '💡', detail: 'Fast regular math practice' },
   ],
 }
 
@@ -116,27 +56,7 @@ export function ageBandFromDateOfBirth(dateOfBirth?: string | null): AgeBand {
   return 'master'
 }
 
-export function trainerStartLevel(ageBand: AgeBand, world: LearningWorldId) {
-  if (world === 'pactables') {
-    if (ageBand === 'little' || ageBand === 'early') return 1
-    if (ageBand === 'growing') return 4
-    if (ageBand === 'big') return 7
-    return 11
-  }
-  if (world === 'pacwords') {
-    if (ageBand === 'little') return 1
-    if (ageBand === 'early') return 3
-    if (ageBand === 'growing') return 6
-    if (ageBand === 'big') return 8
-    return 12
-  }
-  if (world === 'pacmath') {
-    if (ageBand === 'little') return 1
-    if (ageBand === 'early') return 3
-    if (ageBand === 'growing') return 7
-    if (ageBand === 'big') return 10
-    return 15
-  }
+export function trainerStartLevel(ageBand: AgeBand, _world: LearningWorldId) {
   if (ageBand === 'little') return 1
   if (ageBand === 'early') return 4
   if (ageBand === 'growing') return 9
@@ -146,9 +66,6 @@ export function trainerStartLevel(ageBand: AgeBand, world: LearningWorldId) {
 
 export const WORLD_CHARACTER_UNLOCKS: Record<LearningWorldId, HeroId[]> = {
   pacabacus: ['monkey', 'dino', 'snake', 'turtle', 'meerkat', 'elephant', 'chomper'],
-  pacwords: ['penguin', 'unicorn', 'panda', 'otter', 'bunny', 'chick'],
-  pactables: ['bee', 'dragon', 'robo', 'lion', 'shark', 'crab'],
-  pacmath: ['frog', 'seal', 'koala', 'dolphin', 'beaver', 'axolotl', 'rooster', 'lamby', 'strawbat'],
 }
 
 export function characterUnlocksForWorld(world: LearningWorldId, level: number) {

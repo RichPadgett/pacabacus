@@ -22,13 +22,13 @@ describe('per-world profile progress', () => {
 
   it('records a clear in the active world and synchronizes the player profile', () => {
     useProfile.getState().createProfile('Ada', 'dog')
-    const result = useProfile.getState().completeWorldLevel('pacwords', 1, 3)
+    const result = useProfile.getState().completeWorldLevel('pacabacus', 1, 3)
     const state = useProfile.getState()
 
-    expect(state.worldLevels.pacwords).toBe(2)
-    expect(state.playWorldLevels.pacwords).toBe(2)
-    expect(state.worldStars['pacwords:1']).toBe(3)
-    expect(state.profiles[0].worldStars['pacwords:1']).toBe(3)
+    expect(state.worldLevels.pacabacus).toBe(2)
+    expect(state.playWorldLevels.pacabacus).toBe(2)
+    expect(state.worldStars['pacabacus:1']).toBe(3)
+    expect(state.profiles[0].worldStars['pacabacus:1']).toBe(3)
     expect(result.coinsEarned).toBe(25)
   })
 

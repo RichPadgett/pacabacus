@@ -94,8 +94,7 @@ export function totalCompleted(s: { adventureLevel: number; countingLevel: numbe
 }
 
 export function totalWorldCompleted(s: { worldLevels?: Partial<Record<LearningWorldId, number>> }) {
-  const levels = { ...DEFAULT_WORLD_LEVELS, ...s.worldLevels }
-  return Object.values(levels).reduce((sum, level) => sum + Math.max(0, level - 1), 0)
+  return Math.max(0, (s.worldLevels?.pacabacus ?? DEFAULT_WORLD_LEVELS.pacabacus) - 1)
 }
 
 const MAX_ACTIVE_BUDDIES = 3
@@ -127,7 +126,13 @@ export function earnedBadges(total: number): Badge[] {
 }
 
 function normalizeWorldLevels(worldLevels?: Partial<Record<LearningWorldId, number>>) {
-  return { ...DEFAULT_WORLD_LEVELS, ...worldLevels }
+  return {
+    pacabacus: Math.max(1, worldLevels?.pacabacus ?? DEFAULT_WORLD_LEVELS.pacabacus),
+  }
+}
+
+function normalizeLearningWorld(_world?: string | null): LearningWorldId {
+  return 'pacabacus'
 }
 
 function makeProfile(username: string, character: HeroId, dateOfBirth: string | null = null): PlayerProfile {
@@ -170,7 +175,7 @@ function activeFields(profile: PlayerProfile) {
     treasureCoins: profile.treasureCoins ?? 0,
     dateOfBirth: profile.dateOfBirth ?? null,
     ageBand: profile.ageBand ?? ageBandFromDateOfBirth(profile.dateOfBirth),
-    learningWorld: profile.learningWorld ?? 'pacabacus',
+    learningWorld: normalizeLearningWorld(profile.learningWorld),
     worldLevels: normalizeWorldLevels(profile.worldLevels),
     playWorldLevels: normalizeWorldLevels(profile.playWorldLevels ?? profile.worldLevels),
     worldStars: profile.worldStars ?? {},
@@ -516,7 +521,7 @@ export const useProfile = create<ProfileStore>()(
               ownedBuddies,
               dateOfBirth: p.dateOfBirth ?? null,
               ageBand: p.ageBand ?? ageBandFromDateOfBirth(p.dateOfBirth),
-              learningWorld: p.learningWorld ?? 'pacabacus',
+              learningWorld: normalizeLearningWorld(p.learningWorld),
               worldLevels,
               playWorldLevels: normalizeWorldLevels(p.playWorldLevels ?? p.worldLevels),
               worldStars: p.worldStars ?? {},

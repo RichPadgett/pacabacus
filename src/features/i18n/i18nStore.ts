@@ -118,24 +118,6 @@ const packs: Record<LocaleId, LocalePack> = {
         shortDetail: 'Abacus adventure',
         subtitle: 'Soroban Adventure',
       },
-      pacwords: {
-        name: 'PacWords',
-        detail: 'Letters, spelling, and sight words',
-        shortDetail: 'Words and letters',
-        subtitle: 'Word Adventure',
-      },
-      pactables: {
-        name: 'PacTables',
-        detail: 'Times tables and skip counting',
-        shortDetail: 'Multiplication facts',
-        subtitle: 'Tables Adventure',
-      },
-      pacmath: {
-        name: 'PacMath',
-        detail: 'Standard math without abacus controls',
-        shortDetail: 'Regular math',
-        subtitle: 'Mental Math',
-      },
     },
   },
   'es-ES': {
@@ -189,9 +171,6 @@ const packs: Record<LocaleId, LocalePack> = {
     },
     worlds: {
       pacabacus: { name: 'PacAbacus', detail: 'Soroban, conteo y pensamiento con cuentas', shortDetail: 'Aventura de abaco', subtitle: 'Aventura Soroban' },
-      pacwords: { name: 'PacWords', detail: 'Letras, ortografia y palabras frecuentes', shortDetail: 'Palabras y letras', subtitle: 'Aventura de palabras' },
-      pactables: { name: 'PacTables', detail: 'Tablas de multiplicar y conteo por saltos', shortDetail: 'Multiplicacion', subtitle: 'Aventura de tablas' },
-      pacmath: { name: 'PacMath', detail: 'Matematicas normales sin abaco', shortDetail: 'Matematicas', subtitle: 'Calculo mental' },
     },
   },
   'ja-JP': {
@@ -245,9 +224,6 @@ const packs: Record<LocaleId, LocalePack> = {
     },
     worlds: {
       pacabacus: { name: 'PacAbacus', detail: 'そろばん、かぞえる力、珠算の考え方', shortDetail: 'そろばん冒険', subtitle: 'そろばんアドベンチャー' },
-      pacwords: { name: 'PacWords', detail: '文字、つづり、ことば', shortDetail: 'ことばと文字', subtitle: 'ことばアドベンチャー' },
-      pactables: { name: 'PacTables', detail: '九九とかけ算の練習', shortDetail: 'かけ算', subtitle: '九九アドベンチャー' },
-      pacmath: { name: 'PacMath', detail: 'そろばんなしの算数', shortDetail: '算数', subtitle: '暗算チャレンジ' },
     },
   },
   'fr-FR': {
@@ -301,9 +277,6 @@ const packs: Record<LocaleId, LocalePack> = {
     },
     worlds: {
       pacabacus: { name: 'PacAbacus', detail: 'Soroban, compter et penser avec les boules', shortDetail: 'Aventure abaque', subtitle: 'Aventure Soroban' },
-      pacwords: { name: 'PacWords', detail: 'Lettres, orthographe et mots courants', shortDetail: 'Mots et lettres', subtitle: 'Aventure mots' },
-      pactables: { name: 'PacTables', detail: 'Tables de multiplication et suites', shortDetail: 'Multiplication', subtitle: 'Aventure tables' },
-      pacmath: { name: 'PacMath', detail: 'Maths sans controle abaque', shortDetail: 'Maths', subtitle: 'Calcul mental' },
     },
   },
   'de-DE': {
@@ -357,9 +330,6 @@ const packs: Record<LocaleId, LocalePack> = {
     },
     worlds: {
       pacabacus: { name: 'PacAbacus', detail: 'Soroban, Zahlen und Denken mit Perlen', shortDetail: 'Abakus-Abenteuer', subtitle: 'Soroban-Abenteuer' },
-      pacwords: { name: 'PacWords', detail: 'Buchstaben, Rechtschreibung und Sichtworter', shortDetail: 'Worter und Buchstaben', subtitle: 'Worter-Abenteuer' },
-      pactables: { name: 'PacTables', detail: 'Einmaleins und Zahlensprunge', shortDetail: 'Multiplikation', subtitle: 'Tabellen-Abenteuer' },
-      pacmath: { name: 'PacMath', detail: 'Normale Mathe ohne Abakus', shortDetail: 'Mathe', subtitle: 'Kopfrechnen' },
     },
   },
   'hi-IN': {
@@ -413,9 +383,6 @@ const packs: Record<LocaleId, LocalePack> = {
     },
     worlds: {
       pacabacus: { name: 'PacAbacus', detail: 'Soroban, गिनती, और abacus सोच', shortDetail: 'Abacus adventure', subtitle: 'Soroban Adventure' },
-      pacwords: { name: 'PacWords', detail: 'अक्षर, spelling, और sight words', shortDetail: 'Words and letters', subtitle: 'Word Adventure' },
-      pactables: { name: 'PacTables', detail: 'पहाड़े और skip counting', shortDetail: 'Multiplication facts', subtitle: 'Tables Adventure' },
-      pacmath: { name: 'PacMath', detail: 'बिना abacus के math', shortDetail: 'Regular math', subtitle: 'Mental Math' },
     },
   },
 }

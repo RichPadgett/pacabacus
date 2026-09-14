@@ -6,14 +6,10 @@ import {
 } from '@/features/drills/problemGenerator'
 import { useProfile, type CompleteResult } from '@/features/profile/profileStore'
 import {
-  ADD_ON_MAX,
   ADVENTURE_MAX,
-  freePlayCfg,
   learningWorldCfg,
 } from './gameConfig'
 import {
-  DEFAULT_WORLD_LEVELS,
-  LEARNING_WORLDS,
   chapterForLevel,
   type LearningWorldId,
 } from '@/features/learning/learningWorlds'
@@ -32,7 +28,7 @@ import { THEMES } from './themes'
 import { ANSWER_PHASES, collectibleTreasureCount, useArcadeGame } from './useArcadeGame'
 import { worldForAdventureLevel, type AdventureWorld } from './worlds'
 
-export type PlayMode = 'adventure' | 'counting' | 'free' | 'pacwords' | 'pactables' | 'pacmath'
+export type PlayMode = 'adventure'
 
 const KEY_DIRS: Record<string, Dir> = {
   ArrowUp: 'up',
@@ -148,7 +144,7 @@ function opSymbol(op: ArcadeProblem['op']) {
 
 function VerticalProblem({ problem }: { problem: ArcadeProblem }) {
   const rows = [{ op: '', value: problem.a }]
-  rows.push({ op: problem.kind === 'tables' ? '×' : opSymbol(problem.op), value: problem.b })
+  rows.push({ op: opSymbol(problem.op), value: problem.b })
   if (problem.c != null && problem.op2) rows.push({ op: opSymbol(problem.op2), value: problem.c })
 
   return (
@@ -169,14 +165,6 @@ function VerticalProblem({ problem }: { problem: ArcadeProblem }) {
 }
 
 function ProblemPrompt({ problem }: { problem: ArcadeProblem }) {
-  if (problem.kind === 'word') {
-    return (
-      <div className="my-1 rounded-xl bg-black/20 px-4 py-2 text-3xl font-black tracking-[0.18em] text-amber-300 sm:px-5 sm:py-3 sm:text-4xl">
-        {problem.prompt}
-      </div>
-    )
-  }
-  if (problem.kind === 'tables') return <VerticalProblem problem={problem} />
   if (problem.prompt) {
     return (
       <div className="my-1 rounded-xl bg-black/20 px-4 py-2 text-center text-xl font-black text-amber-300 sm:px-5 sm:py-3 sm:text-2xl">
@@ -191,7 +179,7 @@ function ProblemPrompt({ problem }: { problem: ArcadeProblem }) {
 }
 
 export function ArcadeGame({
-  mode,
+  mode: _mode,
   learningWorld,
   onExit,
 }: {
@@ -201,26 +189,15 @@ export function ArcadeGame({
 }) {
   const settings = useArcadeSettings()
   const profile = useProfile()
-  const activeWorld: LearningWorldId =
-    learningWorld ??
-    (['pacwords', 'pactables', 'pacmath'].includes(mode)
-      ? (mode as LearningWorldId)
-      : profile.learningWorld)
-  const isFreePlay = mode === 'free'
-  const worldLevels = { ...DEFAULT_WORLD_LEVELS, ...profile.worldLevels }
-  const playWorldLevels = { ...worldLevels, ...profile.playWorldLevels }
+  const activeWorld: LearningWorldId = learningWorld ?? profile.learningWorld
 
   const cfgFor = useMemo(() => {
-    if (!isFreePlay) {
-      return (level: number) => learningWorldCfg(activeWorld, level, profile.ageBand, settings)
-    }
-    const snapshot = freePlayCfg(settings)
-    return () => snapshot
+    return (level: number) => learningWorldCfg(activeWorld, level, profile.ageBand, settings)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeWorld, isFreePlay, profile.ageBand, settings])
+  }, [activeWorld, profile.ageBand, settings])
 
-  const maxLevel = activeWorld === 'pacabacus' ? ADVENTURE_MAX : ADD_ON_MAX
-  const startLevel = isFreePlay ? 1 : Math.min(playWorldLevels[activeWorld], maxLevel)
+  const maxLevel = ADVENTURE_MAX
+  const startLevel = Math.min(profile.playWorldLevels[activeWorld], maxLevel)
 
   const stepMs = SPEED_MS[settings.speed]
   const { state, dispatch } = useArcadeGame(
@@ -228,19 +205,18 @@ export function ArcadeGame({
     startLevel,
     stepMs,
     false,
-    !isFreePlay,
+    true,
     maxLevel,
     activeWorld,
     profile.ownedCharacters,
   )
   const [showLearningPanel, setShowLearningPanel] = useState(true)
-  const visualGrowthLevel = isFreePlay ? worldLevels[activeWorld] : state.level
-  const growth = growthForProgress(profile.ageBand, visualGrowthLevel)
+  const growth = growthForProgress(profile.ageBand, state.level)
   const tile = useTileSize(state.maze.cols, state.maze.rows, showLearningPanel)
-  const world = !isFreePlay ? worldForAdventureLevel(state.level) : null
-  const chapter = !isFreePlay ? chapterForLevel(activeWorld, state.level) : null
+  const world = worldForAdventureLevel(state.level)
+  const chapter = chapterForLevel(activeWorld, state.level)
   const nextWorld = world && state.level < maxLevel ? worldForAdventureLevel(state.level + 1) : null
-  const nextChapter = !isFreePlay && state.level < maxLevel ? chapterForLevel(activeWorld, state.level + 1) : null
+  const nextChapter = state.level < maxLevel ? chapterForLevel(activeWorld, state.level + 1) : null
   const crossingWorld = Boolean(world && nextWorld && world.id !== nextWorld.id)
   const songIndex = world ? world.musicIndex + ((state.level - world.levelStart) % 2) : state.level - 1
   const theme = world ? THEMES[world.theme] : (THEMES[settings.theme] ?? THEMES.stars)
@@ -268,17 +244,16 @@ export function ArcadeGame({
 
   // record progress + unlocks the moment a level is cleared
   useEffect(() => {
-    if (!['levelClear', 'doorOpen'].includes(state.phase) || isFreePlay) return
+    if (!['levelClear', 'doorOpen'].includes(state.phase)) return
     if (completedLevelRef.current === state.level) return
     completedLevelRef.current = state.level
     setRewards(profile.completeWorldLevel(activeWorld, state.level, state.clearStars))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.phase, state.level, isFreePlay, activeWorld])
+  }, [state.phase, state.level, activeWorld])
 
   // hands-free: right beads auto-submit after a short settle
   useEffect(() => {
     if (!ANSWER_PHASES.includes(state.phase) || !touched.current) return
-    if (state.problem.answerText != null) return
     if (state.answerValue !== state.problem.answer) return
     const t = setTimeout(() => dispatch({ type: 'SUBMIT' }), 550)
     return () => clearTimeout(t)
@@ -349,16 +324,8 @@ export function ArcadeGame({
   const { problem } = state
   const isChallenge = problem.technique === 'challenge'
   const canSteer = phase === 'move' || phase === 'doorOpen' || phase === 'travel'
-  const answerMode =
-    problem.kind === 'word'
-      ? 'word'
-      : activeWorld === 'pacmath' || activeWorld === 'pactables'
-        ? 'keypad'
-        : 'abacus'
-  const learningTabLabel = answerMode === 'word' ? '🔤 Words' : answerMode === 'keypad' ? '🔢 Numbers' : '🧮 Math & beads'
-  const modeLabel = isFreePlay
-    ? 'Free Play'
-    : LEARNING_WORLDS.find((learning) => learning.id === activeWorld)?.name ?? 'Adventure'
+  const learningTabLabel = '🧮 Math & beads'
+  const modeLabel = 'PacAbacus'
   const roomLabel = phase === 'travel' ? 'Travel Path' : 'Level Room'
 
   const setAnswer = useCallback(
@@ -412,11 +379,7 @@ export function ArcadeGame({
       : phase === 'rescueWall'
         ? `Break the rescue wall: ${state.rescue?.wallHits ?? 0}/${state.rescue?.wallTarget ?? 0} cracks.`
       : phase === 'answer'
-      ? problem.kind === 'word'
-        ? 'Choose the missing letter to open the door!'
-        : problem.kind === 'tables'
-          ? 'Solve the times table to open the door!'
-          : problem.kind === 'count'
+      ? problem.kind === 'count'
         ? `Count the ${problem.emoji}s to open the door!`
         : 'Solve one puzzle to open the door!'
       : phase === 'move'
@@ -603,9 +566,7 @@ export function ArcadeGame({
                   <div
                     className={[
                       'flex w-full flex-col items-center rounded-xl border p-1.5 sm:p-2 landscape:shrink-0 landscape:p-1.5',
-                      answerMode === 'keypad'
-                        ? 'landscape:w-[min(15rem,25vw)]'
-                        : 'landscape:w-[min(12rem,19vw)]',
+                      'landscape:w-[min(12rem,19vw)]',
                       isChallenge
                         ? 'border-amber-400 bg-amber-950/50'
                         : 'border-white/10 bg-black/10',
@@ -622,9 +583,7 @@ export function ArcadeGame({
                           : '⚡ CHALLENGE — ONE TRY! ⚡'
                       : problem.kind === 'count'
                         ? 'HOW MANY?'
-                        : problem.kind === 'word'
-                          ? 'MISSING LETTER'
-                          : 'SOLVE ME!'}
+                        : 'SOLVE ME!'}
                   </h3>
                   <ProblemPrompt problem={problem} />
                   <div className="mb-0.5 max-w-full rounded-full border border-emerald-500 bg-emerald-500/15 px-2 py-0 text-center text-[10px] font-bold leading-tight text-emerald-300 sm:text-xs">
@@ -685,50 +644,21 @@ export function ArcadeGame({
                   )}
                 </div>
 
-                <div
-                  className={[
-                    'flex w-full flex-col items-center p-0.5 landscape:w-auto landscape:shrink-0',
-                    answerMode === 'keypad' ? 'landscape:min-w-[13.5rem]' : '',
-                  ].join(' ')}
-                >
-                  {answerMode === 'word' ? (
-                    <WordChoices
-                      choices={problem.choices ?? []}
-                      selected={state.answerText}
-                      disabled={!canAnswer}
-                      onPick={(value) => {
-                        if (!canAnswer) return
-                        dispatch({ type: 'SET_TEXT_ANSWER', value })
-                        dispatch({ type: 'SUBMIT' })
-                      }}
-                    />
-                  ) : answerMode === 'keypad' ? (
-                    <NumberPad
-                      value={state.answerValue}
-                      disabled={!canAnswer}
-                      onChange={setAnswer}
-                      onSubmit={() => {
-                        if (canAnswer) dispatch({ type: 'SUBMIT' })
-                      }}
-                    />
-                  ) : (
-                    <>
-                      <h3 className="mb-1 text-[11px] font-bold tracking-wide text-[var(--c-soft)] sm:mb-2 sm:text-xs">
-                        YOUR ABACUS
-                      </h3>
-                      <Abacus
-                        rodCount={state.cfg.rodCount}
-                        value={state.answerValue}
-                        onChange={setAnswer}
-                        readOnly={!canAnswer}
-                        showLabels={state.cfg.rodCount > 1}
-                        compact
-                      />
-                      <div className="mt-1 text-sm sm:mt-2 sm:text-lg">
-                        Beads: <b className="text-xl text-amber-300 sm:text-2xl">{state.answerValue}</b>
-                      </div>
-                    </>
-                  )}
+                <div className="flex w-full flex-col items-center p-0.5 landscape:w-auto landscape:shrink-0">
+                  <h3 className="mb-1 text-[11px] font-bold tracking-wide text-[var(--c-soft)] sm:mb-2 sm:text-xs">
+                    YOUR ABACUS
+                  </h3>
+                  <Abacus
+                    rodCount={state.cfg.rodCount}
+                    value={state.answerValue}
+                    onChange={setAnswer}
+                    readOnly={!canAnswer}
+                    showLabels={state.cfg.rodCount > 1}
+                    compact
+                  />
+                  <div className="mt-1 text-sm sm:mt-2 sm:text-lg">
+                    Beads: <b className="text-xl text-amber-300 sm:text-2xl">{state.answerValue}</b>
+                  </div>
                 </div>
               </>
             )}
@@ -896,101 +826,6 @@ function RescueCard({ heroId }: { heroId: HeroId }) {
       <p className="mt-2 text-xs font-bold text-[var(--c-soft)]">
         Power: {detail.power}
       </p>
-    </div>
-  )
-}
-
-function NumberPad({
-  value,
-  disabled,
-  onChange,
-  onSubmit,
-}: {
-  value: number
-  disabled: boolean
-  onChange: (value: number) => void
-  onSubmit: () => void
-}) {
-  const append = (digit: number) => onChange(Math.min(999, value * 10 + digit))
-  return (
-    <div className="flex w-full flex-col items-center gap-2">
-      <h3 className="text-xs font-bold tracking-wide text-[var(--c-soft)]">TYPE THE ANSWER</h3>
-      <div className="min-w-28 rounded-xl border-2 border-[var(--c-border)] bg-black/25 px-5 py-2 text-center text-3xl font-black text-amber-300">
-        {value}
-      </div>
-      <div className="grid grid-cols-3 gap-2">
-        {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((digit) => (
-          <button
-            key={digit}
-            type="button"
-            disabled={disabled}
-            onClick={() => append(digit)}
-            className="h-12 w-16 rounded-xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] text-2xl font-black brightness-110 active:brightness-150 disabled:opacity-40"
-          >
-            {digit}
-          </button>
-        ))}
-        <button
-          type="button"
-          disabled={disabled}
-          onClick={() => onChange(0)}
-          className="h-12 w-16 rounded-xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] text-sm font-black brightness-110 active:brightness-150 disabled:opacity-40"
-        >
-          Clear
-        </button>
-        <button
-          type="button"
-          disabled={disabled}
-          onClick={() => append(0)}
-          className="h-12 w-16 rounded-xl border-2 border-[var(--c-border)] bg-[var(--c-panel)] text-2xl font-black brightness-110 active:brightness-150 disabled:opacity-40"
-        >
-          0
-        </button>
-        <button
-          type="button"
-          disabled={disabled}
-          onClick={onSubmit}
-          className="h-12 w-16 rounded-xl border-2 border-emerald-600 bg-emerald-400 text-sm font-black text-emerald-950 active:brightness-110 disabled:opacity-40"
-        >
-          Go
-        </button>
-      </div>
-    </div>
-  )
-}
-
-function WordChoices({
-  choices,
-  selected,
-  disabled,
-  onPick,
-}: {
-  choices: string[]
-  selected: string
-  disabled: boolean
-  onPick: (value: string) => void
-}) {
-  return (
-    <div className="flex w-full flex-col items-center gap-3">
-      <h3 className="text-xs font-bold tracking-wide text-[var(--c-soft)]">PICK A LETTER</h3>
-      <div className="grid grid-cols-2 gap-3">
-        {choices.map((choice) => (
-          <button
-            key={choice}
-            type="button"
-            disabled={disabled}
-            onClick={() => onPick(choice)}
-            className={[
-              'h-16 w-24 rounded-2xl border-2 text-3xl font-black uppercase active:scale-95 disabled:opacity-40',
-              selected === choice
-                ? 'border-emerald-300 bg-emerald-300 text-emerald-950'
-                : 'border-[var(--c-border)] bg-[var(--c-panel)] text-amber-200 brightness-110',
-            ].join(' ')}
-          >
-            {choice}
-          </button>
-        ))}
-      </div>
     </div>
   )
 }
