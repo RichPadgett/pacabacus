@@ -163,15 +163,13 @@ export function adventureCfg(level: number, settings?: ArcadeSettings): LevelCfg
 /** Little Counters: 20 gentle levels for brand-new counters (age ~5). */
 export function countingCfg(level: number): LevelCfg {
   const problem: ProblemCfg =
-    level <= 3
+    level <= 5
       ? { kind: 'early', countChance: 1, countMin: 1, countMax: 2 + level, sumCap: 0 }
-      : level <= 8
-        ? { kind: 'early', countChance: 0.55, countMin: 1, countMax: 5, sumCap: 5 }
-        : level <= 12
-          ? { kind: 'early', countChance: 0.4, countMin: 1, countMax: 7, sumCap: 7 }
-          : level <= 16
-            ? { kind: 'early', countChance: 0.3, countMin: 1, countMax: 10, sumCap: 10 }
-            : { kind: 'early', countChance: 0.2, countMin: 1, countMax: 10, sumCap: 10 }
+      : level <= 10
+        ? { kind: 'early', countChance: 0.75, countMin: 1, countMax: 6, sumCap: 5 }
+        : level <= 15
+          ? { kind: 'early', countChance: 0.65, countMin: 1, countMax: 8, sumCap: 8 }
+          : { kind: 'early', countChance: 0.55, countMin: 1, countMax: 9, sumCap: 9 }
 
   const enemy: EnemyCfg = {
     count: level <= 6 ? 0 : 1,
@@ -183,8 +181,8 @@ export function countingCfg(level: number): LevelCfg {
 
   return {
     problem,
-    // one rod keeps it simple until sums can reach 10
-    rodCount: level <= 12 ? 1 : 2,
+    // One rod keeps the youngest players focused on matching quantities, not place value.
+    rodCount: 1,
     enemy,
     treasureCount: Math.min(28, 16 + Math.ceil(level / 2)),
     gentle: true,
@@ -192,11 +190,11 @@ export function countingCfg(level: number): LevelCfg {
     intro:
       level === 1
         ? 'Count the fruit — slide one blue bead up for each one! 🍓'
-        : level === 4
+        : level === 6
             ? 'Now try adding! Count both groups together. ➕'
-            : level === 9
+            : level === 11
               ? 'Big numbers! The gold bead at the top counts as 5. ✨'
-              : level === 13
+              : level === 16
                 ? 'A little baddie is wandering around — keep counting! 👀'
               : undefined,
   }
