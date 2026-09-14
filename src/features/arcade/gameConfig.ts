@@ -104,9 +104,9 @@ function ageTuneCfg(cfg: LevelCfg, ageBand: AgeBand): LevelCfg {
 
 function ageAdjustedLevel(level: number, ageBand: AgeBand) {
   if (ageBand === 'little') return Math.max(1, level - 2)
-  if (ageBand === 'growing') return level + 6
-  if (ageBand === 'big') return level + 14
-  if (ageBand === 'master') return level + 24
+  if (ageBand === 'growing') return level + 3
+  if (ageBand === 'big') return level + 8
+  if (ageBand === 'master') return level + 14
   return level
 }
 

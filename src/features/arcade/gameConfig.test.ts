@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import type { AgeBand } from '@/features/learning/learningWorlds'
 import { generateFromCfg } from '@/features/drills/problemGenerator'
 import { COUNTING_MAX, countingCfg, learningWorldCfg } from './gameConfig'
 
@@ -45,5 +46,43 @@ describe('age-tuned game config', () => {
     expect(cfg.rodCount).toBe(1)
     expect(cfg.gentle).toBe(true)
     expect(cfg.problem.kind).toBe('early')
+  })
+
+  it('keeps age 6-7 aligned to within-20 addition before harder work', () => {
+    for (const level of [1, 6, 12, 20]) {
+      const cfg = learningWorldCfg('pacabacus', level, 'early')
+
+      expect(cfg.problem.kind).toBe('tech')
+      if (cfg.problem.kind !== 'tech') return
+      expect(cfg.problem.ops).toBe('add')
+      expect(cfg.problem.maxAnswer).toBeLessThanOrEqual(20)
+      expect(cfg.problem.mathLevel).toBeLessThanOrEqual(3)
+    }
+  })
+
+  it('ramps older children without skipping the early soroban foundation', () => {
+    const expectations: Array<{
+      ageBand: AgeBand
+      firstLevelMaxAnswer: number
+      firstLevelMathLevel: number
+      midLevelMaxAnswer: number
+    }> = [
+      { ageBand: 'growing', firstLevelMaxAnswer: 10, firstLevelMathLevel: 1, midLevelMaxAnswer: 20 },
+      { ageBand: 'big', firstLevelMaxAnswer: 10, firstLevelMathLevel: 2, midLevelMaxAnswer: 20 },
+      { ageBand: 'master', firstLevelMaxAnswer: 20, firstLevelMathLevel: 3, midLevelMaxAnswer: 50 },
+    ]
+
+    for (const expected of expectations) {
+      const first = learningWorldCfg('pacabacus', 1, expected.ageBand)
+      const mid = learningWorldCfg('pacabacus', 15, expected.ageBand)
+
+      expect(first.problem.kind).toBe('tech')
+      expect(mid.problem.kind).toBe('tech')
+      if (first.problem.kind !== 'tech' || mid.problem.kind !== 'tech') return
+      expect(first.problem.ops).toBe('add')
+      expect(first.problem.maxAnswer).toBeLessThanOrEqual(expected.firstLevelMaxAnswer)
+      expect(first.problem.mathLevel).toBeLessThanOrEqual(expected.firstLevelMathLevel)
+      expect(mid.problem.maxAnswer).toBeLessThanOrEqual(expected.midLevelMaxAnswer)
+    }
   })
 })
